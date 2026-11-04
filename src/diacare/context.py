@@ -20,5 +20,5 @@ def build_context(agent, state):
             "history": state.history[-MAX_HISTORY_TURNS:],
         }
     if agent == "rule":
-        return {"risk": state.risk, "draft": state.draft, "profile": state.profile}
+        return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question}
     raise ValueError(f"unknown agent: {agent}")

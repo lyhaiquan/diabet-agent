@@ -26,7 +26,7 @@ class Orchestrator:
         state.docs = self.retriever.search(state.question)
         state.draft = advise(build_context("advisor", state), self.llm)
         rule_ctx = build_context("rule", state)
-        state.final, flags = apply_rules(rule_ctx["risk"], rule_ctx["draft"])
+        state.final, flags = apply_rules(rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"])
         state.flags = flags
         state.history += [
             {"role": "user", "content": state.question},

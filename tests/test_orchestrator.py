@@ -56,3 +56,12 @@ def test_invalid_profile_short_circuits():
     state = orch.run(State(question="?", profile=dict(LOW_RISK, BMI=500)))
     assert state.flags == ["invalid_input"]
     assert calls == [] and orch.predictor.calls == 0
+
+
+def test_missing_feature_short_circuits():
+    profile = dict(LOW_RISK)
+    del profile["Income"]
+    orch, calls = make()
+    state = orch.run(State(question="?", profile=profile))
+    assert state.flags == ["invalid_input"]
+    assert calls == [] and orch.predictor.calls == 0
