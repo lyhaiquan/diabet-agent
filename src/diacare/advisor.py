@@ -1,16 +1,19 @@
+from diacare.rules import risk_band
+
 SYSTEM_PROMPT = (
     "Bạn là trợ lý thông tin sức khỏe về bệnh tiểu đường. "
     "Chỉ dùng tài liệu được cung cấp và trích nguồn dạng [tên_file]. "
     "Nếu tài liệu không đủ, hãy nói rõ là chưa đủ thông tin. "
     "Không kê đơn, không hướng dẫn thay đổi liều thuốc hoặc insulin."
+    " Không nêu điểm nguy cơ dưới dạng phần trăm hay xác suất; chỉ nói mức thấp, trung bình hoặc cao."
 )
 
 
 def build_messages(ctx):
     docs = "\n\n".join(f"[{d['source']}]\n{d['text']}" for d in ctx["docs"]) or "(không có tài liệu)"
-    risk = f"{ctx['risk']:.2f}" if ctx["risk"] is not None else "chưa có"
+    band = risk_band(ctx["risk"]) if ctx["risk"] is not None else "chưa có"
     user = (
-        f"Điểm nguy cơ tiểu đường của người dùng (0-1): {risk}\n\n"
+        f"Mức nguy cơ tiểu đường ước tính của người dùng: {band}\n\n"
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
     )

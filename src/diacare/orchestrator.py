@@ -22,11 +22,17 @@ class Orchestrator:
             self._log(state)
             return state
 
-        state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
-        state.docs = self.retriever.search(state.question)
-        state.draft = advise(build_context("advisor", state), self.llm)
-        rule_ctx = build_context("rule", state)
-        state.final, flags = apply_rules(rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"])
+        try:
+            state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
+            state.docs = self.retriever.search(state.question)
+            state.draft = advise(build_context("advisor", state), self.llm)
+            rule_ctx = build_context("rule", state)
+            state.final, flags = apply_rules(rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"])
+        except Exception as exc:
+            state.flags = ["system_error"]
+            state.final = "Hệ thống đang gặp sự cố, vui lòng thử lại sau."
+            self._log(state, error=type(exc).__name__)
+            return state
         state.flags = flags
         state.history += [
             {"role": "user", "content": state.question},
@@ -35,7 +41,7 @@ class Orchestrator:
         self._log(state)
         return state
 
-    def _log(self, state):
+    def _log(self, state, error=None):
         if not self.log_path:
             return
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,5 +53,7 @@ class Orchestrator:
             "flags": state.flags,
             "final_chars": len(state.final),
         }
+        if error:
+            record["error"] = error
         with self.log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")

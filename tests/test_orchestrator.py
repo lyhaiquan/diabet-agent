@@ -65,3 +65,26 @@ def test_missing_feature_short_circuits():
     state = orch.run(State(question="?", profile=profile))
     assert state.flags == ["invalid_input"]
     assert calls == [] and orch.predictor.calls == 0
+
+
+def test_llm_failure_returns_system_error(tmp_path):
+    def bad_llm(messages):
+        raise RuntimeError("boom")
+
+    orch = Orchestrator(FakePredictor(0.5), FakeRetriever(), bad_llm, log_path=tmp_path / "run.jsonl")
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert state.flags == ["system_error"]
+    assert "sự cố" in state.final
+    assert state.history == []
+    record = json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert record["error"] == "RuntimeError"
+
+
+def test_predictor_failure_returns_system_error():
+    class BadPredictor:
+        def predict(self, profile):
+            raise ValueError("x")
+
+    orch = Orchestrator(BadPredictor(), FakeRetriever(), lambda m: "ok")
+    state = orch.run(State(question="?", profile=LOW_RISK))
+    assert state.flags == ["system_error"]

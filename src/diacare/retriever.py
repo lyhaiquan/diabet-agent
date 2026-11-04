@@ -19,7 +19,10 @@ class Retriever:
         self.chunks = [
             {"source": src, "text": c} for src, text in docs for c in chunk_text(text)
         ]
-        self.matrix = self._normalize(self.embed([c["text"] for c in self.chunks]))
+        if self.chunks:
+            self.matrix = self._normalize(self.embed([c["text"] for c in self.chunks]))
+        else:
+            self.matrix = np.empty((0, 0), dtype="float32")
 
     @staticmethod
     def _normalize(m):
@@ -27,8 +30,14 @@ class Retriever:
         norms = np.linalg.norm(m, axis=1, keepdims=True)
         return m / np.where(norms == 0, 1, norms)
 
-    def search(self, query, k=4):
+    def search(self, query, k=4, min_score=0.0):
+        if not self.chunks:
+            return []
         q = self._normalize(self.embed([query]))[0]
         scores = self.matrix @ q
         top = np.argsort(-scores)[:k]
-        return [dict(self.chunks[i], score=float(scores[i])) for i in top]
+        return [
+            dict(self.chunks[i], score=float(scores[i]))
+            for i in top
+            if scores[i] >= min_score
+        ]

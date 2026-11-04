@@ -14,7 +14,8 @@ def test_messages_contain_docs_risk_and_question():
     joined = "\n".join(m["content"] for m in msgs)
     assert "[ada.txt]" in joined
     assert "Hạn chế đường hấp thu nhanh." in joined
-    assert "0.62" in joined
+    assert "cao" in joined
+    assert "0.62" not in joined
     assert "Tôi nên ăn gì?" in msgs[-1]["content"]
 
 
@@ -27,3 +28,8 @@ def test_advise_calls_llm_with_messages():
 
     assert advise(CTX, fake_llm) == "Hãy giảm đường [ada.txt]."
     assert seen["messages"][0]["role"] == "system"
+
+
+def test_risk_none_shows_chua_co():
+    msgs = build_messages(dict(CTX, risk=None))
+    assert "chưa có" in " ".join(m["content"] for m in msgs)

@@ -19,3 +19,23 @@ def test_search_returns_best_chunk_with_source():
     hits = r.search("glucose", k=1)
     assert hits[0]["source"] == "g.txt"
     assert "glucose" in hits[0]["text"]
+
+
+def test_empty_docs_search_returns_empty():
+    def boom(texts):
+        raise AssertionError("embed_fn must not be called on empty input")
+
+    assert Retriever(boom, []).search("glucose") == []
+    r2 = Retriever(fake_embed, [("blank.txt", "   ")])
+    assert r2.search("glucose") == []
+
+
+def test_k_larger_than_chunks_returns_all():
+    r = Retriever(fake_embed, [("g.txt", "glucose insulin"), ("e.txt", "exercise")])
+    assert len(r.search("glucose", k=10)) == 2
+
+
+def test_min_score_filters_low_hits():
+    r = Retriever(fake_embed, [("g.txt", "glucose glucose insulin"), ("e.txt", "exercise exercise")])
+    hits = r.search("glucose", k=4, min_score=0.5)
+    assert [h["source"] for h in hits] == ["g.txt"]
