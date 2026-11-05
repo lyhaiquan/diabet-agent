@@ -97,7 +97,7 @@ else:
     raise RuntimeError("Ollama server không khởi động được, xem log ở trên")
 '''
 
-CELL_PULL = '''MODELS = ["qwen2.5:3b", "qwen2.5:7b"]   # sửa tại đây nếu muốn đổi/bớt model
+CELL_PULL = '''MODELS = ["qwen2.5:7b"]   # model mục tiêu; thêm "qwen2.5:3b" nếu muốn so thêm (tốn thêm giờ GPU)
 for m in MODELS:
     !ollama pull {m}
 !ollama list
@@ -122,19 +122,24 @@ print("Token/giây:", state.usage)
 print("\\n" + state.final)
 '''
 
-CELL_BENCH = '''# Benchmark: 36 ca x k lần x các model. Mất vài phút đến vài chục phút tùy model.
-import subprocess, sys
+CELL_BENCH = '''# Ablation V1 vs V2: cùng 46 ca x k=3 lần, đổi cấu hình tính năng.
+#   v1  = tắt mọi tính năng V2 | v2 = nutrition + memory (mặc định) | all = v2 + hybrid retrieval
 models_args = " ".join(MODELS)
-!python eval/benchmark.py --llm ollama --embed sbert --models {models_args} --k 3 --num-ctx 4096 --kb kb --out /kaggle/working/reports/latest
+FEATURE_SETS = ["v1", "v2", "all"]
+for f in FEATURE_SETS:
+    print("=" * 20, "features =", f, "=" * 20)
+    !python eval/benchmark.py --llm ollama --embed sbert --models {models_args} --k 3 --num-ctx 4096 --kb kb --features {f} --out /kaggle/working/reports/{f}
 '''
 
 CELL_SHOW = '''from IPython.display import Markdown, Image, display
 from pathlib import Path
 
-out = Path("/kaggle/working/reports/latest")
-display(Markdown((out / "report.md").read_text(encoding="utf-8")))
-for png in sorted(out.glob("*.png")):
-    display(Image(filename=str(png)))
+for f in FEATURE_SETS:
+    out = Path("/kaggle/working/reports") / f
+    display(Markdown(f"# Cấu hình: {f}"))
+    display(Markdown((out / "report.md").read_text(encoding="utf-8")))
+    for png in sorted(out.glob("*.png")):
+        display(Image(filename=str(png)))
 '''
 
 CELL_ZIP = '''# Gói kết quả để tải về (hoặc lấy ở mục Output sau khi Save Version)
