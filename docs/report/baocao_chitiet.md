@@ -1,7 +1,7 @@
 ---
 title: "BÁO CÁO CHI TIẾT DỰ ÁN DIACARE-MAS"
 subtitle: "Hệ đa tác tử hỗ trợ tư vấn phòng ngừa tiểu đường: thiết kế, cài đặt, triển khai và đánh giá"
-author: "Lý Hải Quân - B23DCCN676 - Lớp D23CTPM01 - Nhóm lớp 05"
+author: "Lý Hải Quân - B23DCCN676 - Nhóm lớp 05"
 date: "Học viện Công nghệ Bưu chính Viễn thông - Tháng 11/2026"
 lang: vi
 toc-title: "Mục lục"
