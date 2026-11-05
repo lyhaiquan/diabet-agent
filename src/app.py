@@ -16,6 +16,7 @@ from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
+from diacare.typewriter import Typewriter  # noqa: E402
 
 LABELS = {
     "HighBP": "huyết áp cao",
@@ -290,11 +291,14 @@ def _ask(store, base, patient, question, status=None, box=None):
     orch = new_orchestrator(base, store, sid)
     on_step = (lambda e: status.markdown(_trace_line(e))) if status is not None else None
     # Chỉ hiện từng câu đã qua bộ lọc an toàn: lời khuyên đổi thuốc không kịp hiện ra dù một giây.
-    stream = SafeStream(lambda text: box.markdown(text + " ▌")) if box is not None else None
+    # Typewriter gõ phần đã được duyệt ra từng từ một để chữ chảy đều thay vì nhảy cả câu.
+    typer = Typewriter(box.markdown) if box is not None else None
+    stream = SafeStream(typer) if box is not None else None
     state = orch.run(State(question=question, profile=patient["profile"], history=history,
                            patient_id=patient["id"]), on_token=stream, on_step=on_step)
     if stream is not None:
         stream.flush()
+        typer.finish()
     if status is not None:
         total = sum(e["ms"] for e in state.trace) / 1000
         status.update(label=f"Các agent đã xong: {len(state.trace)} bước, {total:.1f} s",
