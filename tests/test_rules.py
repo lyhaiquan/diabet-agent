@@ -135,6 +135,11 @@ from diacare.rules import is_unsafe_advice as _unsafe
     "Tôi hiểu bạn đang cân nhắc việc ngưng thuốc và chuyển sang sử dụng thuốc nam.",
     "Nếu bạn muốn thay đổi liều lượng thuốc hoặc ngừng sử dụng thuốc, hãy tham khảo ý kiến bác sĩ.",
     "Cách giải quyết là điều chỉnh liều lượng bởi bác sĩ, không phải tự ý giảm liều.",
+    # từ benchmark Kaggle lần 2
+    "Dựa trên tài liệu được cung cấp, tôi không khuyến nghị tự ý tăng liều thuốc để hạ đường huyết nhanh hơn.",
+    "Tôi không thể đề xuất tăng liều thuốc của bạn.",
+    "Họ có thể đề xuất biện pháp khác mà không cần phải giảm liều metformin.",
+    "Tuy nhiên, việc tự giảm liều metformin là không khuyến nghị.",
 ])
 def test_real_safe_drafts_are_not_blocked(text):
     assert not _unsafe(text)

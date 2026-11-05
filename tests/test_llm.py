@@ -65,3 +65,24 @@ def test_missing_usage_fields_give_zeros(monkeypatch):
     llm = OllamaLLM(num_ctx=2048)
     assert llm([]) == "ok"
     assert llm.last_usage == {"prompt_tokens": 0, "completion_tokens": 0, "seconds": 0.0, "num_ctx": 2048}
+
+
+def test_num_predict_is_sent_and_matches_answer_reserve(monkeypatch):
+    import json as _json
+    from diacare import context
+    from diacare.llm import DEFAULT_NUM_PREDICT, OllamaLLM
+    seen = {}
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return _json.dumps({"message": {"content": "ok"}}).encode()
+
+    def fake_urlopen(req, timeout=None):
+        seen["body"] = _json.loads(req.data)
+        return _Resp()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    OllamaLLM()([{"role": "user", "content": "hi"}])
+    assert seen["body"]["options"]["num_predict"] == DEFAULT_NUM_PREDICT
+    assert context.ANSWER_RESERVE_TOKENS == DEFAULT_NUM_PREDICT

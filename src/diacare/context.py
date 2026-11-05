@@ -1,9 +1,9 @@
 import math
 
-from diacare.llm import DEFAULT_NUM_CTX
+from diacare.llm import DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT
 
 CHARS_PER_TOKEN = 4.0          # đo thật trên Kaggle (qwen2.5) là ~4.64; giữ thấp hơn để ước lượng vẫn bảo thủ
-ANSWER_RESERVE_TOKENS = 512     # chừa chỗ cho câu trả lời
+ANSWER_RESERVE_TOKENS = DEFAULT_NUM_PREDICT  # chừa chỗ cho câu trả lời = giới hạn num_predict của LLM
 SYSTEM_RESERVE_TOKENS = 250     # system prompt + nhãn tài liệu + dòng mức nguy cơ
 HISTORY_TOKEN_BUDGET = 800
 DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu

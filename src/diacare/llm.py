@@ -7,19 +7,24 @@ import numpy as np
 
 
 DEFAULT_NUM_CTX = 4096
+# Giới hạn độ dài câu trả lời = phần ngân sách context chừa cho câu trả lời (context.ANSWER_RESERVE_TOKENS).
+# Không giới hạn thì model có thể viết mãi và hết thời gian chờ (đã gặp trên Kaggle lần 2).
+DEFAULT_NUM_PREDICT = 512
 
 
 class OllamaLLM:
     def __init__(self, model="qwen2.5:7b", url="http://localhost:11434/api/chat",
-                 num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=300):
+                 num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=300,
+                 num_predict=DEFAULT_NUM_PREDICT):
         self.model, self.url, self.num_ctx = model, url, num_ctx
-        self.temperature, self.timeout = temperature, timeout
+        self.temperature, self.timeout, self.num_predict = temperature, timeout, num_predict
         self.last_usage = {}
 
     def __call__(self, messages):
         body = json.dumps({
             "model": self.model, "messages": messages, "stream": False,
-            "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
+            "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,
+                        "num_predict": self.num_predict},
         }).encode()
         req = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
