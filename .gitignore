@@ -6,7 +6,8 @@ models/*.pt
 models/*.joblib
 *.db
 *.sqlite
-data/
+data/*
+!data/nutrition/
 reports/
 !models/metrics.json
 kaggle/*.ipynb
