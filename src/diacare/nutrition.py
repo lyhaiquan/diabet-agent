@@ -48,13 +48,39 @@ def _contains_word(text, word):
     return _word_re(word).search(text) is not None
 
 
-def _is_nutrient_query(food, text, start, end):
-    """'bao nhiêu đường' / 'đường huyết' là chất/chỉ số, không phải thìa đường."""
-    if food["name"] != "đường":
+# Từ một âm tiết trùng nghĩa khác (so trên chữ đã bỏ dấu): (từ đứng ngay trước, từ đứng ngay sau).
+# Rút ra từ benchmark Kaggle lần 3: "tiểu đường" và "giá vàng" từng bị hiểu là món ăn.
+_OTHER_SENSE = {
+    "duong": (("bao nhieu", "luong", "tieu", "thao", "dai", "con", "tuyen", "duong"),
+              ("huyet", "di", "pho", "dan", "sa", "bo", "cao toc", "ray")),
+    "gia": (("danh", "tang", "giam", "ban", "tri", "co", "dat", "re", "muc", "bang"),
+            ("vang", "ca", "tien", "bao", "xang", "thuoc", "re", "dat", "tri", "tang", "giam", "ban", "nhu")),
+    "ca": (("moi", "tung", "tat", "toan", "tat ca"),
+           ("nhan", "the", "tinh", "cuoc", "biet")),
+    "cam": ((), ("ket", "doan", "chiu", "go", "tu", "giac", "xuc", "on")),
+    "lac": (("lien", "mat", "luu", "that", "cau", "an", "chi", "doan", "sa", "luu"),
+            ("quan", "de", "loi", "long", "hau", "dieu", "giong", "huong", "thu")),
+    "nhan": (("dan", "doc", "in"), ("hieu", "mac", "thuoc", "dan", "dinh", "vo", "gia", "khoa", "sac", "vien", "luc")),
+    "vai": ((), ("voc", "soi", "bo", "thun", "lua", "may")),
+}
+
+
+def _ends_with_word(text, word):
+    return text == word or text.endswith(" " + word)
+
+
+def _starts_with_word(text, word):
+    return text == word or text.startswith(word + " ")
+
+
+def _is_other_sense(text, start, end):
+    """True nếu từ ở [start, end) mang nghĩa khác món ăn: 'tiểu đường', 'đường huyết', 'giá vàng', 'cá nhân'..."""
+    rule = _OTHER_SENSE.get(strip_accents(text[start:end]))
+    if rule is None:
         return False
-    before = strip_accents(text[:start]).rstrip()
-    after = strip_accents(text[end:]).lstrip()
-    return before.endswith(("bao nhieu", "luong")) or after.startswith("huyet")
+    before = " ".join(re.findall(r"\w+", strip_accents(text[:start]))[-2:])
+    after = " ".join(re.findall(r"\w+", strip_accents(text[end:]))[:2])
+    return any(_ends_with_word(before, w) for w in rule[0]) or any(_starts_with_word(after, w) for w in rule[1])
 
 
 def _num(token):
@@ -111,7 +137,7 @@ class NutritionAgent:
                 s, e = m.span()
                 if any(s < us_e and us_s < e for _, us_s, us_e, _ in spans):
                     continue
-                if _is_nutrient_query(food, q, s, e):
+                if _is_other_sense(q, s, e):
                     continue
                 spans.append((food, s, e, display))
                 used.add(id(food))

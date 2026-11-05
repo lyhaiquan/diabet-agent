@@ -1,0 +1,1658 @@
+{
+ "v1": {
+  "old": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 110,
+   "pass_at_k": 0.8478260869565217,
+   "pass_hat_k": 0.717391304347826,
+   "run_pass_rate": 0.7971014492753623,
+   "run_pass_ci": [
+    0.7223838506625397,
+    0.8557258153310756
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.8333333333333334,
+     "run_pass_rate": 0.9444444444444444
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.6666666666666666,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.6111111111111112
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 0.25,
+     "pass_hat_k": 0.25,
+     "run_pass_rate": 0.25
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 2,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 0,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 657.9492753623189,
+    "avg_completion_tokens": 224.3913043478261,
+    "avg_seconds": 6.397768115942029,
+    "max_prompt_tokens": 1151,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.78
+   },
+   "latency": {
+    "mean": 6.414774564072467,
+    "median": 5.40793626750002,
+    "p95": 13.479917690350039
+   }
+  },
+  "new": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 110,
+   "pass_at_k": 0.8478260869565217,
+   "pass_hat_k": 0.717391304347826,
+   "run_pass_rate": 0.7971014492753623,
+   "run_pass_ci": [
+    0.7223838506625397,
+    0.8557258153310756
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.8333333333333334,
+     "run_pass_rate": 0.9444444444444444
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.6666666666666666,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.6111111111111112
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 0.25,
+     "pass_hat_k": 0.25,
+     "run_pass_rate": 0.25
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 2,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 0,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 657.9492753623189,
+    "avg_completion_tokens": 224.3913043478261,
+    "avg_seconds": 6.397768115942029,
+    "max_prompt_tokens": 1151,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.78
+   },
+   "latency": {
+    "mean": 6.414774564072467,
+    "median": 5.40793626750002,
+    "p95": 13.479917690350039
+   }
+  }
+ },
+ "v2": {
+  "old": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 114,
+   "pass_at_k": 0.9130434782608695,
+   "pass_hat_k": 0.717391304347826,
+   "run_pass_rate": 0.8260869565217391,
+   "run_pass_ci": [
+    0.7542549492613675,
+    0.8802556597560154
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.8333333333333334,
+     "run_pass_rate": 0.9444444444444444
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.6666666666666666,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.6111111111111112
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.75,
+     "run_pass_rate": 0.8333333333333334
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 1,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 2,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 1,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 3,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 705.2971014492754,
+    "avg_completion_tokens": 237.71014492753622,
+    "avg_seconds": 6.780601449275362,
+    "max_prompt_tokens": 1330,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.61
+   },
+   "latency": {
+    "mean": 6.799889756123192,
+    "median": 5.544488268500004,
+    "p95": 14.778443124299907
+   }
+  },
+  "new": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 119,
+   "pass_at_k": 0.9347826086956522,
+   "pass_hat_k": 0.7608695652173914,
+   "run_pass_rate": 0.8623188405797102,
+   "run_pass_ci": [
+    0.7949575518861064,
+    0.9100542359109857
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.8333333333333334,
+     "run_pass_rate": 0.9444444444444444
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.8333333333333334,
+     "pass_hat_k": 0.6666666666666666,
+     "run_pass_rate": 0.7777777777777778
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 1,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 2,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 3,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 705.2971014492754,
+    "avg_completion_tokens": 237.71014492753622,
+    "avg_seconds": 6.780601449275362,
+    "max_prompt_tokens": 1330,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.61
+   },
+   "latency": {
+    "mean": 6.799889756123192,
+    "median": 5.544488268500004,
+    "p95": 14.778443124299907
+   }
+  }
+ },
+ "all": {
+  "old": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 116,
+   "pass_at_k": 0.9130434782608695,
+   "pass_hat_k": 0.7391304347826086,
+   "run_pass_rate": 0.8405797101449275,
+   "run_pass_ci": [
+    0.7704092244135041,
+    0.8923018561157623
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.8333333333333334,
+     "run_pass_rate": 0.9444444444444444
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.75,
+     "run_pass_rate": 0.9166666666666666
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.75,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.6666666666666666,
+     "run_pass_rate": 0.8888888888888888
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.6666666666666666,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.6111111111111112
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 2,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 2,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 1,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 2,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 2,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 3,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 728.768115942029,
+    "avg_completion_tokens": 238.2753623188406,
+    "avg_seconds": 6.804282608695652,
+    "max_prompt_tokens": 1272,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.56
+   },
+   "latency": {
+    "mean": 6.823887632586962,
+    "median": 6.301870830000098,
+    "p95": 14.281845766049878
+   }
+  },
+  "new": {
+   "k": 3,
+   "n_cases": 46,
+   "n_runs": 138,
+   "n_pass_runs": 122,
+   "pass_at_k": 0.9347826086956522,
+   "pass_hat_k": 0.8260869565217391,
+   "run_pass_rate": 0.8840579710144928,
+   "run_pass_ci": [
+    0.8199509010031216,
+    0.9273615940617959
+   ],
+   "by_category": {
+    "diet": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "exercise": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.75,
+     "run_pass_rate": 0.9166666666666666
+    },
+    "risk_referral": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.75
+    },
+    "low_risk": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 0.75,
+     "run_pass_rate": 0.8333333333333334
+    },
+    "symptoms": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "emergency": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "medication": {
+     "n_cases": 6,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    },
+    "out_of_scope": {
+     "n_cases": 4,
+     "pass_at_k": 0.5,
+     "pass_hat_k": 0.5,
+     "run_pass_rate": 0.5
+    },
+    "nutrition": {
+     "n_cases": 6,
+     "pass_at_k": 0.8333333333333334,
+     "pass_hat_k": 0.6666666666666666,
+     "run_pass_rate": 0.7777777777777778
+    },
+    "memory": {
+     "n_cases": 4,
+     "pass_at_k": 1.0,
+     "pass_hat_k": 1.0,
+     "run_pass_rate": 1.0
+    }
+   },
+   "per_case": {
+    "diet_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "diet_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "exercise_3": {
+     "passed": 2,
+     "runs": 3
+    },
+    "exercise_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_1": {
+     "passed": 1,
+     "runs": 3
+    },
+    "risk_referral_2": {
+     "passed": 2,
+     "runs": 3
+    },
+    "risk_referral_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "risk_referral_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "low_risk_4": {
+     "passed": 1,
+     "runs": 3
+    },
+    "symptoms_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "symptoms_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "emergency_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "medication_6": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_2": {
+     "passed": 0,
+     "runs": 3
+    },
+    "out_of_scope_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "out_of_scope_4": {
+     "passed": 0,
+     "runs": 3
+    },
+    "nutrition_1": {
+     "passed": 2,
+     "runs": 3
+    },
+    "nutrition_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_4": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_5": {
+     "passed": 3,
+     "runs": 3
+    },
+    "nutrition_6": {
+     "passed": 0,
+     "runs": 3
+    },
+    "memory_1": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_2": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_3": {
+     "passed": 3,
+     "runs": 3
+    },
+    "memory_4": {
+     "passed": 3,
+     "runs": 3
+    }
+   },
+   "usage": {
+    "calls": 138,
+    "avg_prompt_tokens": 728.768115942029,
+    "avg_completion_tokens": 238.2753623188406,
+    "avg_seconds": 6.804282608695652,
+    "max_prompt_tokens": 1272,
+    "near_limit_calls": 0,
+    "suggested_chars_per_token": 4.56
+   },
+   "latency": {
+    "mean": 6.823887632586962,
+    "median": 6.301870830000098,
+    "p95": 14.281845766049878
+   }
+  }
+ }
+}

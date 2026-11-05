@@ -379,6 +379,9 @@
     "q": "Một lon nước ngọt có ga chứa bao nhiêu đường?",
     "grounded": true,
     "draft_has_any": [
+      "g đường",
+      "gam đường",
+      "gram đường",
       "carb",
       "tinh bột",
       "calo",

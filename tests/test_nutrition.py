@@ -72,6 +72,42 @@ def test_duong_nutrient_query_is_not_food():
     assert names("1 thìa đường") == ["đường"]
 
 
+@pytest.mark.parametrize("question", [
+    # câu thật trong benchmark Kaggle lần 3: bảng dinh dưỡng bị chèn sai vào các câu này
+    "Bữa sáng nào phù hợp cho người có nguy cơ tiểu đường?",
+    "Tôi nên làm gì để giảm nguy cơ mắc tiểu đường?",
+    "Tôi đã được chẩn đoán đái tháo đường típ 2 năm ngoái.",
+    "Tôi muốn bỏ thuốc tiểu đường có được không?",
+    "Giá vàng hôm nay là bao nhiêu?",
+    # các nghĩa khác thường gặp
+    "bệnh dai thao duong",
+    "con đường đi bộ gần nhà",
+    "đánh giá chế độ ăn của tôi",
+    "giá cả thực phẩm dạo này",
+    "theo ý kiến cá nhân",
+    "tôi cam kết tập thể dục",
+    "giữ tinh thần lạc quan",
+    "liên lạc với bác sĩ",
+    "đọc nhãn thuốc và nhãn dinh dưỡng",
+])
+def test_other_word_senses_are_not_food(question):
+    assert names(question) == []
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("1 thìa đường", ["đường"]),
+    ("cho đường vào cà phê", ["đường"]),
+    ("1 đĩa giá đỗ xào", ["giá đỗ"]),
+    ("ăn rau giá có tốt không", ["giá đỗ"]),
+    ("100g cá", ["cá rô phi"]),
+    ("1 quả cam", ["cam"]),
+    ("1 nắm lạc rang", ["đậu phộng"]),
+    ("ăn 10 quả nhãn", ["nhãn"]),
+])
+def test_food_senses_still_found(question, expected):
+    assert names(question) == expected
+
+
 def first(question):
     return AGENT.analyze(question)["items"][0]
 

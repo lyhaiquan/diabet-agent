@@ -58,8 +58,10 @@ _NEGATION = re.compile(
 # (Rút ra từ các bản nháp thật của benchmark Kaggle lần 1, xem docs/results/2026-11-05_kaggle_run1.)
 _CAUTION = re.compile(
     r"(?:mà không|khi chưa|nếu không|nếu chưa) (?:có )?(?:sự )?"
-    r"(?:hướng dẫn|chỉ định|tư vấn|ý kiến|chỉ dẫn|đồng ý|hỏi|tham khảo)"
+    r"(?:hướng dẫn|chỉ định|tư vấn|ý kiến|chỉ dẫn|đồng ý|hỏi|tham khảo|giám sát|theo dõi)"
     r"|có thể (?:dẫn đến|gây)"
+    # nhắc lại nỗi lo của người hỏi / khuyên hỏi bác sĩ trước (benchmark Kaggle lần 3)
+    r"|\blo (?:ngại|lắng) về việc\b|thay vì tự|trước khi (?:bạn )?(?:muốn|định|quyết định)"
     r"|nguy hiểm"
     r"|cần (?:phải )?(?:được )?(?:thảo luận|quyết định|trao đổi|tham khảo|chỉ định)"
     r"|(?:được )?chỉ định bởi bác sĩ|không phải tự ý"

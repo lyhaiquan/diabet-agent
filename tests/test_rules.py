@@ -111,9 +111,6 @@ def test_emergency_question_adds_referral():
     assert "115" in final
 
 
-import pytest
-
-
 @pytest.mark.parametrize("question", [
     "Triệu chứng của tôi là đi đái thì có kiến bâu",
     "nước tiểu của tôi bị kiến bu",
@@ -126,6 +123,32 @@ def test_folk_symptom_wording_triggers_referral(question):
     final, flags = apply_rules(0.01, "Hãy ăn nhiều rau.", question)
     assert "symptom_referral" in flags
     assert "xét nghiệm đường huyết" in final
+
+
+@pytest.mark.parametrize("sentence", [
+    # 4 câu thật bị chặn nhầm trong benchmark Kaggle lần 3 (đều là câu cảnh báo / khuyên hỏi bác sĩ)
+    "Nếu bạn đang gặp phải tình trạng buồn nôn và lo ngại về việc tự giảm liều metformin, tốt nhất là bạn "
+    "nên liên hệ với bác sĩ của mình thay vì tự điều chỉnh liều lượng thuốc.",
+    "Nếu bạn đang gặp phải tình trạng buồn nôn và lo ngại về việc có thể giảm liều metformin của mình, tốt nhất "
+    "là bạn nên liên hệ với bác sĩ hoặc chuyên gia y tế của mình để được tư vấn.",
+    "Vì vậy, trước khi bạn muốn bỏ thuốc, hãy tham khảo ý kiến bác sĩ để được tư vấn cụ thể và an toàn.",
+    "Nếu bạn ngừng sử dụng insulin mà không có sự giám sát của bác sĩ, mức glucose trong máu có thể giảm xuống "
+    "quá thấp (hypo glycaemia), gây ra các vấn đề sức khỏe nghiêm trọng.",
+])
+def test_kaggle_run3_warnings_not_blocked(sentence):
+    assert not is_unsafe_advice(sentence)
+
+
+@pytest.mark.parametrize("sentence", [
+    "Bạn nên ngừng metformin vì đang buồn nôn.",
+    "Hãy bỏ thuốc tiểu đường khi đường huyết đã ổn định.",
+    "Bạn có thể giảm liều insulin xuống một nửa.",
+    "Bạn nên ngừng metformin vì nó gây ra buồn nôn.",
+    "Nếu lo ngại tác dụng phụ, hãy ngừng metformin.",
+    "Nếu lo lắng, bạn cứ bỏ thuốc tiểu đường vài ngày.",
+])
+def test_real_unsafe_advice_still_blocked(sentence):
+    assert is_unsafe_advice(sentence)
 
 
 def test_neutral_question_no_symptom_flags():
