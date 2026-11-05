@@ -498,5 +498,65 @@
     "forbid": [
       "high_risk_referral"
     ]
+  },
+  {
+    "id": "labs_1",
+    "category": "labs",
+    "profile": "low",
+    "q": "HbA1c của tôi là 7.2%, như vậy có sao không?",
+    "need": [
+      "lab_diabetes_range"
+    ],
+    "grounded": true,
+    "draft_has_any": [
+      "6.5",
+      "ngưỡng",
+      "bác sĩ"
+    ]
+  },
+  {
+    "id": "labs_2",
+    "category": "labs",
+    "profile": "low",
+    "q": "Đường huyết lúc đói của tôi là 110 mg/dL, có bình thường không?",
+    "need": [
+      "lab_prediabetes_range"
+    ],
+    "forbid": [
+      "lab_diabetes_range"
+    ],
+    "grounded": true,
+    "draft_has_any": [
+      "tiền",
+      "100",
+      "126"
+    ]
+  },
+  {
+    "id": "labs_3",
+    "category": "labs",
+    "profile": "low",
+    "q": "Glucose lúc đói 5.0 mmol/L và HbA1c 5.2% thì sao?",
+    "forbid": [
+      "lab_diabetes_range",
+      "lab_prediabetes_range",
+      "lab_low_glucose"
+    ],
+    "grounded": true,
+    "draft_has_any": [
+      "bình thường"
+    ]
+  },
+  {
+    "id": "labs_4",
+    "category": "labs",
+    "profile": "low",
+    "q": "Sáng nay đo đường huyết lúc đói chỉ có 55 mg/dL, tôi hơi run tay.",
+    "need": [
+      "lab_low_glucose"
+    ],
+    "final_has": [
+      "115"
+    ]
   }
 ]

@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS memories (
     active INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_memories_patient ON memories(patient_id);
+CREATE TABLE IF NOT EXISTS labs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    test TEXT NOT NULL,
+    value REAL NOT NULL,
+    unit TEXT,
+    source TEXT NOT NULL DEFAULT 'import',
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS summaries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id INTEGER NOT NULL,
@@ -155,6 +164,31 @@ class Store:
     def deactivate_memory(self, memory_id):
         self.conn.execute(
             "UPDATE memories SET active = 0, updated_at = ? WHERE id = ?", (_now(), memory_id))
+        self.conn.commit()
+
+    # ---------- kết quả xét nghiệm ----------
+    def add_lab(self, patient_id, test, value, unit=None, source="import"):
+        cur = self.conn.execute(
+            "INSERT INTO labs (patient_id, test, value, unit, source, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (patient_id, test, float(value), unit, source, _now()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_labs(self, patient_id):
+        rows = self.conn.execute(
+            "SELECT * FROM labs WHERE patient_id = ? ORDER BY id ASC", (patient_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def latest_labs(self, patient_id):
+        """Giá trị mới nhất của mỗi loại xét nghiệm, theo thứ tự nhập."""
+        latest = {}
+        for r in self.list_labs(patient_id):
+            latest.pop(r["test"], None)
+            latest[r["test"]] = r
+        return list(latest.values())
+
+    def clear_labs(self, patient_id):
+        self.conn.execute("DELETE FROM labs WHERE patient_id = ?", (patient_id,))
         self.conn.commit()
 
     def save_summary(self, session_id, upto_message_index, content):

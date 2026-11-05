@@ -15,3 +15,4 @@ class State:
     nutrition: dict | None = None
     patient_id: int | None = None
     memory: list = field(default_factory=list)
+    labs: list = field(default_factory=list)

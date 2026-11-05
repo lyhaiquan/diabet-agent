@@ -5,10 +5,11 @@ from pathlib import Path
 from diacare.advisor import advise
 from diacare.context import HISTORY_TOKEN_BUDGET, build_context, estimate_tokens
 from diacare.llm import DEFAULT_NUM_CTX
+from diacare.labs import parse_lab_text
 from diacare.memory import compress_history
 from diacare.nutrition import is_nutrition_question
-from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, SMALL_TALK_REPLY, apply_rules, is_small_talk,
-                           validate_profile)
+from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, LAB_NOTES, SMALL_TALK_REPLY, apply_rules,
+                           is_small_talk, validate_profile)
 
 # Hỏi thẳng về nguy cơ / khám thì nhắc lại lời khuyên đi khám dù đã nhắc trong phiên.
 _RISK_WORDS = ("nguy cơ", "có bị", "xét nghiệm", "đi khám", "risk")
@@ -16,7 +17,7 @@ _RISK_WORDS = ("nguy cơ", "có bị", "xét nghiệm", "đi khám", "risk")
 
 class Orchestrator:
     def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
-                 nutrition_agent=None, memory_agent=None, summarizer_llm=None):
+                 nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
@@ -25,6 +26,7 @@ class Orchestrator:
         self.session_id = session_id
         self.nutrition_agent = nutrition_agent
         self.memory_agent = memory_agent
+        self.lab_agent = lab_agent
         self.summarizer_llm = summarizer_llm if summarizer_llm is not None else (
             llm if memory_agent is not None else None)
 
@@ -60,6 +62,8 @@ class Orchestrator:
                 if summarised:
                     state.history = compressed
                     summary_usage = dict(getattr(self.summarizer_llm, "last_usage", None) or {})
+            if self.lab_agent is not None:
+                state.labs = self.lab_agent.collect(state.patient_id, state.question)
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
             state.docs = self.retriever.search(state.question)
             if self.nutrition_agent is not None:
@@ -78,9 +82,13 @@ class Orchestrator:
             already = any(HIGH_RISK_NOTE in m.get("content", "") for m in full_history
                           if m.get("role") == "assistant")
             asks_risk = any(w in state.question.lower() for w in _RISK_WORDS)
+            # nhận xét xét nghiệm: nhắc khi người dùng vừa đưa số liệu, hoặc chưa nhắc lần nào trong phiên
+            lab_noted = any(n in m.get("content", "") for m in full_history if m.get("role") == "assistant"
+                            for n in LAB_NOTES.values())
+            labs_for_rules = rule_ctx["labs"] if (parse_lab_text(state.question) or not lab_noted) else []
             state.final, flags = apply_rules(
                 rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
-                remind_risk=asks_risk or not already)
+                remind_risk=asks_risk or not already, labs=labs_for_rules)
         except Exception as exc:
             state.history = full_history
             state.flags = ["system_error"]
@@ -122,6 +130,7 @@ class Orchestrator:
             "usage": state.usage,
             "memory_kinds": [m["kind"] for m in state.memory],
             "nutrition_items": [i["name"] for i in (state.nutrition or {}).get("items", [])],
+            "lab_levels": {r["test"]: r["level"] for r in state.labs},
         }
         if error:
             record["error"] = error

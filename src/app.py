@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from diacare.factory import build_orchestrator, open_store  # noqa: E402
+from diacare.labs import LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file, parse_lab_text  # noqa: E402
 from diacare.memory import KIND_LABELS  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, risk_band, validate_profile  # noqa: E402
@@ -53,7 +54,8 @@ def new_orchestrator(base, store, session_id):
                         store=store, session_id=session_id,
                         nutrition_agent=getattr(base, "nutrition_agent", None),
                         memory_agent=getattr(base, "memory_agent", None),
-                        summarizer_llm=getattr(base, "summarizer_llm", None))
+                        summarizer_llm=getattr(base, "summarizer_llm", None),
+                        lab_agent=getattr(base, "lab_agent", None))
 
 
 def _env_key():
@@ -123,6 +125,53 @@ def _render_memories(store, patient_id):
             st.rerun()
 
 
+LEVEL_ICON = {"normal": "🟢", "prediabetes": "🟡", "diabetes": "🔴", "low": "🔵", "unclassified": "⚪"}
+
+
+def _import_labs(store, patient_id):
+    results = []
+    upload = st.session_state.get("lab_file")
+    try:
+        if upload is not None:
+            results += parse_lab_file(upload.name, upload.getvalue())
+        results += parse_lab_text(st.session_state.get("lab_text", ""))
+    except Exception as exc:  # file hỏng / không đọc được
+        st.session_state["lab_msg"] = ("error", f"Không đọc được file: {type(exc).__name__}")
+        return
+    saved = LabAgent(store).import_results(patient_id, results, source="import")
+    if saved:
+        names = ", ".join(LAB_LABELS[r["test"]] for r in saved)
+        st.session_state["lab_msg"] = ("success", f"Đã nhập {len(saved)} chỉ số: {names}.")
+        st.session_state["lab_text"] = ""
+    else:
+        st.session_state["lab_msg"] = (
+            "warning", "Không tìm thấy chỉ số hợp lệ. Hỗ trợ: HbA1c, đường huyết lúc đói, "
+                       "đường huyết 2 giờ (OGTT), đường huyết bất kỳ.")
+
+
+def _render_labs(store, patient_id):
+    st.subheader("Kết quả xét nghiệm")
+    labs = classify([{"test": r["test"], "value": r["value"], "unit": r["unit"]}
+                     for r in store.latest_labs(patient_id)])
+    for r in labs:
+        st.caption(f"{LEVEL_ICON[r['level']]} {r['label']}: {r['value_std']:g} {r['unit_std']} · {r['level_text']}")
+    if not labs:
+        st.caption("Chưa có kết quả. Có thể nhập file hoặc gõ thẳng vào chat, vd \"HbA1c của tôi 6.8%\".")
+    with st.expander("Nhập kết quả xét nghiệm", expanded=not labs):
+        st.file_uploader("File kết quả (.txt, .csv, .json, .pdf có chữ)", type=["txt", "csv", "json", "pdf"],
+                         key="lab_file")
+        st.text_area("Hoặc dán nội dung phiếu xét nghiệm", key="lab_text",
+                     placeholder="HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L")
+        st.button("Nhập kết quả", key="lab_import", on_click=_import_labs, args=(store, patient_id))
+        msg = st.session_state.pop("lab_msg", None)
+        if msg:
+            getattr(st, msg[0])(msg[1])
+        st.caption("Chỉ đối chiếu với ngưỡng tham khảo ADA 2024, không phải chẩn đoán.")
+    if labs and st.button("Xoá kết quả xét nghiệm", key="lab_clear"):
+        store.clear_labs(patient_id)
+        st.rerun()
+
+
 def render_sidebar(store):
     for f in FIELDS:
         st.session_state.setdefault(f"f_{f}", _default(f, LOW_RISK))
@@ -145,6 +194,7 @@ def render_sidebar(store):
         if patient_id is not None and st.button("Bắt đầu phiên mới"):
             start_new_session(store, patient_id)
         if patient_id is not None:
+            _render_labs(store, patient_id)
             _render_memories(store, patient_id)
         st.divider()
         st.subheader("Tạo hồ sơ mới")
@@ -269,8 +319,26 @@ def render_stats(store):
         plt.close(fig)
 
 
+_NO_TRANSLATE_JS = """<script>
+const d = window.parent.document;
+d.documentElement.lang = "vi";
+d.documentElement.setAttribute("translate", "no");
+d.documentElement.classList.add("notranslate");
+if (!d.querySelector('meta[name="google"]')) {
+  const m = d.createElement("meta"); m.name = "google"; m.content = "notranslate"; d.head.appendChild(m);
+}
+</script>"""
+
+
+def _no_auto_translate():
+    """Streamlit khai báo trang là tiếng Anh nên Chrome tự 'dịch' chữ Việt ("Chi tiết kỹ thuật" -> "Chim ™").
+    Đặt lang=vi và translate=no cho trang cha để trình duyệt không dịch."""
+    st.html(_NO_TRANSLATE_JS, unsafe_allow_javascript=True)
+
+
 def main():
     st.set_page_config(page_title="DiaCare-MAS", layout="wide")
+    _no_auto_translate()
     st.title("DiaCare-MAS")
     st.warning("Công cụ hỗ trợ học tập, không thay thế bác sĩ.")
     if os.environ.get("DIACARE_LLM") == "demo" or os.environ.get("DIACARE_EMBED") == "hash":

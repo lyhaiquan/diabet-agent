@@ -1,6 +1,7 @@
 import math
 
 from diacare.llm import DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT
+from diacare.labs import format_labs
 from diacare.memory import format_memory, has_diagnosis
 from diacare.nutrition import format_table
 
@@ -40,6 +41,11 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
                 memory_text = format_memory(facts)
                 memory_tokens = estimate_tokens(memory_text)
                 remaining -= memory_tokens
+        lab_text, lab_tokens = "", 0
+        if state.labs:  # kết quả xét nghiệm: ngay sau trí nhớ, trước dinh dưỡng và tài liệu
+            lab_text = format_labs(state.labs)
+            lab_tokens = estimate_tokens(lab_text)
+            remaining -= lab_tokens
         nutrition_text, nutrition_tokens = "", 0
         if state.nutrition:  # ưu tiên cao hơn tài liệu truy xuất
             nutrition_text = format_table(state.nutrition)
@@ -61,10 +67,11 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             "history": history,
             "memory_text": memory_text,
             "nutrition_text": nutrition_text,
+            "lab_text": lab_text,
             "est_tokens": (SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + memory_tokens
-                           + nutrition_tokens + docs_tokens),
+                           + lab_tokens + nutrition_tokens + docs_tokens),
         }
     if agent == "rule":
         return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question,
-                "diagnosed": has_diagnosis(state.memory)}
+                "diagnosed": has_diagnosis(state.memory), "labs": list(state.labs)}
     raise ValueError(f"unknown agent: {agent}")

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from diacare.db import Store
 from diacare.kb import load_kb
+from diacare.labs import LabAgent
 from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
 from diacare.memory import MemoryAgent
 from diacare.nutrition import NutritionAgent, load_foods
@@ -41,10 +42,10 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition", "memory", "hybrid")
+FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
-FEATURES_DEFAULT = ("nutrition", "memory")
+FEATURES_DEFAULT = ("nutrition", "memory", "labs")
 
 
 def parse_features(value=None):
@@ -89,10 +90,13 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     nutrition_agent = None
     if "nutrition" in features:
         nutrition_agent = NutritionAgent(load_foods(ROOT / "data" / "nutrition" / "vn_foods.json"))
-    memory_agent = MemoryAgent(store or Store(":memory:")) if "memory" in features else None
+    shared = store or (Store(":memory:") if {"memory", "labs"} & features else None)
+    memory_agent = MemoryAgent(shared) if "memory" in features else None
+    lab_agent = LabAgent(shared) if "labs" in features else None
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score,
                           mode="hybrid" if "hybrid" in features else "dense")
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
-        session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent
+        session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent,
+        lab_agent=lab_agent,
     )

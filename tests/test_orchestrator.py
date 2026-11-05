@@ -257,3 +257,36 @@ def test_greeting_first_does_not_suppress_first_reminder(tmp_path):
     hi = orch.run(State(question="xin chào", profile=LOW_RISK))
     q = orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=hi.history))
     assert "high_risk_referral" in q.flags
+
+
+def _lab_orch(reply="Kết quả HbA1c ở ngưỡng [ada_2024]."):
+    from diacare.labs import LabAgent
+    calls = []
+
+    def llm(messages):
+        calls.append(messages)
+        return reply
+
+    return Orchestrator(FakePredictor(0.1), FakeRetriever(), llm, lab_agent=LabAgent(None)), calls
+
+
+def test_lab_values_reach_advisor_and_rules():
+    orch, calls = _lab_orch()
+    state = orch.run(State(question="HbA1c của tôi là 7.2%, có sao không?", profile=LOW_RISK))
+    assert "lab_diabetes_range" in state.flags
+    assert [r["test"] for r in state.labs] == ["hba1c"]
+    assert "[ada_2024]" in calls[0][-1]["content"]
+    assert "bác sĩ" in state.final
+
+
+def test_prediabetes_and_low_glucose_flags():
+    orch, _ = _lab_orch()
+    assert "lab_prediabetes_range" in orch.run(State(question="FPG 110 mg/dL", profile=LOW_RISK)).flags
+    low = orch.run(State(question="đường huyết lúc đói 55 mg/dL", profile=LOW_RISK))
+    assert "lab_low_glucose" in low.flags and "115" in low.final
+
+
+def test_normal_lab_values_add_no_flag():
+    orch, _ = _lab_orch()
+    state = orch.run(State(question="HbA1c 5.2% có ổn không?", profile=LOW_RISK))
+    assert not [f for f in state.flags if f.startswith("lab_")]

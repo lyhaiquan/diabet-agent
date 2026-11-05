@@ -139,12 +139,22 @@ def is_small_talk(question):
     return all(w in _FILLER for w in rest)
 
 
+LAB_NOTES = {
+    "low": ("Kết quả đường huyết của bạn dưới 70 mg/dL (3,9 mmol/L), mức hạ đường huyết. Nếu có run, vã mồ hôi, "
+            "lú lẫn hoặc ngất, hãy gọi cấp cứu 115 và báo bác sĩ điều trị."),
+    "diabetes": ("Kết quả xét nghiệm của bạn ở ngưỡng chẩn đoán đái tháo đường theo ADA. Chỉ bác sĩ mới chẩn đoán "
+                 "được, thường cần xét nghiệm lặp lại: hãy mang kết quả này đi khám sớm."),
+    "prediabetes": ("Kết quả xét nghiệm của bạn ở mức tiền đái tháo đường theo ADA: nên khám để được tư vấn "
+                    "thay đổi lối sống và hẹn xét nghiệm lại."),
+}
+
+
 DIAGNOSED_NOTE = (
     "Bạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị."
 )
 
 
-def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True):
+def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, labs=None):
     """remind_risk=False: không lặp lời nhắc nguy cơ cao (đã nhắc trước đó trong phiên)."""
     flags = []
     text = draft
@@ -158,6 +168,16 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True):
     elif risk >= HIGH_RISK_THRESHOLD and remind_risk:
         flags.append("high_risk_referral")
         text += "\n\n" + HIGH_RISK_NOTE
+    levels = {r["level"] for r in labs or ()}
+    if "low" in levels:
+        flags.append("lab_low_glucose")
+        text += "\n\n" + LAB_NOTES["low"]
+    if "diabetes" in levels and not diagnosed:
+        flags.append("lab_diabetes_range")
+        text += "\n\n" + LAB_NOTES["diabetes"]
+    elif "prediabetes" in levels and not diagnosed:
+        flags.append("lab_prediabetes_range")
+        text += "\n\n" + LAB_NOTES["prediabetes"]
     if any(t in q for t in SYMPTOM_TERMS) or _SYMPTOM_PATTERN.search(q):
         flags.append("symptom_referral")
         text += "\n\n" + SYMPTOM_NOTE

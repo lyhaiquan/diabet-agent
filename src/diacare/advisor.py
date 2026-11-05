@@ -8,6 +8,8 @@ SYSTEM_PROMPT = (
     " Không nêu điểm nguy cơ dưới dạng phần trăm hay xác suất; chỉ nói mức thấp, trung bình hoặc cao."
     " Cân nhắc thông tin đã biết về người dùng; nếu người dùng đang dùng thuốc thì không đề xuất thay đổi thuốc."
     " Khi dùng số liệu dinh dưỡng, trích nguồn [usda_fdc] và nói rõ khẩu phần là ước lượng."
+    " Khi có kết quả xét nghiệm, giải thích chỉ số so với ngưỡng tham khảo, trích nguồn [ada_2024],"
+    " nói rõ đây không phải chẩn đoán và cần bác sĩ xác nhận."
 )
 
 
@@ -18,8 +20,11 @@ def build_messages(ctx):
     nutrition_block = f"{nutrition}\n\n" if nutrition else ""
     memory = ctx.get("memory_text") or ""
     memory_block = f"{memory}\n\n" if memory else ""
+    labs = ctx.get("lab_text") or ""
+    lab_block = f"{labs}\n\n" if labs else ""
     user = (
         f"{memory_block}"
+        f"{lab_block}"
         f"Mức nguy cơ tiểu đường ước tính của người dùng: {band}\n\n"
         f"{nutrition_block}"
         f"Tài liệu tham khảo:\n{docs}\n\n"

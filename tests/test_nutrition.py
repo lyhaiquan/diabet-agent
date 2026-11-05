@@ -322,7 +322,7 @@ def test_cited_with_usda_fdc():
 def test_parse_features(monkeypatch):
     from diacare.factory import FEATURES_DEFAULT
     monkeypatch.delenv("DIACARE_FEATURES", raising=False)
-    assert parse_features() == set(FEATURES_DEFAULT) == {"nutrition", "memory"}  # hybrid tắt mặc định
+    assert parse_features() == set(FEATURES_DEFAULT) == {"nutrition", "memory", "labs"}  # hybrid tắt mặc định
     assert parse_features("v2") == set(FEATURES_DEFAULT)
     assert parse_features("all") == set(FEATURES_ALL)
     for v in ("v1", "none", "", " V1 "):

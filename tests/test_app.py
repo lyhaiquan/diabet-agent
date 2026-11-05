@@ -106,3 +106,27 @@ def test_greeting_shows_no_risk_line(env):
     assistant = [m for m in at.chat_message if m.name == "assistant"]
     texts = " ".join(md.value for md in assistant[0].markdown)
     assert "Chào bạn" in texts and "Nguy cơ" not in texts
+
+
+def test_import_lab_results_from_pasted_text(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.sidebar.text_area(key="lab_text").set_value("HbA1c: 6.8 %\nGlucose lúc đói: 5.0 mmol/L").run()
+    at.sidebar.button(key="lab_import").click().run()
+    assert not at.exception
+    assert any("Đã nhập 2 chỉ số" in s.value for s in at.sidebar.success)
+    captions = " ".join(c.value for c in at.sidebar.caption)
+    assert "HbA1c: 6.8 %" in captions and "ngưỡng chẩn đoán" in captions
+    at.chat_input[0].set_value("Kết quả xét nghiệm của tôi thế nào?").run()
+    assert not at.exception
+    assert any("lab_diabetes_range" in m.value for m in at.markdown)
+
+
+def test_import_without_values_warns(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.sidebar.text_area(key="lab_text").set_value("không có số liệu").run()
+    at.sidebar.button(key="lab_import").click().run()
+    assert any("Không tìm thấy" in w.value for w in at.sidebar.warning)

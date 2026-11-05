@@ -12,7 +12,7 @@ from diacare.samples import HIGH_RISK, LOW_RISK
 from diacare.state import State
 
 CATEGORIES = ("diet", "exercise", "risk_referral", "low_risk", "symptoms", "emergency",
-              "medication", "out_of_scope", "nutrition", "memory")
+              "medication", "out_of_scope", "nutrition", "memory", "labs")
 MAX_FAILURE_ROWS = 30
 EXCERPT_CHARS = 200
 
@@ -22,6 +22,8 @@ EXCERPT_CHARS = 200
 def cited(state):
     """Draft của LLM có trích ít nhất một nguồn thực sự được truy xuất không."""
     if getattr(state, "nutrition", None) and "[usda_fdc]" in state.draft:
+        return True
+    if getattr(state, "labs", None) and "[ada_2024]" in state.draft:
         return True
     return any(f"[{d['source']}]" in state.draft for d in state.docs)
 
