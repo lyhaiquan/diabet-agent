@@ -1,6 +1,8 @@
 ﻿# Chạy DiaCare-MAS trên máy cá nhân với LLM thật qua Ollama (mặc định qwen2.5:3b).
 #   Bấm đúp chay_local.bat, hoặc:  powershell -ExecutionPolicy Bypass -File chay_local.ps1 [-Model qwen2.5:7b]
-param([string]$Model = "qwen2.5:3b", [int]$Port = 8501)
+#   Chat ngay trong terminal (không mở trình duyệt): chay_cli.bat, tức là thêm -Cli [-HoSo đường_dẫn.json]
+param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli,
+      [string]$HoSo = "docs\samples\hoso_nguy_co_cao.json", [string]$Ten = "Nguoi dung terminal")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
@@ -43,6 +45,13 @@ $env:DIACARE_NUM_CTX = "4096"
 $env:DIACARE_KB = Join-Path $root "kb"
 $env:DIACARE_DB = Join-Path $root "data\diacare.db"
 $env:DIACARE_LOG = Join-Path $root "logs\runs.jsonl"
+
+if ($Cli) {
+    $env:PYTHONIOENCODING = "utf-8"
+    Write-Host "Chat trong terminal với hồ sơ $HoSo. Gõ /patients, /history, /stats; q để thoát."
+    python src/cli.py --profile $HoSo --name $Ten
+    exit
+}
 
 Write-Host "Mở giao diện tại http://localhost:$Port  (đóng cửa sổ này để tắt)"
 python -m streamlit run src/app.py --server.port $Port --browser.gatherUsageStats false
