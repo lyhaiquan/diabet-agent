@@ -124,13 +124,13 @@ print("\\n" + state.final)
 CELL_BENCH = '''# Benchmark: 36 ca x k lần x các model. Mất vài phút đến vài chục phút tùy model.
 import subprocess, sys
 models_args = " ".join(MODELS)
-!python eval/benchmark.py --llm ollama --embed sbert --models {models_args} --k 3 --num-ctx 4096 --kb kb --out /kaggle/working/reports/run1
+!python eval/benchmark.py --llm ollama --embed sbert --models {models_args} --k 3 --num-ctx 4096 --kb kb --out /kaggle/working/reports/latest
 '''
 
 CELL_SHOW = '''from IPython.display import Markdown, Image, display
 from pathlib import Path
 
-out = Path("/kaggle/working/reports/run1")
+out = Path("/kaggle/working/reports/latest")
 display(Markdown((out / "report.md").read_text(encoding="utf-8")))
 for png in sorted(out.glob("*.png")):
     display(Image(filename=str(png)))

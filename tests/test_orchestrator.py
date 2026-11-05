@@ -133,8 +133,13 @@ def test_plain_function_llm_gives_empty_usage(tmp_path):
 
 
 class WindowedRetriever:
+    """Mỗi tài liệu chiếm ~60% ngân sách tài liệu của cửa sổ 1000 token, nên chỉ tài liệu đầu vừa."""
+
     def search(self, query, k=4):
-        return [{"source": "a.txt", "text": "AAAA " * 60}, {"source": "b.txt", "text": "BBBB " * 60}]
+        from diacare import context
+        budget = 1000 - context.ANSWER_RESERVE_TOKENS - context.SYSTEM_RESERVE_TOKENS
+        words = int(0.6 * budget * context.CHARS_PER_TOKEN) // 5
+        return [{"source": "a.txt", "text": "AAAA " * words}, {"source": "b.txt", "text": "BBBB " * words}]
 
 
 class WindowedLLM:

@@ -26,6 +26,19 @@ def make_embed_fn(kind=None):
     return hash_embed_fn() if kind == "hash" else sbert_embed_fn()
 
 
+# Ngưỡng điểm truy xuất mặc định cho sbert: câu hỏi liên quan đo được 0.36-0.83,
+# câu ngoài chủ đề 0.04-0.10 (thử trên kb/ mẫu). Embedding băm (demo) không lọc.
+DEFAULT_MIN_SCORE = 0.2
+
+
+def default_min_score(kind=None):
+    env = os.environ.get("DIACARE_MIN_SCORE")
+    if env is not None:
+        return float(env)
+    kind = (kind or os.environ.get("DIACARE_EMBED") or "sbert").lower()
+    return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
+
+
 def open_store(path=None):
     path = Path(path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -33,11 +46,13 @@ def open_store(path=None):
 
 
 def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
-                       session_id=None, embed_fn=None):
+                       session_id=None, embed_fn=None, min_score=None):
     kb_dir = kb_dir or os.environ.get("DIACARE_KB") or ROOT / "kb"
     model_dir = model_dir or ROOT / "models"
     log_path = log_path or os.environ.get("DIACARE_LOG") or ROOT / "logs" / "runs.jsonl"
-    retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir))
+    if min_score is None:
+        min_score = default_min_score()
+    retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score)
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store, session_id=session_id
     )

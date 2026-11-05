@@ -77,3 +77,12 @@ def test_open_store_env(tmp_path, monkeypatch):
     store = open_store()
     store.save_patient("A", LOW_RISK)
     assert db.exists() and len(store.list_patients()) == 1
+
+
+def test_default_min_score_depends_on_embed_and_env(monkeypatch):
+    from diacare.factory import DEFAULT_MIN_SCORE, default_min_score
+    monkeypatch.delenv("DIACARE_MIN_SCORE", raising=False)
+    assert default_min_score("sbert") == DEFAULT_MIN_SCORE
+    assert default_min_score("hash") == 0.0
+    monkeypatch.setenv("DIACARE_MIN_SCORE", "0.35")
+    assert default_min_score("sbert") == 0.35

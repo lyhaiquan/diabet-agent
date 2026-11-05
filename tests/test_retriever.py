@@ -39,3 +39,9 @@ def test_min_score_filters_low_hits():
     r = Retriever(fake_embed, [("g.txt", "glucose glucose insulin"), ("e.txt", "exercise exercise")])
     hits = r.search("glucose", k=4, min_score=0.5)
     assert [h["source"] for h in hits] == ["g.txt"]
+
+
+def test_constructor_min_score_is_default_for_search():
+    r = Retriever(fake_embed, [("g.txt", "glucose glucose insulin"), ("e.txt", "exercise exercise")], min_score=0.5)
+    assert [h["source"] for h in r.search("glucose", k=4)] == ["g.txt"]
+    assert len(r.search("glucose", k=4, min_score=0.0)) == 2  # tham số gọi vẫn ghi đè được

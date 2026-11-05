@@ -68,6 +68,7 @@ streamlit run src/app.py
 | `DIACARE_MODEL` | `qwen2.5:3b` | tên model Ollama |
 | `DIACARE_NUM_CTX` | `4096` | cửa sổ context gửi cho Ollama |
 | `DIACARE_EMBED` | `sbert` | `sbert` hoặc `hash` (demo) |
+| `DIACARE_MIN_SCORE` | `0.2` (sbert), `0` (hash) | ngưỡng điểm truy xuất; đoạn thấp hơn bị bỏ |
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |

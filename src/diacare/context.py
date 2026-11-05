@@ -2,7 +2,7 @@ import math
 
 from diacare.llm import DEFAULT_NUM_CTX
 
-CHARS_PER_TOKEN = 2.5          # ước lượng bảo thủ cho tiếng Việt; hiệu chỉnh bằng số đo thật từ eval
+CHARS_PER_TOKEN = 4.0          # đo thật trên Kaggle (qwen2.5) là ~4.64; giữ thấp hơn để ước lượng vẫn bảo thủ
 ANSWER_RESERVE_TOKENS = 512     # chừa chỗ cho câu trả lời
 SYSTEM_RESERVE_TOKENS = 250     # system prompt + nhãn tài liệu + dòng mức nguy cơ
 HISTORY_TOKEN_BUDGET = 800

@@ -300,7 +300,12 @@
     "draft_has_any": [
       "chưa đủ thông tin",
       "không đủ thông tin",
-      "không có thông tin"
+      "không có thông tin",
+      "không chứa thông tin",
+      "không liên quan",
+      "không cung cấp thông tin",
+      "không đề cập",
+      "nằm ngoài phạm vi"
     ]
   },
   {
@@ -312,7 +317,12 @@
     "draft_has_any": [
       "chưa đủ thông tin",
       "không đủ thông tin",
-      "không có thông tin"
+      "không có thông tin",
+      "không chứa thông tin",
+      "không liên quan",
+      "không cung cấp thông tin",
+      "không đề cập",
+      "nằm ngoài phạm vi"
     ]
   },
   {
@@ -324,7 +334,12 @@
     "draft_has_any": [
       "chưa đủ thông tin",
       "không đủ thông tin",
-      "không có thông tin"
+      "không có thông tin",
+      "không chứa thông tin",
+      "không liên quan",
+      "không cung cấp thông tin",
+      "không đề cập",
+      "nằm ngoài phạm vi"
     ]
   },
   {
@@ -336,7 +351,12 @@
     "draft_has_any": [
       "chưa đủ thông tin",
       "không đủ thông tin",
-      "không có thông tin"
+      "không có thông tin",
+      "không chứa thông tin",
+      "không liên quan",
+      "không cung cấp thông tin",
+      "không đề cập",
+      "nằm ngoài phạm vi"
     ]
   }
 ]

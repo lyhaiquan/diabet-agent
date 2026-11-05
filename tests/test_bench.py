@@ -199,7 +199,9 @@ def test_aggregate_numbers():
     assert len(agg["failures"]) == 3
     assert {"case", "run", "reasons", "draft"} <= set(agg["failures"][0])
     assert agg["usage"]["calls"] == 4 and agg["usage"]["avg_prompt_tokens"] == 100
-    assert agg["usage"]["suggested_chars_per_token"] == pytest.approx(3.12)  # 2.5*125/100 làm tròn 2 chữ số (metrics.summarize_usage)
+    from diacare.context import CHARS_PER_TOKEN
+    expected = round(CHARS_PER_TOKEN * 125 / 100, 2)  # est/actual = 125/100, làm tròn 2 chữ số như metrics.summarize_usage
+    assert agg["usage"]["suggested_chars_per_token"] == pytest.approx(expected)
     lat = agg["latency"]
     assert lat["mean"] == pytest.approx(40 / 6) and lat["median"] == pytest.approx(3.5)
     assert lat["p95"] == pytest.approx(17.5)  # nội suy tuyến tính: 10 + 0.75*(20-10)

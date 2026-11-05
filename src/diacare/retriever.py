@@ -14,8 +14,9 @@ def chunk_text(text, size=600, overlap=100):
 
 
 class Retriever:
-    def __init__(self, embed_fn, docs):
+    def __init__(self, embed_fn, docs, min_score=0.0):
         self.embed = embed_fn
+        self.min_score = min_score  # bỏ các đoạn có điểm cosine thấp hơn ngưỡng này
         self.chunks = [
             {"source": src, "text": c} for src, text in docs for c in chunk_text(text)
         ]
@@ -30,7 +31,9 @@ class Retriever:
         norms = np.linalg.norm(m, axis=1, keepdims=True)
         return m / np.where(norms == 0, 1, norms)
 
-    def search(self, query, k=4, min_score=0.0):
+    def search(self, query, k=4, min_score=None):
+        if min_score is None:
+            min_score = self.min_score
         if not self.chunks:
             return []
         q = self._normalize(self.embed([query]))[0]

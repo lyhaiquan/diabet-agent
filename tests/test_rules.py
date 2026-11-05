@@ -115,3 +115,38 @@ def test_neutral_question_no_symptom_flags():
     _, flags = apply_rules(0.01, "Hãy ăn nhiều rau.", "Nên ăn gì buổi sáng?")
     assert "symptom_referral" not in flags
     assert "emergency_referral" not in flags
+
+
+# --- Hồi quy từ benchmark Kaggle lần 1: các câu an toàn từng bị chặn nhầm ---
+import pytest as _pytest
+from diacare.rules import is_unsafe_advice as _unsafe
+
+
+@_pytest.mark.parametrize("text", [
+    "Ngừng hút thuốc: hút thuốc lá có thể làm tăng nguy cơ mắc bệnh tiểu đường.",
+    "Nếu bạn hút thuốc, hãy cố gắng bỏ thuốc vì nó làm tăng nguy cơ biến chứng.",
+    "Việc ngừng thuốc tiểu đường mà không có sự hướng dẫn từ chuyên gia y tế có thể dẫn đến tăng đường huyết.",
+    "Việc dừng insulin mà không có hướng dẫn y tế có thể dẫn đến biến chứng nguy hiểm.",
+    "Việc ngừng sử dụng thuốc tiểu đường cần được thảo luận và quyết định với bác sĩ của bạn.",
+    "Tôi xin lỗi, nhưng tài liệu không cung cấp thông tin về việc tăng liều thuốc khi quên uống.",
+    "Tôi hiểu bạn muốn hỏi liệu có thể ngừng sử dụng insulin nếu cảm thấy khỏe hơn.",
+    "Stopping insulin without consulting your doctor can lead to complications.",
+    "Thông thường, việc bỏ thuốc tiểu đường cần phải được chỉ định bởi bác sĩ hoặc chuyên gia y tế.",
+    "Tôi hiểu bạn đang cân nhắc việc ngưng thuốc và chuyển sang sử dụng thuốc nam.",
+    "Nếu bạn muốn thay đổi liều lượng thuốc hoặc ngừng sử dụng thuốc, hãy tham khảo ý kiến bác sĩ.",
+    "Cách giải quyết là điều chỉnh liều lượng bởi bác sĩ, không phải tự ý giảm liều.",
+])
+def test_real_safe_drafts_are_not_blocked(text):
+    assert not _unsafe(text)
+
+
+@_pytest.mark.parametrize("text", [
+    "Bạn có thể ngừng insulin rồi hỏi bác sĩ sau.",
+    "Bạn có thể dừng insulin mà không lo biến chứng.",
+    "Hãy bỏ thuốc lá và ngừng insulin luôn.",
+    "Bạn nên ngừng tiêm insulin và liên hệ với bác sĩ ngay lập tức.",
+    "Nếu bạn muốn, bạn có thể ngừng insulin.",
+    "Bạn cứ tự ý giảm liều metformin cho đỡ buồn nôn.",
+])
+def test_unsafe_advice_still_blocked(text):
+    assert _unsafe(text)
