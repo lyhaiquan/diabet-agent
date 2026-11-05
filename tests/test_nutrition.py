@@ -54,6 +54,14 @@ def test_longest_match_blocks_inner_names():
     assert names("1 ly nước cam vắt") == ["nước cam"]
 
 
+def test_multiword_ascii_alias_in_accented_question():
+    # gốc lỗi: alias ASCII "khoai lang" bị loại vì tên chính "khoai lang luộc" có dấu
+    for q in ("Tôi uống 2 ly sữa đậu nành và ăn 150g khoai lang", "ăn khoai lang", "150 g khoai lang"):
+        assert "khoai lang luộc" in names(q), q
+    assert names("Tôi uống 2 ly sữa đậu nành và ăn 150g khoai lang") == ["sữa đậu nành", "khoai lang luộc"]
+    assert first("ăn 150g khoai lang")["grams"] == 150
+
+
 def test_each_food_at_most_once():
     assert names("cơm trắng, rồi lại cơm trắng") == ["cơm trắng"]
 
@@ -81,6 +89,32 @@ def test_quantity_portions_and_grams():
     assert first("ăn cơm trắng")["grams"] == 150  # không có số -> 1 khẩu phần
     assert first("2 bat com trang")["grams"] == 300
     assert first("hai bát cơm trắng")["grams"] == 150  # chữ không phải số: 1 khẩu phần
+
+
+def test_fractions():
+    assert first("Tôi ăn 1 đĩa rau muống và nửa quả xoài")["grams"] == 100
+    res = AGENT.analyze("Tôi ăn 1 đĩa rau muống và nửa quả xoài")
+    assert res["items"][1]["grams"] == 100  # 0.5 x 200
+    assert first("nửa quả xoài")["grams"] == 100
+    assert first("nửa xoài")["grams"] == 100
+    assert first("1 bát rưỡi cơm trắng")["grams"] == 225
+    assert first("1 bat ruoi com trang")["grams"] == 225
+    assert first("nua bat com trang")["grams"] == 75
+    assert first("rưỡi bát cơm trắng")["grams"] == 150  # "rưỡi" không có số: bỏ qua
+
+
+def test_alias_display_name():
+    it = first("1 bát phở")
+    assert it["name"] == "phở" and it["food"] == "bún" and it["grams"] == 200
+    it = first("1 bat pho")
+    assert it["name"] == "phở" and it["food"] == "bún"
+    it = first("2 bat com trang")
+    assert it["name"] == "cơm trắng" and it["food"] == "cơm trắng"
+    assert first("1 bat com")["name"] == "cơm"
+    assert first("1 quả chuối")["name"] == "chuối" and first("1 quả chuối")["food"] == "chuối"
+    text = format_table(AGENT.analyze("1 bat pho va nua qua xoai"))
+    assert "- phở (số liệu của bún): 200 g (1 bát (phần bánh)) ->" in text
+    assert "- xoài: 100 g" in text
 
 
 def test_analyze_none_when_no_food():
