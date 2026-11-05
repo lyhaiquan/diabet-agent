@@ -111,6 +111,23 @@ def test_emergency_question_adds_referral():
     assert "115" in final
 
 
+import pytest
+
+
+@pytest.mark.parametrize("question", [
+    "Triệu chứng của tôi là đi đái thì có kiến bâu",
+    "nước tiểu của tôi bị kiến bu",
+    "Dạo này tôi đái nhiều, uống nước liên tục",
+    "Tôi hay đi tiểu đêm và khô miệng",
+    "Tôi sụt ký nhanh dù ăn nhiều",
+    "Vết thương ở chân mãi không lành",
+])
+def test_folk_symptom_wording_triggers_referral(question):
+    final, flags = apply_rules(0.01, "Hãy ăn nhiều rau.", question)
+    assert "symptom_referral" in flags
+    assert "xét nghiệm đường huyết" in final
+
+
 def test_neutral_question_no_symptom_flags():
     _, flags = apply_rules(0.01, "Hãy ăn nhiều rau.", "Nên ăn gì buổi sáng?")
     assert "symptom_referral" not in flags

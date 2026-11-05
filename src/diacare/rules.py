@@ -31,7 +31,12 @@ FEATURE_RANGES = {
 SYMPTOM_TERMS = (
     "khát nước", "khát nhiều", "tiểu nhiều", "đi tiểu nhiều", "sụt cân",
     "nhìn mờ", "mờ mắt", "vết thương lâu lành", "tê bì",
+    # cách nói dân gian
+    "kiến bâu", "kiến bu", "đái nhiều", "tiểu đêm", "khô miệng", "sụt ký", "sụt cân nhanh",
+    "uống nước liên tục", "uống nhiều nước",
 )
+# Triệu chứng nói vòng: "vết thương ... không lành", "nước tiểu ... kiến".
+_SYMPTOM_PATTERN = re.compile(r"vết (?:thương|loét)\b.*\b(?:không|chậm|lâu) lành|nước tiểu\b.*\bkiến\b")
 EMERGENCY_TERMS = (
     "hôn mê", "lú lẫn", "khó thở", "đau ngực", "co giật", "ngất",
     "hạ đường huyết", "đường huyết thấp", "hơi thở có mùi",
@@ -129,7 +134,7 @@ def apply_rules(risk, draft, question="", diagnosed=False):
             "\n\nNguy cơ của bạn ở mức cao: hãy đặt lịch khám và xét nghiệm "
             "đường huyết (HbA1c hoặc glucose lúc đói)."
         )
-    if any(t in q for t in SYMPTOM_TERMS):
+    if any(t in q for t in SYMPTOM_TERMS) or _SYMPTOM_PATTERN.search(q):
         flags.append("symptom_referral")
         text += "\n\n" + SYMPTOM_NOTE
     if any(t in q for t in EMERGENCY_TERMS):
