@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from diacare.factory import build_orchestrator, open_store  # noqa: E402
+from diacare.flowviz import flow_html  # noqa: E402
 from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS  # noqa: E402
@@ -363,11 +364,16 @@ def render_agents(store):
     if not rows:
         st.info("Chưa có lượt chạy nào có log agent. Hãy hỏi một câu ở trang Tư vấn.")
         return
-    st.subheader("Luồng xử lý")
-    st.caption("Orchestrator → Memory → Lab → Predictor → Retriever → Nutrition → Context → Advisor (LLM) → Rules")
     label = {r["id"]: f"#{r['id']} · {r['ts'][:19].replace('T', ' ')} · {(r['question'] or '')[:60]}" for r in rows}
     run_id = st.selectbox("Chọn lượt chạy", list(label), format_func=label.get, key="agent_run")
     run = next(r for r in rows if r["id"] == run_id)
+    st.subheader("Sơ đồ phát lại lượt chạy")
+    st.caption("Phát lại từ log thật (trace_json): chấm sáng đi từ Orchestrator tới từng agent theo đúng thứ tự "
+               "và thời gian đã ghi. Agent mờ là agent không chạy ở lượt này.")
+    # st.iframe: st.html lọc mất SVG và script. Dữ liệu log chỉ được gán bằng textContent trong sơ đồ.
+    st.iframe(flow_html(run["trace"], run["question"], run["draft"], run["final"], run["flags"],
+                        uid=f"dcflow{run['id']}", page=True), height="content")
+    st.subheader("Bảng từng bước")
     c = st.columns(3)
     c[0].metric("Số bước", len(run["trace"]))
     c[1].metric("Tổng thời gian (s)", f"{sum(e['ms'] for e in run['trace']) / 1000:.2f}")
@@ -419,6 +425,7 @@ def render_stats(store):
 
 
 _NO_TRANSLATE_JS = """<script>
+(() => {  // IIFE: script chạy lại mỗi lần rerun, khai báo const toàn cục sẽ báo lỗi "already declared"
 const d = window.parent.document;
 d.documentElement.lang = "vi";
 d.documentElement.setAttribute("translate", "no");
@@ -426,6 +433,7 @@ d.documentElement.classList.add("notranslate");
 if (!d.querySelector('meta[name="google"]')) {
   const m = d.createElement("meta"); m.name = "google"; m.content = "notranslate"; d.head.appendChild(m);
 }
+})();
 </script>"""
 
 
