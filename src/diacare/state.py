@@ -11,3 +11,4 @@ class State:
     draft: str = ""
     final: str = ""
     flags: list = field(default_factory=list)
+    usage: dict = field(default_factory=dict)

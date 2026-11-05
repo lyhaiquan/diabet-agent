@@ -88,3 +88,44 @@ def test_predictor_failure_returns_system_error():
     orch = Orchestrator(BadPredictor(), FakeRetriever(), lambda m: "ok")
     state = orch.run(State(question="?", profile=LOW_RISK))
     assert state.flags == ["system_error"]
+
+
+class FakeLLM:
+    def __init__(self, usage=None, reply="Hãy giảm đường [ada.txt]."):
+        self.last_usage = usage
+        self.reply = reply
+
+    def __call__(self, messages):
+        return self.reply
+
+
+def run_with_usage(usage, tmp_path=None):
+    log = tmp_path / "run.jsonl" if tmp_path else None
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), FakeLLM(usage), log_path=log)
+    return orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+
+
+def test_usage_copied_to_state_and_log(tmp_path):
+    usage = {"prompt_tokens": 120, "completion_tokens": 30, "seconds": 1.5, "num_ctx": 4096}
+    state = run_with_usage(usage, tmp_path)
+    assert state.usage == usage
+    record = json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert record["usage"] == usage
+
+
+def test_context_near_limit_flag_added():
+    state = run_with_usage({"prompt_tokens": 3700, "num_ctx": 4096})
+    assert "context_near_limit" in state.flags
+
+
+def test_context_not_near_limit():
+    state = run_with_usage({"prompt_tokens": 1000, "num_ctx": 4096})
+    assert "context_near_limit" not in state.flags
+
+
+def test_plain_function_llm_gives_empty_usage(tmp_path):
+    orch, _ = make(0.1, tmp_path=tmp_path)
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert state.usage == {}
+    record = json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert record["usage"] == {}

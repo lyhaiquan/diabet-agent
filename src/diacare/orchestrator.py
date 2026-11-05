@@ -26,6 +26,7 @@ class Orchestrator:
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
             state.docs = self.retriever.search(state.question)
             state.draft = advise(build_context("advisor", state), self.llm)
+            state.usage = dict(getattr(self.llm, "last_usage", None) or {})
             rule_ctx = build_context("rule", state)
             state.final, flags = apply_rules(rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"])
         except Exception as exc:
@@ -34,6 +35,9 @@ class Orchestrator:
             self._log(state, error=type(exc).__name__)
             return state
         state.flags = flags
+        num_ctx = state.usage.get("num_ctx")
+        if num_ctx and state.usage.get("prompt_tokens", 0) >= 0.9 * num_ctx:
+            state.flags.append("context_near_limit")
         state.history += [
             {"role": "user", "content": state.question},
             {"role": "assistant", "content": state.final},
@@ -52,6 +56,7 @@ class Orchestrator:
             "sources": [d["source"] for d in state.docs],
             "flags": state.flags,
             "final_chars": len(state.final),
+            "usage": state.usage,
         }
         if error:
             record["error"] = error
