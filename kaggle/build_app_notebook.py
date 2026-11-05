@@ -10,6 +10,7 @@ Notebook tự nhận chế độ chạy qua biến KAGGLE_KERNEL_RUN_TYPE:
 """
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,6 +25,8 @@ KERNEL_DIR = HERE / "app_kernel"
 KERNEL_ID = "b23dccn676lhiqun/diacare-mas-app"
 
 INTRO = """# DiaCare-MAS: giao diện với agent thật trên Kaggle
+
+**Phiên bản code: `{version}`** (ô đầu tiên cũng in ra số này; nếu khác số mới nhất, notebook đang là bản cũ)
 
 **Cách dùng (mỗi lần muốn demo):**
 1. Bấm **Edit** để mở notebook. Ở thanh bên phải (Session options) kiểm tra **Accelerator = GPU T4** và **Internet = On**.
@@ -48,6 +51,7 @@ PROJECT = WORK / "diacare-mas"
 
 RUN_TYPE = os.environ.get("KAGGLE_KERNEL_RUN_TYPE", "")
 BATCH = RUN_TYPE.lower() == "batch"
+print("Phiên bản code: {version}")
 print("Chế độ chạy:", RUN_TYPE or "(không rõ, coi là Interactive)")
 if BATCH:
     print("Batch (push / Save Version): chỉ kiểm tra mã và Streamlit chế độ demo, không chạy model.")
@@ -194,11 +198,13 @@ if not BATCH:
 
 def build():
     payload, raw_size = build_zip_b64()
+    version = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=HERE.parent,
+                             capture_output=True, text=True).stdout.strip() or "không rõ"
     nb = nbf.v4.new_notebook()
     nb.metadata["kernelspec"] = {"display_name": "Python 3", "language": "python", "name": "python3"}
     nb.cells = [
-        nbf.v4.new_markdown_cell(INTRO),
-        nbf.v4.new_code_cell(CELL_CONFIG),
+        nbf.v4.new_markdown_cell(INTRO.replace("{version}", version)),
+        nbf.v4.new_code_cell(CELL_CONFIG.replace("{version}", version)),
         nbf.v4.new_code_cell(CELL_UNPACK.format(payload=wrap(payload))),
         nbf.v4.new_code_cell(CELL_PIP),
         nbf.v4.new_code_cell(CELL_OLLAMA),

@@ -115,12 +115,37 @@ def validate_profile(profile):
     return errors
 
 
+HIGH_RISK_NOTE = (
+    "Nguy cơ của bạn ở mức cao: hãy đặt lịch khám và xét nghiệm "
+    "đường huyết (HbA1c hoặc glucose lúc đói)."
+)
+SMALL_TALK_REPLY = (
+    "Chào bạn! Mình là trợ lý DiaCare, hỗ trợ thông tin về phòng ngừa và chăm sóc bệnh tiểu đường: "
+    "ăn uống, vận động, dấu hiệu cần đi khám, dinh dưỡng món ăn. Bạn muốn hỏi gì?"
+)
+# Chào hỏi / cảm ơn thuần túy (không kèm câu hỏi) thì không chạy dự đoán nguy cơ hay LLM.
+_GREETING = re.compile(
+    r"\b(?:xin chào|chào|hello|hi|hey|alo|cảm ơn|cám ơn|thanks|thank you|tạm biệt|bye)\b")
+_FILLER = frozenset(
+    "bạn em anh chị ạ nhé nha nhá nhiều bot shop ad ok oke vâng dạ buổi sáng trưa chiều tối mọi người "
+    "rất lắm cả nhà you".split())
+
+
+def is_small_talk(question):
+    q = _norm(question).strip()
+    if not q or not _GREETING.search(q):
+        return False
+    rest = re.findall(r"\w+", _GREETING.sub(" ", q))
+    return all(w in _FILLER for w in rest)
+
+
 DIAGNOSED_NOTE = (
     "Bạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị."
 )
 
 
-def apply_rules(risk, draft, question="", diagnosed=False):
+def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True):
+    """remind_risk=False: không lặp lời nhắc nguy cơ cao (đã nhắc trước đó trong phiên)."""
     flags = []
     text = draft
     if is_unsafe_advice(draft):
@@ -130,12 +155,9 @@ def apply_rules(risk, draft, question="", diagnosed=False):
     if diagnosed:
         flags.append("diagnosed_followup")
         text += "\n\n" + DIAGNOSED_NOTE
-    elif risk >= HIGH_RISK_THRESHOLD:
+    elif risk >= HIGH_RISK_THRESHOLD and remind_risk:
         flags.append("high_risk_referral")
-        text += (
-            "\n\nNguy cơ của bạn ở mức cao: hãy đặt lịch khám và xét nghiệm "
-            "đường huyết (HbA1c hoặc glucose lúc đói)."
-        )
+        text += "\n\n" + HIGH_RISK_NOTE
     if any(t in q for t in SYMPTOM_TERMS) or _SYMPTOM_PATTERN.search(q):
         flags.append("symptom_referral")
         text += "\n\n" + SYMPTOM_NOTE

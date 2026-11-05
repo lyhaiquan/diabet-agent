@@ -165,10 +165,12 @@ def render_sidebar(store):
 
 def _render_meta(meta):
     flags = meta.get("flags", [])
+    if "small_talk" in flags:  # câu chào: không dự đoán, không hiện nguy cơ
+        return
     risk = meta.get("risk")
     band = risk_band(risk) if risk is not None else "chưa tính"
     badges = " ".join(f":orange-badge[{f}]" for f in flags) or "không có cờ"
-    st.markdown(f"Nguy cơ: :blue-badge[{band}] · Cờ: {badges}")
+    st.markdown(f"Nguy cơ (theo hồ sơ ở thanh bên): :blue-badge[{band}] · Cờ: {badges}")
     sources = meta.get("sources", [])
     st.caption("Nguồn: " + (", ".join(sources) if sources else "(không có)"))
     with st.expander("Chi tiết kỹ thuật"):

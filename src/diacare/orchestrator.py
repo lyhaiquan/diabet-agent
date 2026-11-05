@@ -7,7 +7,11 @@ from diacare.context import HISTORY_TOKEN_BUDGET, build_context, estimate_tokens
 from diacare.llm import DEFAULT_NUM_CTX
 from diacare.memory import compress_history
 from diacare.nutrition import is_nutrition_question
-from diacare.rules import apply_rules, validate_profile
+from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, SMALL_TALK_REPLY, apply_rules, is_small_talk,
+                           validate_profile)
+
+# Hỏi thẳng về nguy cơ / khám thì nhắc lại lời khuyên đi khám dù đã nhắc trong phiên.
+_RISK_WORDS = ("nguy cơ", "có bị", "xét nghiệm", "đi khám", "risk")
 
 
 class Orchestrator:
@@ -33,6 +37,15 @@ class Orchestrator:
             return state
 
         full_history = state.history
+        if is_small_talk(state.question):
+            state.flags = ["small_talk"]
+            state.final = SMALL_TALK_REPLY + "\n\n" + DISCLAIMER
+            state.history = full_history + [
+                {"role": "user", "content": state.question},
+                {"role": "assistant", "content": state.final},
+            ]
+            self._log(state)
+            return state
         summary_usage, summarised = None, False
         try:
             if self.memory_agent is not None and state.patient_id is not None:
@@ -62,8 +75,12 @@ class Orchestrator:
             if state.usage:
                 state.usage["est_prompt_tokens"] = ctx["est_tokens"]
             rule_ctx = build_context("rule", state)
+            already = any(HIGH_RISK_NOTE in m.get("content", "") for m in full_history
+                          if m.get("role") == "assistant")
+            asks_risk = any(w in state.question.lower() for w in _RISK_WORDS)
             state.final, flags = apply_rules(
-                rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"])
+                rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
+                remind_risk=asks_risk or not already)
         except Exception as exc:
             state.history = full_history
             state.flags = ["system_error"]

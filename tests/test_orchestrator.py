@@ -227,3 +227,33 @@ def test_run_does_not_mutate_callers_history_list():
     state = orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=history))
     assert history == [{"role": "user", "content": "chào"}]
     assert len(state.history) == 3
+
+
+def test_greeting_is_not_scored_and_skips_llm(tmp_path):
+    orch, calls = make(0.9, tmp_path=tmp_path)
+    state = orch.run(State(question="chào bạn", profile=LOW_RISK))
+    assert state.flags == ["small_talk"]
+    assert state.risk is None
+    assert calls == []
+    assert orch.predictor.calls == 0
+    assert "Chào bạn" in state.final and "nguy cơ" not in state.final.lower().split("hỏi")[0]
+    assert len(state.history) == 2
+
+
+def test_high_risk_reminder_once_per_session(tmp_path):
+    orch, _ = make(0.9, tmp_path=tmp_path)
+    first = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert "high_risk_referral" in first.flags
+    second = orch.run(State(question="Còn tập thể dục?", profile=LOW_RISK, history=first.history))
+    assert "high_risk_referral" not in second.flags
+    assert second.risk == 0.9
+    # hỏi thẳng về nguy cơ thì nhắc lại
+    third = orch.run(State(question="Nguy cơ của tôi có cao không?", profile=LOW_RISK, history=second.history))
+    assert "high_risk_referral" in third.flags
+
+
+def test_greeting_first_does_not_suppress_first_reminder(tmp_path):
+    orch, _ = make(0.9, tmp_path=tmp_path)
+    hi = orch.run(State(question="xin chào", profile=LOW_RISK))
+    q = orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=hi.history))
+    assert "high_risk_referral" in q.flags

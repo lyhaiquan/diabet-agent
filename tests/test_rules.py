@@ -195,3 +195,24 @@ def test_real_safe_drafts_are_not_blocked(text):
 ])
 def test_unsafe_advice_still_blocked(text):
     assert _unsafe(text)
+
+
+from diacare.rules import is_small_talk  # noqa: E402
+
+
+@pytest.mark.parametrize("q", ["chào bạn", "Xin chào!", "hello", "Hi bot", "cảm ơn nhé", "cám ơn bạn nhiều",
+                               "chào em ạ", "alo", "tạm biệt", "ok cảm ơn", "Chào buổi sáng"])
+def test_small_talk_detected(q):
+    assert is_small_talk(q)
+
+
+@pytest.mark.parametrize("q", ["chào bạn, tôi bị tiểu đường típ 2", "chào, nên ăn gì buổi sáng?",
+                               "tôi khát nước nhiều", "Nguy cơ của tôi thế nào?", "", "cảm ơn, còn tập thể dục thì sao"])
+def test_real_questions_are_not_small_talk(q):
+    assert not is_small_talk(q)
+
+
+def test_high_risk_referral_can_be_skipped():
+    final, flags = apply_rules(0.9, "Hãy ăn rau.", "Ăn gì?", remind_risk=False)
+    assert "high_risk_referral" not in flags
+    assert "Nguy cơ của bạn ở mức cao" not in final

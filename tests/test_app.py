@@ -74,7 +74,7 @@ def test_assistant_message_shows_risk_sources_and_details(env):
     at.sidebar.button[-1].click().run()
     at.chat_input[0].set_value("Nên ăn rau không?").run()
     assert not at.exception
-    assert any("Nguy cơ:" in m.value for m in at.markdown)
+    assert any("Nguy cơ (theo hồ sơ" in m.value for m in at.markdown)
     assert any(c.value.startswith("Nguồn:") and "ada.txt" in c.value for c in at.caption)
     assert "Chi tiết kỹ thuật" in [e.label for e in at.expander]
     # hỏi tiếp câu thứ hai: tin nhắn trả lời thứ hai cũng phải có chi tiết
@@ -95,3 +95,14 @@ def test_sidebar_shows_and_deletes_memory(env):
     assert any("dị ứng: tôm" in c.value for c in at.sidebar.caption)
     next(b for b in at.sidebar.button if b.label == "Xoá").click().run()
     assert open_store().list_memories(pid) == []
+
+
+def test_greeting_shows_no_risk_line(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.chat_input[0].set_value("chào bạn").run()
+    assert not at.exception
+    assistant = [m for m in at.chat_message if m.name == "assistant"]
+    texts = " ".join(md.value for md in assistant[0].markdown)
+    assert "Chào bạn" in texts and "Nguy cơ" not in texts
