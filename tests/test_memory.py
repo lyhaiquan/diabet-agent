@@ -56,6 +56,52 @@ def test_extract_negative(text):
     assert extract_facts(text) == []
 
 
+@pytest.mark.parametrize("text,expected", [
+    ("Tôi bị tiểu đường 5 năm rồi", [("diagnosis", "đái tháo đường (chưa rõ típ)")]),
+    ("Mình bị đái tháo đường", [("diagnosis", "đái tháo đường (chưa rõ típ)")]),
+    ("toi bi tieu duong", [("diagnosis", "đái tháo đường (chưa rõ típ)")]),
+    ("Tôi bị tiểu đường típ 2, tôi nên làm gì?", [("diagnosis", "đái tháo đường típ 2")]),
+    ("Tôi bị huyết áp cao và mỡ máu cao",
+     [("condition", "tăng huyết áp"), ("condition", "rối loạn mỡ máu")]),
+    ("Tôi bị tăng huyết áp, mỡ máu cao", [("condition", "tăng huyết áp"), ("condition", "rối loạn mỡ máu")]),
+    ("Em bị tiểu đường típ 1", [("diagnosis", "đái tháo đường típ 1")]),
+    ("Em bị tiểu đường típ 1, mẹ em cũng vậy", [("diagnosis", "đái tháo đường típ 1")]),
+])
+def test_extract_more_positive(text, expected):
+    assert sorted(extract_facts(text)) == sorted(expected)
+
+
+@pytest.mark.parametrize("text", [
+    "Mẹ tôi bị tiểu đường típ 2",
+    "me toi bi tieu duong tip 2",
+    "Bố mình bị tiểu đường",
+    "Vợ em mắc đái tháo đường típ 2",
+    "Ông nội tôi bị huyết áp cao",
+    "Con tôi đang tiêm insulin",
+    "Chồng tôi dị ứng tôm",
+    "Bạn tôi bị tiền tiểu đường",
+    "Em trai tôi bị tiểu đường típ 1",
+    "Hàng xóm tôi ăn chay",
+    "Tôi không bị tiểu đường",
+    "Tôi chưa bị tiểu đường",
+    "Tôi chưa từng bị tiểu đường",
+    "Tôi sợ bị tiểu đường",
+    "Tôi có bị tiểu đường không?",
+    "Tôi bị tiểu đường không?",
+    "Tôi không bị tiểu đường típ 2",
+])
+def test_extract_other_people_and_negation(text):
+    assert extract_facts(text) == []
+
+
+def test_untyped_diagnosis_counts_but_prediabetes_not():
+    a = MemoryAgent(Store())
+    a.observe(1, "Tôi bị tiểu đường 5 năm rồi")
+    assert a.is_diagnosed(1)
+    a.observe(2, "Mình bị tiền tiểu đường")
+    assert not a.is_diagnosed(2)
+
+
 # ---------- Store ----------
 
 def test_store_memory_dedupe_list_deactivate():

@@ -12,7 +12,8 @@ KIND_LABELS = {
     "condition": "bệnh kèm theo",
 }
 MEMORY_HEADER = "Thông tin đã biết về người dùng (từ các phiên trước):"
-DIABETES_TYPES = ("đái tháo đường típ 1", "đái tháo đường típ 2")
+UNTYPED_DIABETES = "đái tháo đường (chưa rõ típ)"
+DIABETES_TYPES = ("đái tháo đường típ 1", "đái tháo đường típ 2", UNTYPED_DIABETES)
 DRUGS = ("metformin", "insulin", "gliclazide", "sitagliptin", "empagliflozin", "dapagliflozin")
 
 SUMMARY_SYSTEM = (
@@ -33,7 +34,11 @@ _DIAG_TRIGGER = (
     rf"|bác sĩ\s+(?:đã\s+)?(?:nói|bảo|kết luận)\s+{_I}\s+(?:bị|mắc)"
     rf"|bác sĩ\s+(?:đã\s+)?chẩn đoán\s+{_I}(?:\s+(?:là|bị|mắc))?)"
 )
-_DIAG = rf"{_DIAG_TRIGGER}\s+(?:bệnh\s+)?(tiền\s+)?{_SICK}(?:\s+{_TYPE}\s*([12]))?(?!\w)"
+# Người khác (mẹ tôi, vợ em, con tôi...) không phải người dùng: đại từ sau danh từ quan hệ bị thay bằng "xxkhac".
+_KIN = (r"(?<!\w)(?:mẹ|bố|cha|ba|má|ông|bà|anh|chị|em trai|em gái|vợ|chồng|con|cháu|bạn|chú|bác|cô|dì|cậu|mợ|thím"
+        r"|người nhà|người thân|hàng xóm|đồng nghiệp)(?:\s+(?:nội|ngoại|ruột))?\s+(?:tôi|mình|em)(?!\w)")
+_DIAG = (rf"{_DIAG_TRIGGER}\s+(?:bệnh\s+)?(tiền\s+)?{_SICK}(?:\s+{_TYPE}\s*([12]))?(?!\w)"
+         r"(?!\s*(?:không|chưa)[\s.!]*$)(?![^.!;\n,?]*\?)")
 _MED = (
     rf"(?:{_I}\s+(?:(?:đang|vẫn|hiện đang)\s+)?|{_I}[^?.!;\n]*?\bvà\s+(?:đang\s+)?)"
     rf"(?:dùng|uống|tiêm|sử dụng)\s+({'|'.join(DRUGS)})(?!\w)"
@@ -45,8 +50,10 @@ _STOP_WORDS = (
 _ALLERGY = rf"{_I}\s+(?:bị\s+)?dị ứng\s+(?:với\s+)?(\w+(?:\s+\w+){{0,2}})"
 _DIET_VEG = rf"{_I}\s+ăn chay(?!\w)"
 _DIET_NO = rf"{_I}\s+không\s+ăn\s+(?:được\s+)?(\w+(?:\s+\w+)?)"
-_COND_BP = rf"{_I}\s+(?:bị|có)\s+(?:bệnh\s+)?(?:huyết áp cao|tăng huyết áp|cao huyết áp)(?!\w)"
-_COND_LIPID = rf"{_I}\s+(?:bị|có)\s+(?:bệnh\s+)?(?:mỡ máu cao|rối loạn mỡ máu|máu nhiễm mỡ)(?!\w)"
+_BP = r"(?:huyết áp cao|tăng huyết áp|cao huyết áp)"
+_LIPID = r"(?:mỡ máu cao|rối loạn mỡ máu|máu nhiễm mỡ)"
+_ONE_COND = rf"(?:bệnh\s+)?(?:{_BP}|{_LIPID})(?!\w)"
+_CONDS = rf"{_I}\s+(?:bị|có)\s+({_ONE_COND}(?:\s*(?:,|và)\s*{_ONE_COND})*)"
 
 
 def _both(pattern):
@@ -55,7 +62,7 @@ def _both(pattern):
 
 _RE = {name: _both(p) for name, p in {
     "diag": _DIAG, "med": _MED, "allergy": _ALLERGY, "veg": _DIET_VEG, "noeat": _DIET_NO,
-    "bp": _COND_BP, "lipid": _COND_LIPID,
+    "conds": _CONDS, "bp": rf"(?<!\w){_BP}", "lipid": rf"(?<!\w){_LIPID}", "kin": _KIN,
 }.items()}
 _STOP = frozenset(_STOP_WORDS) | frozenset(strip_accents(w) for w in _STOP_WORDS)
 
@@ -86,11 +93,14 @@ def extract_facts(text):
     for accented in (True, False):
         i = 0 if accented else 1
         t = text if accented else strip_accents(text)
+        t = _RE["kin"][i].sub(" xxkhac ", t)
         for m in _RE["diag"][i].finditer(t):
             if m.group(1):
                 add("diagnosis", "tiền đái tháo đường")
             elif m.group(2):
                 add("diagnosis", f"đái tháo đường típ {m.group(2)}")
+            else:
+                add("diagnosis", UNTYPED_DIABETES)
         for m in _RE["med"][i].finditer(t):
             add("medication", m.group(1))
         for m in _RE["allergy"][i].finditer(t):
@@ -101,10 +111,13 @@ def extract_facts(text):
             words = _words(m.group(1), 2)
             if words:
                 add("diet", f"không ăn {words}")
-        if _RE["bp"][i].search(t):
-            add("condition", "tăng huyết áp")
-        if _RE["lipid"][i].search(t):
-            add("condition", "rối loạn mỡ máu")
+        for m in _RE["conds"][i].finditer(t):
+            if _RE["bp"][i].search(m.group(1)):
+                add("condition", "tăng huyết áp")
+            if _RE["lipid"][i].search(m.group(1)):
+                add("condition", "rối loạn mỡ máu")
+    if any(k == "diagnosis" and c in DIABETES_TYPES[:2] for k, c in facts):
+        facts = [f for f in facts if f != ("diagnosis", UNTYPED_DIABETES)]
     return facts
 
 
