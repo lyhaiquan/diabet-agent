@@ -167,12 +167,13 @@ def _render_meta(meta):
 def _ask(store, base, patient, question):
     sid = st.session_state["session_id"]
     history = store.get_history(sid)
+    assistant_index = len(history) + 1  # chỉ số tin nhắn trả lời sau khi lưu
     orch = new_orchestrator(base, store, sid)
     with st.spinner("Đang xử lý..."):
         state = orch.run(State(question=question, profile=patient["profile"], history=history))
     store.add_message(sid, "user", question)
     store.add_message(sid, "assistant", state.final)
-    st.session_state.setdefault("meta", {})[len(history) + 1] = {
+    st.session_state.setdefault("meta", {})[assistant_index] = {
         "risk": state.risk, "flags": list(state.flags), "sources": [d["source"] for d in state.docs],
         "draft": state.draft, "usage": dict(state.usage),
     }

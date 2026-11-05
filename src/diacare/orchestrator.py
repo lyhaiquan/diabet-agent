@@ -45,7 +45,7 @@ class Orchestrator:
         num_ctx = state.usage.get("num_ctx")
         if num_ctx and state.usage.get("prompt_tokens", 0) >= 0.9 * num_ctx:
             state.flags.append("context_near_limit")
-        state.history += [
+        state.history = state.history + [
             {"role": "user", "content": state.question},
             {"role": "assistant", "content": state.final},
         ]

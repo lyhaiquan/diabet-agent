@@ -214,3 +214,11 @@ def test_jsonl_still_written_with_store(tmp_path):
     )
     orch.run(State(question="Ăn gì?", profile=LOW_RISK))
     assert len((tmp_path / "r.jsonl").read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_run_does_not_mutate_callers_history_list():
+    orch, _ = make(0.1)
+    history = [{"role": "user", "content": "chào"}]
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=history))
+    assert history == [{"role": "user", "content": "chào"}]
+    assert len(state.history) == 3

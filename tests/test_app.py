@@ -52,3 +52,18 @@ def test_invalid_form_shows_error(env, monkeypatch):
     at.sidebar.button[-1].click().run()
     assert open_store().list_patients() == []
     assert any("BMI" in e.value for e in at.sidebar.error)
+
+
+def test_assistant_message_shows_risk_sources_and_details(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.chat_input[0].set_value("Nên ăn rau không?").run()
+    assert not at.exception
+    assert any("Nguy cơ:" in m.value for m in at.markdown)
+    assert any(c.value.startswith("Nguồn:") and "ada.txt" in c.value for c in at.caption)
+    assert "Chi tiết kỹ thuật" in [e.label for e in at.expander]
+    # hỏi tiếp câu thứ hai: tin nhắn trả lời thứ hai cũng phải có chi tiết
+    at.chat_input[0].set_value("Còn tập thể dục thì sao?").run()
+    assert not at.exception
+    assert [e.label for e in at.expander].count("Chi tiết kỹ thuật") == 2
