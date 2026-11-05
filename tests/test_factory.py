@@ -86,3 +86,14 @@ def test_default_min_score_depends_on_embed_and_env(monkeypatch):
     assert default_min_score("hash") == 0.0
     monkeypatch.setenv("DIACARE_MIN_SCORE", "0.35")
     assert default_min_score("sbert") == 0.35
+
+
+def test_hybrid_feature_selects_retriever_mode(tmp_path):
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    (kb / "ada.txt").write_text("Ăn nhiều rau xanh.", encoding="utf-8")
+    kw = dict(kb_dir=kb, model_dir=ROOT / "models", log_path=tmp_path / "r.jsonl",
+              llm=DemoLLM(), embed_fn=hash_embed_fn())
+    assert build_orchestrator(features="hybrid", **kw).retriever.mode == "hybrid"
+    assert build_orchestrator(features="v1", **kw).retriever.mode == "dense"
+    assert build_orchestrator(features="all", **kw).retriever.mode == "hybrid"

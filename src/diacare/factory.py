@@ -41,7 +41,7 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition", "memory")  # sẽ thêm "hybrid" ở bước sau
+FEATURES_ALL = ("nutrition", "memory", "hybrid")
 
 
 def parse_features(value=None):
@@ -85,7 +85,8 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     if "nutrition" in features:
         nutrition_agent = NutritionAgent(load_foods(ROOT / "data" / "nutrition" / "vn_foods.json"))
     memory_agent = MemoryAgent(store or Store(":memory:")) if "memory" in features else None
-    retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score)
+    retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score,
+                          mode="hybrid" if "hybrid" in features else "dense")
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
         session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent
