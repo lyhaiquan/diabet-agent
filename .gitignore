@@ -9,3 +9,4 @@ models/*.joblib
 data/
 reports/
 !models/metrics.json
+kaggle/*.ipynb
