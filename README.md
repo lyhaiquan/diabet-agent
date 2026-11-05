@@ -72,7 +72,7 @@ streamlit run src/app.py
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
-| `DIACARE_FEATURES` | `all` | tính năng V2 bật: `nutrition`, `memory`, `hybrid` (truy xuất BM25 + dense, hợp nhất RRF); `v1` tắt hết để đo ablation |
+| `DIACARE_FEATURES` | `v2` | `v2` = nutrition,memory (mặc định); `all` = thêm hybrid; `v1` = tắt mọi tính năng V2; hoặc danh sách `nutrition,memory,hybrid` |
 
 ## 4. Đọc kết quả benchmark
 

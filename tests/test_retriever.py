@@ -118,3 +118,18 @@ def test_hybrid_rrf_arithmetic():
     by = {h["source"]: h for h in hits}
     assert by["a.txt"]["rrf"] == pytest.approx(1 / 12)
     assert by["c.txt"]["rrf"] == pytest.approx(1 / 13)
+
+
+def test_chunk_text_does_not_split_words():
+    text = " ".join(f"word{i:03d}" for i in range(300))  # ~2400 ký tự, toàn từ 7 ký tự
+    chunks = chunk_text(text, size=100, overlap=20)
+    words = set(text.split())
+    for c in chunks:
+        assert all(w in words for w in c.split()), c   # không có mảnh từ bị cắt
+        assert len(c) <= 100
+    assert chunks[0].startswith("word000") and chunks[-1].endswith("word299")
+
+
+def test_chunk_text_prefers_sentence_end():
+    text = "A" * 70 + ". " + "b" * 60
+    assert chunk_text(text, size=100, overlap=10)[0] == "A" * 70 + "."

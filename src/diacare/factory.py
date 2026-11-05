@@ -42,14 +42,17 @@ def default_min_score(kind=None):
 
 
 FEATURES_ALL = ("nutrition", "memory", "hybrid")
+# Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
+# rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
+FEATURES_DEFAULT = ("nutrition", "memory")
 
 
 def parse_features(value=None):
-    """'all' (mặc định) = mọi tính năng V2; 'v1'/'none'/'' = tắt hết; hoặc danh sách cách nhau dấu phẩy."""
+    """Mặc định / 'v2' = FEATURES_DEFAULT; 'all' = mọi tính năng; 'v1'/'none'/'' = tắt hết; hoặc danh sách."""
     if value is None:
         value = os.environ.get("DIACARE_FEATURES")
         if value is None:
-            value = "all"
+            value = "v2"
     value = value.strip().lower()
     if value in ("", "v1", "none"):
         return set()
@@ -57,6 +60,8 @@ def parse_features(value=None):
     for part in (p.strip() for p in value.split(",")):
         if part == "all":
             out |= set(FEATURES_ALL)
+        elif part == "v2":
+            out |= set(FEATURES_DEFAULT)
         elif part in FEATURES_ALL:
             out.add(part)
         elif part in ("", "v1", "none"):

@@ -50,15 +50,33 @@ class BM25Index:
         return out
 
 
+def _cut_point(text, start, end):
+    """Chỗ cắt tốt nhất trong nửa sau đoạn [start, end): hết đoạn văn > hết câu > khoảng trắng > cắt cứng."""
+    lo = start + (end - start) // 2
+    for sep in ("\n", ". ", "? ", "! ", " "):
+        i = text.rfind(sep, lo, end)
+        if i != -1:
+            return i + len(sep)
+    return end
+
+
 def chunk_text(text, size=600, overlap=100):
-    chunks, start = [], 0
-    while start < len(text):
-        piece = text[start:start + size].strip()
+    """Chia đoạn ~size ký tự, chồng lấn ~overlap, không cắt ngang từ khi có thể.
+
+    Bản cũ cắt cứng mỗi 600 ký tự nên có chữ bị cắt đôi ("has" -> "ha"), làm BM25 khớp nhầm
+    (đo trong docs/results/2026-11-05_retrieval_eval.md)."""
+    chunks, start, n = [], 0, len(text)
+    while start < n:
+        end = n if start + size >= n else _cut_point(text, start, start + size)
+        piece = text[start:end].strip()
         if piece:
             chunks.append(piece)
-        if start + size >= len(text):
+        if end >= n:
             break
-        start += size - overlap
+        nxt = end - overlap
+        space = text.find(" ", nxt, end)
+        nxt = space + 1 if space != -1 else nxt   # bắt đầu đoạn sau ở đầu một từ
+        start = max(nxt, start + 1)
     return chunks
 
 
