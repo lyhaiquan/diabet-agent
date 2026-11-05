@@ -157,3 +157,60 @@ def test_context_uses_llm_window_and_records_estimate():
     assert "AAAA" in prompt and "BBBB" not in prompt
     assert isinstance(state.usage["est_prompt_tokens"], int) and state.usage["est_prompt_tokens"] > 0
 
+
+
+from diacare.db import Store  # noqa: E402
+
+
+def test_store_gets_one_row_per_run():
+    store = Store()
+    orch = Orchestrator(FakePredictor(0.9), FakeRetriever(), lambda m: "Hãy giảm đường [ada.txt].", store=store)
+    orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    rows = store.runs()
+    assert len(rows) == 1
+    assert rows[0]["question"] == "Ăn gì?" and rows[0]["risk"] == 0.9
+    assert "high_risk_referral" in rows[0]["flags"] and rows[0]["sources"] == ["ada.txt"]
+
+
+def test_store_logs_session_id():
+    store = Store()
+    sid = store.start_session()
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "ok [ada.txt]", store=store, session_id=sid)
+    orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert store.runs()[0]["session_id"] == sid
+
+
+def test_store_logs_invalid_input_run():
+    store = Store()
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "ok", store=store)
+    orch.run(State(question="?", profile=dict(LOW_RISK, BMI=500)))
+    rows = store.runs()
+    assert len(rows) == 1 and rows[0]["flags"] == ["invalid_input"]
+
+
+def test_store_logs_llm_error():
+    def bad_llm(messages):
+        raise RuntimeError("boom")
+
+    store = Store()
+    Orchestrator(FakePredictor(0.5), FakeRetriever(), bad_llm, store=store).run(State(question="Ăn gì?", profile=LOW_RISK))
+    rows = store.runs()
+    assert len(rows) == 1 and rows[0]["error"] == "RuntimeError"
+
+
+def test_failing_store_does_not_break_run():
+    class BadStore:
+        def log_run(self, session_id, state, error=None):
+            raise RuntimeError("db down")
+
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "ok [ada.txt]", store=BadStore())
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert state.final and "system_error" not in state.flags
+
+
+def test_jsonl_still_written_with_store(tmp_path):
+    orch = Orchestrator(
+        FakePredictor(0.1), FakeRetriever(), lambda m: "ok [ada.txt]", log_path=tmp_path / "r.jsonl", store=Store()
+    )
+    orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert len((tmp_path / "r.jsonl").read_text(encoding="utf-8").splitlines()) == 1

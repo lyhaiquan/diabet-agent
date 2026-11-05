@@ -9,11 +9,13 @@ from diacare.rules import apply_rules, validate_profile
 
 
 class Orchestrator:
-    def __init__(self, predictor, retriever, llm, log_path=None):
+    def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
         self.log_path = Path(log_path) if log_path else None
+        self.store = store
+        self.session_id = session_id
 
     def run(self, state):
         errors = validate_profile(state.profile)
@@ -51,6 +53,14 @@ class Orchestrator:
         return state
 
     def _log(self, state, error=None):
+        self._log_file(state, error)
+        if self.store is not None:
+            try:
+                self.store.log_run(self.session_id, state, error)
+            except Exception:
+                pass
+
+    def _log_file(self, state, error=None):
         if not self.log_path:
             return
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
