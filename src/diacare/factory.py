@@ -1,19 +1,43 @@
+import os
 from pathlib import Path
 
+from diacare.db import Store
 from diacare.kb import load_kb
-from diacare.llm import ollama_llm, sbert_embed_fn
+from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
 from diacare.orchestrator import Orchestrator
 from diacare.predictor import Predictor
 from diacare.retriever import Retriever
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DB_PATH = ROOT / "data" / "diacare.db"
 
 
-def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None, session_id=None):
-    kb_dir = kb_dir or ROOT / "kb"
+def make_llm(kind=None, model=None, num_ctx=None):
+    kind = (kind or os.environ.get("DIACARE_LLM") or "ollama").lower()
+    if kind == "demo":
+        return DemoLLM()
+    model = model or os.environ.get("DIACARE_MODEL") or "qwen2.5:3b"
+    num_ctx = int(num_ctx or os.environ.get("DIACARE_NUM_CTX") or DEFAULT_NUM_CTX)
+    return OllamaLLM(model=model, num_ctx=num_ctx)
+
+
+def make_embed_fn(kind=None):
+    kind = (kind or os.environ.get("DIACARE_EMBED") or "sbert").lower()
+    return hash_embed_fn() if kind == "hash" else sbert_embed_fn()
+
+
+def open_store(path=None):
+    path = Path(path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return Store(path)
+
+
+def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
+                       session_id=None, embed_fn=None):
+    kb_dir = kb_dir or os.environ.get("DIACARE_KB") or ROOT / "kb"
     model_dir = model_dir or ROOT / "models"
-    log_path = log_path or ROOT / "logs" / "runs.jsonl"
-    retriever = Retriever(sbert_embed_fn(), load_kb(kb_dir))
+    log_path = log_path or os.environ.get("DIACARE_LOG") or ROOT / "logs" / "runs.jsonl"
+    retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir))
     return Orchestrator(
-        Predictor(model_dir), retriever, llm or ollama_llm(), log_path=log_path, store=store, session_id=session_id
+        Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store, session_id=session_id
     )

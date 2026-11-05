@@ -6,3 +6,4 @@ models/*.pt
 models/*.joblib
 *.db
 *.sqlite
+data/
