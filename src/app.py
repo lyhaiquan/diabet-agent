@@ -8,10 +8,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from diacare.factory import build_orchestrator, open_store  # noqa: E402
-from diacare.labs import LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file, parse_lab_text  # noqa: E402
+from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
+                          parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
-from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, risk_band, validate_profile  # noqa: E402
+from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
 
@@ -39,7 +40,7 @@ LABELS = {
     "Income": "thu nhập 1-8",
 }
 FIELDS = tuple(FEATURE_RANGES)
-PAGES = ("Tư vấn", "Lịch sử", "Thống kê")
+PAGES = ("Tư vấn", "Hoạt động agent", "Lịch sử", "Thống kê")
 
 
 @st.cache_resource
@@ -213,16 +214,53 @@ def render_sidebar(store):
 
 # ---- chat -------------------------------------------------------------------
 
+BAND_COLOR = {"thấp": "green", "trung bình": "orange", "cao": "red"}
+LAB_BADGE = {"low": ("blue", "hạ đường huyết"), "diabetes": ("red", "ngưỡng tiểu đường"),
+             "prediabetes": ("orange", "tiền tiểu đường"), "normal": ("green", "bình thường")}
+
+
+def _trace_line(e):
+    return f"**{e['agent']}** · {e['detail']} · `{e['ms']:.0f} ms`"
+
+
+def _render_trace(trace):
+    if not trace:
+        st.caption("(không có dữ liệu)")
+        return
+    st.dataframe([{"Bước": i + 1, "Agent": e["agent"], "Đã làm gì": e["detail"], "ms": e["ms"]}
+                  for i, e in enumerate(trace)], hide_index=True, width="stretch")
+
+
 def _render_meta(meta):
     flags = meta.get("flags", [])
     if "small_talk" in flags:  # câu chào: không dự đoán, không hiện nguy cơ
         return
     risk = meta.get("risk")
-    band = risk_band(risk) if risk is not None else "chưa tính"
+    parts = []
+    if risk is not None:
+        band = risk_band(risk)
+        who = meta.get("patient") or "hồ sơ"
+        parts.append(f"Nguy cơ theo hồ sơ {who}: :{BAND_COLOR[band]}-badge[{band} · {risk:.1%}]")
+    else:
+        parts.append("Nguy cơ: :gray-badge[chưa tính]")
+    lab_level = meta.get("lab_level")
+    if lab_level in LAB_BADGE:
+        color, text = LAB_BADGE[lab_level]
+        parts.append(f"Xét nghiệm: :{color}-badge[{text}]")
     badges = " ".join(f":orange-badge[{f}]" for f in flags) or "không có cờ"
-    st.markdown(f"Nguy cơ (theo hồ sơ ở thanh bên): :blue-badge[{band}] · Cờ: {badges}")
+    st.markdown(" · ".join(parts) + f" · Cờ: {badges}")
+    if risk is not None and risk_band(risk) != "cao" and (
+            lab_level in ("diabetes", "low") or "symptom_referral" in flags):
+        st.caption("Mức nguy cơ chỉ do mô hình tính từ 21 câu hỏi lối sống trong hồ sơ (dữ liệu BRFSS), "
+                   "không dùng xét nghiệm hay triệu chứng. Hai thứ đó được xét riêng bằng cờ ở trên, "
+                   "và chúng quan trọng hơn: hãy đi khám.")
     sources = meta.get("sources", [])
     st.caption("Nguồn: " + (", ".join(sources) if sources else "(không có)"))
+    trace = meta.get("trace") or []
+    if trace:
+        with st.expander(f"Agent đã làm gì ({len(trace)} bước, {sum(e['ms'] for e in trace) / 1000:.1f} s)"):
+            for e in trace:
+                st.markdown(_trace_line(e))
     with st.expander("Chi tiết kỹ thuật"):
         if "context_near_limit" in flags:
             st.warning("Ngữ cảnh gần chạm giới hạn num_ctx, câu trả lời có thể bị cắt.")
@@ -243,19 +281,30 @@ def _render_meta(meta):
             col.metric(label, u.get(key, "-"))
 
 
-def _ask(store, base, patient, question):
+def _ask(store, base, patient, question, status=None, box=None):
+    """status: khung tiến trình agent (st.status); box: chỗ hiện chữ đang stream (st.empty)."""
     sid = st.session_state["session_id"]
     history = store.get_history(sid)
     assistant_index = len(history) + 1  # chỉ số tin nhắn trả lời sau khi lưu
     orch = new_orchestrator(base, store, sid)
-    with st.spinner("Đang xử lý..."):
-        state = orch.run(State(question=question, profile=patient["profile"], history=history,
-                                 patient_id=patient["id"]))
+    on_step = (lambda e: status.markdown(_trace_line(e))) if status is not None else None
+    # Chỉ hiện từng câu đã qua bộ lọc an toàn: lời khuyên đổi thuốc không kịp hiện ra dù một giây.
+    stream = SafeStream(lambda text: box.markdown(text + " ▌")) if box is not None else None
+    state = orch.run(State(question=question, profile=patient["profile"], history=history,
+                           patient_id=patient["id"]), on_token=stream, on_step=on_step)
+    if stream is not None:
+        stream.flush()
+    if status is not None:
+        total = sum(e["ms"] for e in state.trace) / 1000
+        status.update(label=f"Các agent đã xong: {len(state.trace)} bước, {total:.1f} s",
+                      state="error" if "system_error" in state.flags else "complete", expanded=False)
     store.add_message(sid, "user", question)
     store.add_message(sid, "assistant", state.final)
     st.session_state.setdefault("meta", {})[assistant_index] = {
         "risk": state.risk, "flags": list(state.flags), "sources": [d["source"] for d in state.docs],
         "draft": state.draft, "usage": dict(state.usage), "nutrition": state.nutrition,
+        "trace": list(state.trace), "lab_level": worst_level(state.labs),
+        "patient": f"#{patient['id']} {patient['name']}",
     }
 
 
@@ -264,10 +313,22 @@ def render_chat(store, base, patient_id):
         st.info("Hãy tạo hoặc chọn một bệnh nhân ở thanh bên để bắt đầu tư vấn.")
         return
     patient = store.get_patient(patient_id)
-    st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · Phiên {st.session_state['session_id']}")
+    band = risk_band(base.predictor.predict(patient["profile"]))
+    st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · hồ sơ nguy cơ {band} · "
+               f"Phiên {st.session_state['session_id']} · Đổi bệnh nhân hoặc lưu hồ sơ mới ở thanh bên")
     question = st.chat_input("Nhập câu hỏi về phòng ngừa tiểu đường...")
+    _render_messages(store)
     if question:
-        _ask(store, base, patient, question)
+        with st.chat_message("user"):
+            st.write(question)
+        with st.chat_message("assistant"):
+            status = st.status("Các agent đang xử lý...", expanded=True)
+            box = st.empty()
+            _ask(store, base, patient, question, status, box)
+        st.rerun()  # vẽ lại từ lịch sử để có câu trả lời cuối (đã qua Rules) và phần chi tiết
+
+
+def _render_messages(store):
     meta = st.session_state.get("meta", {})
     for i, m in enumerate(store.get_history(st.session_state["session_id"])):
         with st.chat_message(m["role"]):
@@ -294,6 +355,44 @@ def render_history(store):
         "Cờ": ", ".join(r["flags"]), "Nguồn": ", ".join(r["sources"]), "Lỗi": r["error"] or "",
     } for r in rows])
     st.dataframe(df, width="stretch")
+
+
+def render_agents(store):
+    """Xem lại log từng bước agent của các lượt chạy (lưu trong bảng runs, cột trace_json)."""
+    rows = [r for r in store.runs(limit=200) if r["trace"]]
+    if not rows:
+        st.info("Chưa có lượt chạy nào có log agent. Hãy hỏi một câu ở trang Tư vấn.")
+        return
+    st.subheader("Luồng xử lý")
+    st.caption("Orchestrator → Memory → Lab → Predictor → Retriever → Nutrition → Context → Advisor (LLM) → Rules")
+    label = {r["id"]: f"#{r['id']} · {r['ts'][:19].replace('T', ' ')} · {(r['question'] or '')[:60]}" for r in rows}
+    run_id = st.selectbox("Chọn lượt chạy", list(label), format_func=label.get, key="agent_run")
+    run = next(r for r in rows if r["id"] == run_id)
+    c = st.columns(3)
+    c[0].metric("Số bước", len(run["trace"]))
+    c[1].metric("Tổng thời gian (s)", f"{sum(e['ms'] for e in run['trace']) / 1000:.2f}")
+    c[2].metric("Cờ", len(run["flags"]))
+    _render_trace(run["trace"])
+    with st.expander("Câu hỏi, bản nháp và câu trả lời cuối"):
+        st.markdown(f"**Câu hỏi:** {run['question']}")
+        st.markdown("**Bản nháp của Advisor:**")
+        st.write(run["draft"] or "(trống)")
+        st.markdown("**Sau Rules:**")
+        st.write(run["final"] or "(trống)")
+    st.subheader("Thời gian trung bình mỗi agent")
+    totals = {}
+    for r in rows:
+        for e in r["trace"]:
+            totals.setdefault(e["agent"], []).append(e["ms"])
+    avg = {a: sum(v) / len(v) for a, v in totals.items()}
+    fig, ax = plt.subplots(figsize=(5, 2.5))
+    ax.barh(list(avg), list(avg.values()))
+    ax.set_xlabel("ms (trung bình)")
+    ax.invert_yaxis()
+    fig.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+    st.caption(f"Tính trên {len(rows)} lượt chạy gần nhất. Advisor gồm cả thời gian LLM viết câu trả lời.")
 
 
 def render_stats(store):
@@ -350,6 +449,8 @@ def main():
     page = st.radio("Trang", PAGES, horizontal=True, key="page", label_visibility="collapsed")
     if page == "Tư vấn":
         render_chat(store, base, patient_id)
+    elif page == "Hoạt động agent":
+        render_agents(store)
     elif page == "Lịch sử":
         render_history(store)
     else:

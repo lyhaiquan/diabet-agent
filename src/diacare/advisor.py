@@ -34,5 +34,7 @@ def build_messages(ctx):
             {"role": "user", "content": user}]
 
 
-def advise(ctx, llm):
-    return llm(build_messages(ctx))
+def advise(ctx, llm, on_token=None):
+    if on_token is None:  # LLM giả trong test có thể không nhận on_token
+        return llm(build_messages(ctx))
+    return llm(build_messages(ctx), on_token=on_token)

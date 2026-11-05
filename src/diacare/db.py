@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS runs (
     draft TEXT,
     final TEXT,
     usage_json TEXT,
-    error TEXT
+    error TEXT,
+    trace_json TEXT
 );
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,6 +83,9 @@ class Store:
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
+        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(runs)")}
+        if "trace_json" not in cols:  # DB tạo từ bản cũ
+            self.conn.execute("ALTER TABLE runs ADD COLUMN trace_json TEXT")
         self.conn.commit()
 
     def close(self):
@@ -207,8 +211,8 @@ class Store:
 
     def log_run(self, session_id, state, error=None):
         cur = self.conn.execute(
-            "INSERT INTO runs (session_id, ts, question, risk, flags_json, sources_json, draft, final, usage_json, error)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO runs (session_id, ts, question, risk, flags_json, sources_json, draft, final, usage_json, error,"
+            " trace_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 session_id,
                 _now(),
@@ -220,6 +224,7 @@ class Store:
                 state.final,
                 _dumps(state.usage),
                 error,
+                _dumps(getattr(state, "trace", [])),
             ),
         )
         self.conn.commit()
@@ -240,6 +245,7 @@ class Store:
                 "final": r["final"],
                 "usage": json.loads(r["usage_json"] or "{}"),
                 "error": r["error"],
+                "trace": json.loads(r["trace_json"] or "[]"),
             }
             for r in rows
         ]

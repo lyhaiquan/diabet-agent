@@ -20,22 +20,45 @@ class OllamaLLM:
         self.temperature, self.timeout, self.num_predict = temperature, timeout, num_predict
         self.last_usage = {}
 
-    def __call__(self, messages):
+    def __call__(self, messages, on_token=None):
+        """on_token(piece): nhận từng đoạn chữ khi model sinh ra (Ollama stream NDJSON)."""
         body = json.dumps({
-            "model": self.model, "messages": messages, "stream": False,
+            "model": self.model, "messages": messages, "stream": on_token is not None,
             "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,
                         "num_predict": self.num_predict},
         }).encode()
         req = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            data = json.load(resp)
+            if on_token is None:
+                data = json.load(resp)
+                text = data["message"]["content"]
+            else:
+                text, data = _read_stream(resp, on_token)
         self.last_usage = {
             "prompt_tokens": data.get("prompt_eval_count", 0),
             "completion_tokens": data.get("eval_count", 0),
             "seconds": round(data.get("total_duration", 0) / 1e9, 3),
             "num_ctx": self.num_ctx,
         }
-        return data["message"]["content"]
+        return text
+
+
+def _read_stream(lines, on_token):
+    """Đọc stream NDJSON của Ollama /api/chat: mỗi dòng một đoạn, dòng cuối done=true kèm số token."""
+    parts, data = [], {}
+    for line in lines:
+        if not line.strip():
+            continue
+        data = json.loads(line)
+        if data.get("error"):
+            raise RuntimeError(data["error"])
+        piece = (data.get("message") or {}).get("content", "")
+        if piece:
+            parts.append(piece)
+            on_token(piece)
+        if data.get("done"):
+            break
+    return "".join(parts), data
 
 
 def ollama_llm(**kwargs):
@@ -60,7 +83,7 @@ class DemoLLM:
         self.num_ctx = DEFAULT_NUM_CTX
         self.last_usage = {}
 
-    def __call__(self, messages):
+    def __call__(self, messages, on_token=None):
         user = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
         block = user.split(_DOC_MARK, 1)[1] if _DOC_MARK in user else ""
         block = block.split("\n\nCâu hỏi:", 1)[0]
@@ -77,6 +100,9 @@ class DemoLLM:
             "prompt_tokens": total // 3, "completion_tokens": len(reply) // 3,
             "seconds": 0.0, "num_ctx": DEFAULT_NUM_CTX,
         }
+        if on_token is not None:
+            for word in re.findall(r"\S+\s*", reply):
+                on_token(word)
         return reply
 
 

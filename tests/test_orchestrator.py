@@ -290,3 +290,60 @@ def test_normal_lab_values_add_no_flag():
     orch, _ = _lab_orch()
     state = orch.run(State(question="HbA1c 5.2% có ổn không?", profile=LOW_RISK))
     assert not [f for f in state.flags if f.startswith("lab_")]
+
+
+def test_trace_records_each_agent_and_reports_steps():
+    from diacare.factory import build_orchestrator
+    from diacare.samples import HIGH_RISK
+    from diacare.state import State
+    import os
+    seen = []
+    orch = _trace_orch()
+    state = orch.run(State(question="Nên ăn gì?", profile=dict(HIGH_RISK)), on_step=seen.append)
+    agents = [e["agent"] for e in state.trace]
+    assert agents[0] == "Predictor" and agents[-1] == "Rules" and "Advisor" in agents
+    assert seen == state.trace
+    assert all(e["ms"] >= 0 for e in state.trace)
+    pred = next(e for e in state.trace if e["agent"] == "Predictor")
+    assert "cao" in pred["detail"]
+
+
+def test_on_token_receives_streamed_draft():
+    from diacare.samples import LOW_RISK
+    from diacare.state import State
+    pieces = []
+    orch = _trace_orch(streaming=True)
+    state = orch.run(State(question="Nên ăn gì?", profile=dict(LOW_RISK)), on_token=pieces.append)
+    assert "".join(pieces) == state.draft
+
+
+def test_on_step_error_does_not_break_pipeline():
+    from diacare.samples import LOW_RISK
+    from diacare.state import State
+
+    def boom(entry):
+        raise RuntimeError("ui")
+    state = _trace_orch().run(State(question="Nên ăn gì?", profile=dict(LOW_RISK)), on_step=boom)
+    assert "system_error" not in state.flags
+
+
+def _trace_orch(streaming=False):
+    from diacare.orchestrator import Orchestrator
+
+    class P:
+        def predict(self, profile):
+            return 0.9 if profile["BMI"] > 30 else 0.05
+
+    class R:
+        def search(self, q):
+            return [{"source": "ada.txt", "text": "Ăn rau."}]
+
+    def llm(messages, on_token=None):
+        text = "Hãy ăn nhiều rau [ada.txt]. Tập thể dục đều."
+        if on_token:
+            for w in text.split(" "):
+                on_token(w + " ")
+            return "".join(w + " " for w in text.split(" "))
+        return text
+
+    return Orchestrator(P(), R(), llm if streaming else (lambda messages: "Hãy ăn nhiều rau [ada.txt]."))

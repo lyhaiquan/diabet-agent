@@ -108,3 +108,18 @@ def test_file_store_persists(tmp_path):
     assert s2.get_patient(pid)["name"] == "B"
     assert len(s2.runs()) == 1
     s2.close()
+
+
+def test_old_db_without_trace_column_is_migrated(tmp_path):
+    import sqlite3
+    from diacare.db import Store
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE runs (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER, ts TEXT NOT NULL,"
+                " question TEXT, risk REAL, flags_json TEXT, sources_json TEXT, draft TEXT, final TEXT,"
+                " usage_json TEXT, error TEXT)")
+    con.execute("INSERT INTO runs (ts, question) VALUES ('2026-01-01', 'cũ')")
+    con.commit()
+    con.close()
+    store = Store(path)
+    assert store.runs()[0]["trace"] == []

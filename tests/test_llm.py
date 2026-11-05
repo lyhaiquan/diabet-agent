@@ -86,3 +86,23 @@ def test_num_predict_is_sent_and_matches_answer_reserve(monkeypatch):
     OllamaLLM()([{"role": "user", "content": "hi"}])
     assert seen["body"]["options"]["num_predict"] == DEFAULT_NUM_PREDICT
     assert context.ANSWER_RESERVE_TOKENS == DEFAULT_NUM_PREDICT
+
+
+def test_read_stream_collects_pieces_and_usage():
+    import json
+    from diacare.llm import _read_stream
+    lines = [json.dumps({"message": {"content": "Xin "}, "done": False}).encode(),
+             b"\n",
+             json.dumps({"message": {"content": "chào"}, "done": False}).encode(),
+             json.dumps({"message": {"content": ""}, "done": True, "eval_count": 2,
+                         "prompt_eval_count": 9}).encode()]
+    got = []
+    text, data = _read_stream(lines, got.append)
+    assert text == "Xin chào" and got == ["Xin ", "chào"] and data["eval_count"] == 2
+
+
+def test_demo_llm_streams_same_text():
+    from diacare.llm import DemoLLM
+    msgs = [{"role": "user", "content": "Tài liệu tham khảo:\n[a.txt]\nĂn rau.\n\nCâu hỏi: gì?"}]
+    got = []
+    assert "".join(got) == "" and DemoLLM()(msgs, on_token=got.append) == "".join(got)

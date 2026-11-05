@@ -216,3 +216,24 @@ def test_high_risk_referral_can_be_skipped():
     final, flags = apply_rules(0.9, "Hãy ăn rau.", "Ăn gì?", remind_risk=False)
     assert "high_risk_referral" not in flags
     assert "Nguy cơ của bạn ở mức cao" not in final
+
+
+def test_safe_stream_releases_sentences_and_blocks_unsafe():
+    from diacare.rules import SafeStream
+    shown = []
+    s = SafeStream(shown.append)
+    for piece in ["Ăn nhiều ", "rau xanh. Bạn nên ", "ngừng uống ", "metformin. Và tập thể dục."]:
+        s(piece)
+    s.flush()
+    assert shown == ["Ăn nhiều rau xanh."]
+    assert s.blocked
+
+
+def test_safe_stream_flushes_tail_without_punctuation():
+    from diacare.rules import SafeStream
+    shown = []
+    s = SafeStream(shown.append)
+    s("Đi bộ 30 phút. Uống đủ nước")
+    assert shown == ["Đi bộ 30 phút."]
+    s.flush()
+    assert shown[-1] == "Đi bộ 30 phút. Uống đủ nước" and not s.blocked

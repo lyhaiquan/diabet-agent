@@ -29,7 +29,7 @@ def test_app_runs_and_shows_demo_banner(env):
     at = new_app().run()
     assert not at.exception
     assert any("demo" in i.value.lower() for i in at.info)
-    assert list(at.radio(key="page").options) == ["Tư vấn", "Lịch sử", "Thống kê"]
+    assert list(at.radio(key="page").options) == ["Tư vấn", "Hoạt động agent", "Lịch sử", "Thống kê"]
 
 
 def test_chat_input_pinned_at_top_level(env):
@@ -42,6 +42,8 @@ def test_chat_input_pinned_at_top_level(env):
     at.radio(key="page").set_value("Lịch sử").run()
     assert not at.exception
     assert len(at.chat_input) == 0
+    at.radio(key="page").set_value("Hoạt động agent").run()
+    assert not at.exception
     at.radio(key="page").set_value("Thống kê").run()
     assert not at.exception
 
@@ -74,7 +76,8 @@ def test_assistant_message_shows_risk_sources_and_details(env):
     at.sidebar.button[-1].click().run()
     at.chat_input[0].set_value("Nên ăn rau không?").run()
     assert not at.exception
-    assert any("Nguy cơ (theo hồ sơ" in m.value for m in at.markdown)
+    assert any("Nguy cơ theo hồ sơ #1 An" in m.value for m in at.markdown)
+    assert any(e.label.startswith("Agent đã làm gì") for e in at.expander)
     assert any(c.value.startswith("Nguồn:") and "ada.txt" in c.value for c in at.caption)
     assert "Chi tiết kỹ thuật" in [e.label for e in at.expander]
     # hỏi tiếp câu thứ hai: tin nhắn trả lời thứ hai cũng phải có chi tiết
@@ -130,3 +133,26 @@ def test_import_without_values_warns(env):
     at.sidebar.text_area(key="lab_text").set_value("không có số liệu").run()
     at.sidebar.button(key="lab_import").click().run()
     assert any("Không tìm thấy" in w.value for w in at.sidebar.warning)
+
+
+def test_agent_page_shows_trace_of_last_run(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.chat_input[0].set_value("Nên ăn rau không?").run()
+    at.radio(key="page").set_value("Hoạt động agent").run()
+    assert not at.exception
+    agents = list(at.dataframe[0].value["Agent"])
+    assert agents[0] == "Memory" and agents[-1] == "Rules"
+    assert {"Predictor", "Retriever", "Advisor"} <= set(agents)
+
+
+def test_low_profile_with_diabetes_labs_explains_risk(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")  # hồ sơ mặc định là hồ sơ nguy cơ thấp
+    at.sidebar.button[-1].click().run()
+    at.chat_input[0].set_value("HbA1c của tôi 8.5%, tôi khát nước và tiểu nhiều").run()
+    assert not at.exception
+    line = next(m.value for m in at.markdown if "Nguy cơ theo hồ sơ" in m.value)
+    assert "thấp" in line and "ngưỡng tiểu đường" in line
+    assert any("không dùng xét nghiệm hay triệu chứng" in c.value for c in at.caption)

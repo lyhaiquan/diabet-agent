@@ -91,6 +91,41 @@ def is_unsafe_advice(text):
     return False
 
 
+_SENTENCE_END = ".!?;\n"
+
+
+class SafeStream:
+    """Chỉ cho hiện bản nháp đang stream theo từng câu đã qua is_unsafe_advice.
+
+    Gặp câu không an toàn thì dừng hiện (blocked); câu trả lời cuối vẫn do apply_rules quyết định.
+    emit(text) nhận toàn bộ phần đã được phép hiện.
+    """
+
+    def __init__(self, emit):
+        self.emit, self.buf, self.shown, self.blocked = emit, "", "", False
+
+    def __call__(self, piece):
+        if self.blocked:
+            return
+        self.buf += piece
+        cut = max(self.buf.rfind(c) for c in _SENTENCE_END)
+        if cut >= 0:
+            ready, self.buf = self.buf[:cut + 1], self.buf[cut + 1:]
+            self._release(ready)
+
+    def flush(self):
+        if self.buf and not self.blocked:
+            self._release(self.buf)
+        self.buf = ""
+
+    def _release(self, text):
+        if is_unsafe_advice(text):
+            self.blocked = True
+            return
+        self.shown += text
+        self.emit(self.shown)
+
+
 def risk_band(risk):
     if risk < LOW_RISK_THRESHOLD:
         return "thấp"
