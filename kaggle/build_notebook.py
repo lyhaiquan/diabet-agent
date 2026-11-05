@@ -78,6 +78,8 @@ CELL_OLLAMA = '''# Cài Ollama bằng script chính thức của ollama.com rồ
 # (Script này chạy trong sandbox tạm của notebook; cần Internet = On.)
 import subprocess, time, urllib.request, json, os
 
+# Script cài có thể cần zstd (giải nén) và lshw/pciutils (nhận GPU); lỗi ở đây thì bỏ qua.
+!apt-get -qq update > /dev/null 2>&1; apt-get -qq install -y zstd pciutils lshw > /dev/null 2>&1 || echo "apt-get không chạy được, tiếp tục"
 !curl -fsSL https://ollama.com/install.sh | sh
 
 os.environ["OLLAMA_HOST"] = "127.0.0.1:11434"
