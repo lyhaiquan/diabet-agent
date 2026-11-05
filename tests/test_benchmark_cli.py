@@ -28,7 +28,7 @@ def test_cli_demo_end_to_end(tmp_path, monkeypatch):
     assert "Pass^2" in report
     data = json.loads((out / "results.json").read_text(encoding="utf-8"))
     assert data["meta"]["k"] == 2 and "demo" in data["results"]
-    assert len(data["results"]["demo"]["runs"]) == 36
+    assert len(data["results"]["demo"]["runs"]) == 42
     assert list(out.glob("*.png"))
 
 
@@ -70,3 +70,13 @@ def test_cli_warns_when_ollama_unreachable(tmp_path, monkeypatch):
     assert "Ollama không phản hồi: kiểm tra `ollama serve` và tên model" in report
     assert report.index("Ollama không phản hồi") < report.index("Cấu hình đo")
     assert "BẢN DEMO" not in report
+
+
+def test_cli_features_recorded_in_meta_and_report(tmp_path):
+    kb = make_kb(tmp_path)
+    out = tmp_path / "out"
+    rc = benchmark.main(["--llm", "demo", "--embed", "hash", "--kb", str(kb), "--k", "1", "--features", "v1",
+                         "--out", str(out), "--predictor-metrics", str(tmp_path / "none.json")])
+    assert rc == 0
+    assert json.loads((out / "results.json").read_text(encoding="utf-8"))["meta"]["features"] == []
+    assert "Tính năng V2: không (V1)" in (out / "report.md").read_text(encoding="utf-8")

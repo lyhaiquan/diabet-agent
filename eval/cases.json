@@ -358,5 +358,83 @@
       "không đề cập",
       "nằm ngoài phạm vi"
     ]
+  },
+  {
+    "id": "nutrition_1",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "2 bát cơm trắng và 1 quả chuối có bao nhiêu carb?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
+  },
+  {
+    "id": "nutrition_2",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "Một lon nước ngọt có ga chứa bao nhiêu đường?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
+  },
+  {
+    "id": "nutrition_3",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "Ăn 1 ổ bánh mì và 1 ly sữa tươi buổi sáng thì được bao nhiêu calo?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
+  },
+  {
+    "id": "nutrition_4",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "1 bat pho co bao nhieu carb?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
+  },
+  {
+    "id": "nutrition_5",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "Bữa trưa gồm 150g thịt gà, 1 đĩa rau muống và 1 bát cơm gạo lứt thì tổng lượng carb khoảng bao nhiêu?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
+  },
+  {
+    "id": "nutrition_6",
+    "category": "nutrition",
+    "profile": "low",
+    "q": "Tôi nên chọn 1 bát cơm trắng hay 1 củ khoai lang luộc nếu muốn ít carb hơn?",
+    "grounded": true,
+    "draft_has_any": [
+      "carb",
+      "tinh bột",
+      "calo",
+      "kcal"
+    ]
   }
 ]

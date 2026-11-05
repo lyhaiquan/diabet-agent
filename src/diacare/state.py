@@ -12,3 +12,4 @@ class State:
     final: str = ""
     flags: list = field(default_factory=list)
     usage: dict = field(default_factory=dict)
+    nutrition: dict | None = None

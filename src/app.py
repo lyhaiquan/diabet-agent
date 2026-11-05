@@ -40,19 +40,20 @@ FIELDS = tuple(FEATURE_RANGES)
 
 
 @st.cache_resource
-def load_parts(kb, db, llm_kind, embed_kind, log):
+def load_parts(kb, db, llm_kind, embed_kind, log, features):
     """Build predictor/retriever/llm/store once per configuration (args are cache keys; config is read from env)."""
     return build_orchestrator(), open_store()
 
 
 def new_orchestrator(base, store, session_id):
     return Orchestrator(base.predictor, base.retriever, base.llm, log_path=base.log_path,
-                        store=store, session_id=session_id)
+                        store=store, session_id=session_id,
+                        nutrition_agent=getattr(base, "nutrition_agent", None))
 
 
 def _env_key():
     return tuple(os.environ.get(k, "") for k in
-                 ("DIACARE_KB", "DIACARE_DB", "DIACARE_LLM", "DIACARE_EMBED", "DIACARE_LOG"))
+                 ("DIACARE_KB", "DIACARE_DB", "DIACARE_LLM", "DIACARE_EMBED", "DIACARE_LOG", "DIACARE_FEATURES"))
 
 
 # ---- sidebar ----------------------------------------------------------------
@@ -155,6 +156,12 @@ def _render_meta(meta):
             st.warning("Ngữ cảnh gần chạm giới hạn num_ctx, câu trả lời có thể bị cắt.")
         st.markdown("**Bản nháp của mô hình**")
         st.write(meta.get("draft") or "(trống)")
+        nutrition = meta.get("nutrition")
+        if nutrition:
+            st.markdown("**Bảng dinh dưỡng (USDA, khẩu phần ước lượng)**")
+            st.dataframe([{"Món": i["name"], "Gram": i["grams"], "kcal": i["kcal"], "Carb (g)": i["carb_g"],
+                           "Xơ (g)": i["fiber_g"], "Đường (g)": i["sugar_g"]} for i in nutrition["items"]],
+                         hide_index=True)
         u = meta.get("usage") or {}
         cols = st.columns(5)
         for col, (label, key) in zip(cols, [
@@ -175,7 +182,7 @@ def _ask(store, base, patient, question):
     store.add_message(sid, "assistant", state.final)
     st.session_state.setdefault("meta", {})[assistant_index] = {
         "risk": state.risk, "flags": list(state.flags), "sources": [d["source"] for d in state.docs],
-        "draft": state.draft, "usage": dict(state.usage),
+        "draft": state.draft, "usage": dict(state.usage), "nutrition": state.nutrition,
     }
 
 

@@ -18,6 +18,7 @@ INCLUDE = [
     ("eval", ["*.py", "*.json"]),
     ("models", ["predictor.pt", "scaler.joblib", "metrics.json"]),
     ("kb", ["*.txt", "*.md", "*.pdf"]),
+    ("data/nutrition", ["*.json"]),
 ]
 
 

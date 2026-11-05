@@ -72,6 +72,7 @@ streamlit run src/app.py
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
+| `DIACARE_FEATURES` | `all` | tính năng V2 bật (`nutrition`, ...); `v1` tắt hết để đo ablation |
 
 ## 4. Đọc kết quả benchmark
 

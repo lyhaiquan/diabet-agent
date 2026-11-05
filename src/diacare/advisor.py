@@ -6,14 +6,18 @@ SYSTEM_PROMPT = (
     "Nếu tài liệu không đủ, hãy nói rõ là chưa đủ thông tin. "
     "Không kê đơn, không hướng dẫn thay đổi liều thuốc hoặc insulin."
     " Không nêu điểm nguy cơ dưới dạng phần trăm hay xác suất; chỉ nói mức thấp, trung bình hoặc cao."
+    " Khi dùng số liệu dinh dưỡng, trích nguồn [usda_fdc] và nói rõ khẩu phần là ước lượng."
 )
 
 
 def build_messages(ctx):
     docs = "\n\n".join(f"[{d['source']}]\n{d['text']}" for d in ctx["docs"]) or "(không có tài liệu)"
     band = risk_band(ctx["risk"]) if ctx["risk"] is not None else "chưa có"
+    nutrition = ctx.get("nutrition_text") or ""
+    nutrition_block = f"{nutrition}\n\n" if nutrition else ""
     user = (
         f"Mức nguy cơ tiểu đường ước tính của người dùng: {band}\n\n"
+        f"{nutrition_block}"
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
     )

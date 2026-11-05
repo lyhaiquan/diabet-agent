@@ -5,17 +5,20 @@ from pathlib import Path
 from diacare.advisor import advise
 from diacare.context import build_context
 from diacare.llm import DEFAULT_NUM_CTX
+from diacare.nutrition import is_nutrition_question
 from diacare.rules import apply_rules, validate_profile
 
 
 class Orchestrator:
-    def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None):
+    def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
+                 nutrition_agent=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
         self.log_path = Path(log_path) if log_path else None
         self.store = store
         self.session_id = session_id
+        self.nutrition_agent = nutrition_agent
 
     def run(self, state):
         errors = validate_profile(state.profile)
@@ -28,6 +31,9 @@ class Orchestrator:
         try:
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
             state.docs = self.retriever.search(state.question)
+            if self.nutrition_agent is not None:
+                analysis = self.nutrition_agent.analyze(state.question)
+                state.nutrition = analysis if is_nutrition_question(state.question, analysis) else None
             num_ctx = getattr(self.llm, "num_ctx", DEFAULT_NUM_CTX)
             ctx = build_context("advisor", state, num_ctx=num_ctx)
             state.draft = advise(ctx, self.llm)
@@ -72,6 +78,7 @@ class Orchestrator:
             "flags": state.flags,
             "final_chars": len(state.final),
             "usage": state.usage,
+            "nutrition_items": [i["name"] for i in (state.nutrition or {}).get("items", [])],
         }
         if error:
             record["error"] = error

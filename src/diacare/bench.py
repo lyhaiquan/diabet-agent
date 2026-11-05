@@ -11,7 +11,7 @@ from diacare.samples import HIGH_RISK, LOW_RISK
 from diacare.state import State
 
 CATEGORIES = ("diet", "exercise", "risk_referral", "low_risk", "symptoms", "emergency",
-              "medication", "out_of_scope")
+              "medication", "out_of_scope", "nutrition")
 MAX_FAILURE_ROWS = 30
 EXCERPT_CHARS = 200
 
@@ -20,6 +20,8 @@ EXCERPT_CHARS = 200
 
 def cited(state):
     """Draft của LLM có trích ít nhất một nguồn thực sự được truy xuất không."""
+    if getattr(state, "nutrition", None) and "[usda_fdc]" in state.draft:
+        return True
     return any(f"[{d['source']}]" in state.draft for d in state.docs)
 
 
@@ -207,6 +209,7 @@ def build_report(results_by_model, meta):
             f"- LLM: {meta.get('llm_kind', 'n/a')} (model: {meta.get('llm_model', 'n/a')}, "
             f"num_ctx: {meta.get('num_ctx', 'n/a')})",
             f"- Embedding: {meta.get('embed_kind', 'n/a')}",
+            *([f"- Tính năng V2: {', '.join(meta['features']) or 'không (V1)'}"] if "features" in meta else []),
             f"- Tệp tri thức: {', '.join(meta.get('kb_files', [])) or 'không có'}",
             f"- Số lượt lặp mỗi ca (k): {k}",
             f"- Số ca: {meta.get('n_cases', 'n/a')}",

@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from diacare import bench  # noqa: E402
-from diacare.factory import ROOT, build_orchestrator, make_embed_fn, make_llm  # noqa: E402
+from diacare.factory import ROOT, build_orchestrator, make_embed_fn, make_llm, parse_features  # noqa: E402
 from diacare.kb import load_kb  # noqa: E402
 from diacare.llm import DEFAULT_NUM_CTX  # noqa: E402
 
@@ -28,6 +28,8 @@ def _parse(argv):
     p.add_argument("--llm", choices=["ollama", "demo"], default=None)
     p.add_argument("--embed", choices=["sbert", "hash"], default=None)
     p.add_argument("--kb", default=None)
+    p.add_argument("--features", default=None,
+                   help="all | v1 | danh sách cách nhau dấu phẩy (mặc định: env DIACARE_FEATURES, rồi all)")
     p.add_argument("--out", default=None)
     p.add_argument("--predictor-metrics", default=str(DEFAULT_METRICS))
     return p.parse_args(argv)
@@ -52,13 +54,14 @@ def main(argv=None):
     out.mkdir(parents=True, exist_ok=True)
     kb_dir = Path(args.kb or os.environ.get("DIACARE_KB") or ROOT / "kb")
 
+    features = parse_features(args.features)
     cases = bench.load_cases(args.cases)
     embed_fn = make_embed_fn(embed_kind)  # tạo một lần cho cả tiến trình
     results, warnings = {}, []
     for model in models:
         llm = make_llm(kind, model=None if kind == "demo" else model, num_ctx=args.num_ctx)
         orch = build_orchestrator(kb_dir=kb_dir, log_path=out / f"runs_{model.replace(':', '_')}.jsonl",
-                                  llm=llm, embed_fn=embed_fn)
+                                  llm=llm, embed_fn=embed_fn, features=features)
         print(f"Đang đo mô hình {model} ({len(cases)} ca x {args.k} lượt)...", flush=True)
         results[model] = bench.run_benchmark(orch, cases, args.k)
         if kind == "ollama" and _all_runs_system_failure(results[model]):
@@ -69,7 +72,7 @@ def main(argv=None):
         "mode": "demo" if kind == "demo" else "real", "llm_kind": kind, "llm_model": ", ".join(models),
         "num_ctx": args.num_ctx, "embed_kind": embed_kind,
         "kb_files": [name for name, _ in load_kb(kb_dir)], "k": args.k, "n_cases": len(cases),
-        "python": platform.python_version(), "warnings": warnings,
+        "python": platform.python_version(), "warnings": warnings, "features": sorted(features),
     }
     pm_path = Path(args.predictor_metrics)
     if pm_path.is_file():

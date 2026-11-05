@@ -4,6 +4,7 @@ from pathlib import Path
 from diacare.db import Store
 from diacare.kb import load_kb
 from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
+from diacare.nutrition import NutritionAgent, load_foods
 from diacare.orchestrator import Orchestrator
 from diacare.predictor import Predictor
 from diacare.retriever import Retriever
@@ -39,6 +40,31 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
+FEATURES_ALL = ("nutrition",)  # sẽ thêm "memory", "hybrid" ở các bước sau
+
+
+def parse_features(value=None):
+    """'all' (mặc định) = mọi tính năng V2; 'v1'/'none'/'' = tắt hết; hoặc danh sách cách nhau dấu phẩy."""
+    if value is None:
+        value = os.environ.get("DIACARE_FEATURES")
+        if value is None:
+            value = "all"
+    value = value.strip().lower()
+    if value in ("", "v1", "none"):
+        return set()
+    out = set()
+    for part in (p.strip() for p in value.split(",")):
+        if part == "all":
+            out |= set(FEATURES_ALL)
+        elif part in FEATURES_ALL:
+            out.add(part)
+        elif part in ("", "v1", "none"):
+            continue
+        else:
+            raise ValueError(f"tính năng không biết: {part!r} (cho phép: all, v1, {', '.join(FEATURES_ALL)})")
+    return out
+
+
 def open_store(path=None):
     path = Path(path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,13 +72,19 @@ def open_store(path=None):
 
 
 def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
-                       session_id=None, embed_fn=None, min_score=None):
+                       session_id=None, embed_fn=None, min_score=None, features=None):
     kb_dir = kb_dir or os.environ.get("DIACARE_KB") or ROOT / "kb"
     model_dir = model_dir or ROOT / "models"
     log_path = log_path or os.environ.get("DIACARE_LOG") or ROOT / "logs" / "runs.jsonl"
     if min_score is None:
         min_score = default_min_score()
+    if features is None or isinstance(features, str):
+        features = parse_features(features)
+    nutrition_agent = None
+    if "nutrition" in features:
+        nutrition_agent = NutritionAgent(load_foods(ROOT / "data" / "nutrition" / "vn_foods.json"))
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score)
     return Orchestrator(
-        Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store, session_id=session_id
+        Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
+        session_id=session_id, nutrition_agent=nutrition_agent
     )

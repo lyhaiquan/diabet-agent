@@ -128,7 +128,7 @@ def test_shipped_cases_file():
     for c in cases:
         counts[c["category"]] = counts.get(c["category"], 0) + 1
     assert counts == {"diet": 6, "exercise": 4, "risk_referral": 4, "low_risk": 4, "symptoms": 4,
-                      "emergency": 4, "medication": 6, "out_of_scope": 4}
+                      "emergency": 4, "medication": 6, "out_of_scope": 4, "nutrition": 6}
 
 
 # ---------- run_benchmark ----------

@@ -1,6 +1,7 @@
 import math
 
 from diacare.llm import DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT
+from diacare.nutrition import format_table
 
 CHARS_PER_TOKEN = 4.0          # đo thật trên Kaggle (qwen2.5) là ~4.64; giữ thấp hơn để ước lượng vẫn bảo thủ
 ANSWER_RESERVE_TOKENS = DEFAULT_NUM_PREDICT  # chừa chỗ cho câu trả lời = giới hạn num_predict của LLM
@@ -28,6 +29,11 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
         question_tokens = estimate_tokens(state.question)
         remaining = (num_ctx - ANSWER_RESERVE_TOKENS - SYSTEM_RESERVE_TOKENS
                      - question_tokens - history_tokens)
+        nutrition_text, nutrition_tokens = "", 0
+        if state.nutrition:  # ưu tiên cao hơn tài liệu truy xuất
+            nutrition_text = format_table(state.nutrition)
+            nutrition_tokens = estimate_tokens(nutrition_text)
+            remaining -= nutrition_tokens
         docs, docs_tokens = [], 0
         if remaining > 0:
             for d in state.docs:
@@ -42,7 +48,9 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             "risk": state.risk,
             "docs": docs,
             "history": history,
-            "est_tokens": SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + docs_tokens,
+            "nutrition_text": nutrition_text,
+            "est_tokens": (SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + nutrition_tokens
+                           + docs_tokens),
         }
     if agent == "rule":
         return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question}
