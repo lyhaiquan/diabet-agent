@@ -1,23 +1,48 @@
-MAX_HISTORY_TURNS = 6
-MAX_DOC_CHARS = 3000
+import math
+
+from diacare.llm import DEFAULT_NUM_CTX
+
+CHARS_PER_TOKEN = 2.5          # ước lượng bảo thủ cho tiếng Việt; hiệu chỉnh bằng số đo thật từ eval
+ANSWER_RESERVE_TOKENS = 512     # chừa chỗ cho câu trả lời
+SYSTEM_RESERVE_TOKENS = 250     # system prompt + nhãn tài liệu + dòng mức nguy cơ
+HISTORY_TOKEN_BUDGET = 800
+DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu
 
 
-def build_context(agent, state):
+def estimate_tokens(text):
+    return math.ceil(len(text) / CHARS_PER_TOKEN)
+
+
+def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
     """Mỗi agent chỉ nhìn thấy phần state nó cần."""
     if agent == "predictor":
         return {"profile": state.profile}
     if agent == "advisor":
-        docs, used = [], 0
-        for d in state.docs:
-            if used + len(d["text"]) > MAX_DOC_CHARS:
+        history, history_tokens = [], 0
+        for m in reversed(state.history):
+            cost = estimate_tokens(m["content"])
+            if history_tokens + cost > HISTORY_TOKEN_BUDGET:
                 break
-            docs.append(d)
-            used += len(d["text"])
+            history.insert(0, m)
+            history_tokens += cost
+        question_tokens = estimate_tokens(state.question)
+        remaining = (num_ctx - ANSWER_RESERVE_TOKENS - SYSTEM_RESERVE_TOKENS
+                     - question_tokens - history_tokens)
+        docs, docs_tokens = [], 0
+        if remaining > 0:
+            for d in state.docs:
+                cost = estimate_tokens(d["text"]) + DOC_LABEL_TOKENS
+                if cost > remaining:
+                    break
+                docs.append(d)
+                docs_tokens += cost
+                remaining -= cost
         return {
             "question": state.question,
             "risk": state.risk,
             "docs": docs,
-            "history": state.history[-MAX_HISTORY_TURNS:],
+            "history": history,
+            "est_tokens": SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + docs_tokens,
         }
     if agent == "rule":
         return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question}

@@ -4,7 +4,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from diacare.factory import ROOT, build_orchestrator
-from diacare.metrics import pass_at_k, pass_hat_k
+from diacare.context import CHARS_PER_TOKEN
+from diacare.metrics import pass_at_k, pass_hat_k, summarize_usage
 from diacare.rules import DISCLAIMER, is_unsafe_advice
 from diacare.samples import HIGH_RISK, LOW_RISK
 from diacare.state import State
@@ -60,17 +61,25 @@ def run_case(orch, case):
     try:
         state = orch.run(State(question=case["q"], profile=dict(case["profile"])))
     except Exception:
-        return False
-    return check(case, state)
+        return False, {}
+    return check(case, state), state.usage
 
 
 def main():
     orch = build_orchestrator(log_path=ROOT / "logs" / "eval.jsonl")
     results = {}
+    all_usages = []
     for case in CASES:
-        results[case["name"]] = [run_case(orch, case) for _ in range(K)]
+        runs = [run_case(orch, case) for _ in range(K)]
+        results[case["name"]] = [ok for ok, _ in runs]
+        all_usages += [u for _, u in runs]
         print(f"{case['name']:<24} {results[case['name']]}")
     print(f"\nPass@{K}: {pass_at_k(results):.2f}   Pass^{K}: {pass_hat_k(results):.2f}")
+    summary = summarize_usage(all_usages, CHARS_PER_TOKEN)
+    if not summary:
+        print("Không có số đo token (LLM không trả usage)")
+    for key, value in summary.items():
+        print(f"{key}: {value}")
 
 
 if __name__ == "__main__":

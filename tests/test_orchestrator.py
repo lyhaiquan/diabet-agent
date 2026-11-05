@@ -108,9 +108,10 @@ def run_with_usage(usage, tmp_path=None):
 def test_usage_copied_to_state_and_log(tmp_path):
     usage = {"prompt_tokens": 120, "completion_tokens": 30, "seconds": 1.5, "num_ctx": 4096}
     state = run_with_usage(usage, tmp_path)
-    assert state.usage == usage
+    assert {k: v for k, v in state.usage.items() if k != "est_prompt_tokens"} == usage
+    assert state.usage["est_prompt_tokens"] > 0
     record = json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[0])
-    assert record["usage"] == usage
+    assert record["usage"] == state.usage
 
 
 def test_context_near_limit_flag_added():
@@ -129,3 +130,30 @@ def test_plain_function_llm_gives_empty_usage(tmp_path):
     assert state.usage == {}
     record = json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert record["usage"] == {}
+
+
+class WindowedRetriever:
+    def search(self, query, k=4):
+        return [{"source": "a.txt", "text": "AAAA " * 60}, {"source": "b.txt", "text": "BBBB " * 60}]
+
+
+class WindowedLLM:
+    num_ctx = 1000
+
+    def __init__(self):
+        self.messages = None
+        self.last_usage = {"prompt_tokens": 500, "completion_tokens": 50, "seconds": 1.0, "num_ctx": 1000}
+
+    def __call__(self, messages):
+        self.messages = messages
+        return "Hãy giảm đường [a.txt]."
+
+
+def test_context_uses_llm_window_and_records_estimate():
+    llm = WindowedLLM()
+    orch = Orchestrator(FakePredictor(0.1), WindowedRetriever(), llm)
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    prompt = "\n".join(m["content"] for m in llm.messages)
+    assert "AAAA" in prompt and "BBBB" not in prompt
+    assert isinstance(state.usage["est_prompt_tokens"], int) and state.usage["est_prompt_tokens"] > 0
+
