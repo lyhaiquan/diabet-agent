@@ -97,7 +97,7 @@ else:
     raise RuntimeError("Ollama server không khởi động được, xem log ở trên")
 '''
 
-CELL_PULL = '''MODELS = ["qwen2.5:7b"]   # model mục tiêu; thêm "qwen2.5:3b" nếu muốn so thêm (tốn thêm giờ GPU)
+CELL_PULL = '''MODELS = ["qwen2.5:7b", "qwen2.5:14b"]   # so sánh kích thước model (14B ~9 GB, vừa 1 GPU T4)
 for m in MODELS:
     !ollama pull {m}
 !ollama list
@@ -122,10 +122,10 @@ print("Token/giây:", state.usage)
 print("\\n" + state.final)
 '''
 
-CELL_BENCH = '''# Ablation V1 vs V2: cùng 46 ca x k=3 lần, đổi cấu hình tính năng.
-#   v1  = tắt mọi tính năng V2 | v2 = nutrition + memory (mặc định) | all = v2 + hybrid retrieval
+CELL_BENCH = '''# So sánh model: cùng bộ ca trong eval/cases.json x k=3 lần, cấu hình tính năng mặc định.
+#   v1 = tắt mọi tính năng V2 | v2 = nutrition + memory + labs (mặc định) | all = v2 + hybrid retrieval
 models_args = " ".join(MODELS)
-FEATURE_SETS = ["v1", "v2", "all"]
+FEATURE_SETS = ["v2"]
 for f in FEATURE_SETS:
     print("=" * 20, "features =", f, "=" * 20)
     !python eval/benchmark.py --llm ollama --embed sbert --models {models_args} --k 3 --num-ctx 4096 --kb kb --features {f} --out /kaggle/working/reports/{f}
