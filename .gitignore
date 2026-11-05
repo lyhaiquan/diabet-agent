@@ -12,3 +12,4 @@ reports/
 !models/metrics.json
 kaggle/*.ipynb
 kaggle/kernel/
+kaggle/app_kernel/
