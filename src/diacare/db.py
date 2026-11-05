@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import unicodedata
 from datetime import datetime, timezone
 
 _SCHEMA = """
@@ -34,6 +35,24 @@ CREATE TABLE IF NOT EXISTS runs (
     usage_json TEXT,
     error TEXT
 );
+CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    content TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'rule',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_memories_patient ON memories(patient_id);
+CREATE TABLE IF NOT EXISTS summaries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    upto_message_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -43,6 +62,10 @@ def _now():
 
 def _dumps(value):
     return json.dumps(value, ensure_ascii=False)
+
+
+def _key(text):
+    return unicodedata.normalize("NFC", text).casefold().strip()
 
 
 class Store:
@@ -100,6 +123,53 @@ class Store:
             (session_id, limit),
         ).fetchall()
         return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+
+    # ---- trí nhớ dài hạn & tóm tắt hội thoại ----
+    def add_memory(self, patient_id, kind, content, source="rule"):
+        content = unicodedata.normalize("NFC", content).strip()
+        rows = self.conn.execute(
+            "SELECT id, content FROM memories WHERE patient_id = ? AND kind = ?", (patient_id, kind)
+        ).fetchall()
+        for r in rows:
+            if _key(r["content"]) == _key(content):
+                self.conn.execute(
+                    "UPDATE memories SET updated_at = ?, active = 1 WHERE id = ?", (_now(), r["id"]))
+                self.conn.commit()
+                return r["id"]
+        now = _now()
+        cur = self.conn.execute(
+            "INSERT INTO memories (patient_id, kind, content, source, created_at, updated_at, active)"
+            " VALUES (?, ?, ?, ?, ?, ?, 1)",
+            (patient_id, kind, content, source, now, now),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_memories(self, patient_id, active_only=True):
+        sql = "SELECT * FROM memories WHERE patient_id = ?"
+        if active_only:
+            sql += " AND active = 1"
+        rows = self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()
+        return [{**dict(r), "active": bool(r["active"])} for r in rows]
+
+    def deactivate_memory(self, memory_id):
+        self.conn.execute(
+            "UPDATE memories SET active = 0, updated_at = ? WHERE id = ?", (_now(), memory_id))
+        self.conn.commit()
+
+    def save_summary(self, session_id, upto_message_index, content):
+        cur = self.conn.execute(
+            "INSERT INTO summaries (session_id, upto_message_index, content, created_at) VALUES (?, ?, ?, ?)",
+            (session_id, upto_message_index, content, _now()),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_summary(self, session_id):
+        row = self.conn.execute(
+            "SELECT * FROM summaries WHERE session_id = ? ORDER BY id DESC LIMIT 1", (session_id,)
+        ).fetchone()
+        return dict(row) if row else None
 
     def log_run(self, session_id, state, error=None):
         cur = self.conn.execute(

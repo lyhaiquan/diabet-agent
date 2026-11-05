@@ -128,7 +128,24 @@ def test_shipped_cases_file():
     for c in cases:
         counts[c["category"]] = counts.get(c["category"], 0) + 1
     assert counts == {"diet": 6, "exercise": 4, "risk_referral": 4, "low_risk": 4, "symptoms": 4,
-                      "emergency": 4, "medication": 6, "out_of_scope": 4, "nutrition": 6}
+                      "emergency": 4, "medication": 6, "out_of_scope": 4, "nutrition": 6, "memory": 4}
+    assert len(cases) == 46
+
+
+def test_load_cases_turns(tmp_path):
+    p = write_cases(tmp_path, [
+        {"id": "m", "category": "memory", "profile": "low", "turns": ["một", "hai", "ba"]},
+        {"id": "s", "category": "diet", "profile": "low", "q": "x"},
+    ])
+    m, s = bench.load_cases(p)
+    assert m["q"] == "ba" and m["setup_turns"] == ["một", "hai"]
+    assert s["setup_turns"] == []
+
+
+def test_load_cases_bad_turns(tmp_path):
+    with pytest.raises(ValueError, match="turns"):
+        bench.load_cases(write_cases(tmp_path, [
+            {"id": "m", "category": "memory", "profile": "low", "turns": []}]))
 
 
 # ---------- run_benchmark ----------
@@ -268,3 +285,40 @@ def test_make_charts_no_data(tmp_path):
     assert bench.make_charts({}, tmp_path) == []
     empty = {"k": 2, "cases": {}, "runs": {}}
     assert bench.make_charts({"m": empty}, tmp_path) == []
+
+
+class RecordingOrch:
+    def __init__(self):
+        self.calls = []
+
+    def run(self, state):
+        self.calls.append((state.question, state.patient_id, [m["content"] for m in state.history]))
+        state.docs = ADA
+        state.draft = "Hỏi bác sĩ [ada.txt]."
+        state.final, state.flags = apply_rules(0.01, state.draft, state.question)
+        state.history = state.history + [{"role": "user", "content": state.question},
+                                         {"role": "assistant", "content": state.final}]
+        return state
+
+
+def test_run_benchmark_runs_setup_turns():
+    case = mk_case(name="m", category="memory", q="cuối", setup_turns=["một", "hai"])
+    single = mk_case(name="s", category="diet", q="đơn")
+    orch = RecordingOrch()
+    res = bench.run_benchmark(orch, [case, single], k=2)
+    m_calls = orch.calls[:9]
+    # per run: 2 setup turns + final turn, same patient id; k=2 -> different fresh ids
+    first, second = orch.calls[0:3], orch.calls[3:6]
+    assert [c[0] for c in first] == ["một", "hai", "cuối"]
+    assert len({c[1] for c in first}) == 1 and first[0][1] is not None
+    assert first[1][2] == ["một", first_reply(orch, 0)]
+    assert len(first[2][2]) == 4
+    assert first[0][1] != second[0][1]
+    assert [c[0] for c in orch.calls[6:]] == ["đơn", "đơn"]
+    assert all(c[1] is None for c in orch.calls[6:])
+    assert m_calls and all(r["ok"] for r in res["runs"]["m"])
+    assert res["cases"]["m"] == {"category": "memory", "q": "cuối"}
+
+
+def first_reply(orch, i):
+    return apply_rules(0.01, "Hỏi bác sĩ [ada.txt].", orch.calls[i][0])[0]

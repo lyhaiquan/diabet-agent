@@ -108,14 +108,22 @@ def validate_profile(profile):
     return errors
 
 
-def apply_rules(risk, draft, question=""):
+DIAGNOSED_NOTE = (
+    "Bạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị."
+)
+
+
+def apply_rules(risk, draft, question="", diagnosed=False):
     flags = []
     text = draft
     if is_unsafe_advice(draft):
         flags.append("unsafe_advice_blocked")
         text = SAFE_REPLACEMENT
     q = _norm(question)
-    if risk >= HIGH_RISK_THRESHOLD:
+    if diagnosed:
+        flags.append("diagnosed_followup")
+        text += "\n\n" + DIAGNOSED_NOTE
+    elif risk >= HIGH_RISK_THRESHOLD:
         flags.append("high_risk_referral")
         text += (
             "\n\nNguy cơ của bạn ở mức cao: hãy đặt lịch khám và xét nghiệm "

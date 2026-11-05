@@ -8,6 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from diacare.factory import build_orchestrator, open_store  # noqa: E402
+from diacare.memory import KIND_LABELS  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
@@ -42,13 +43,16 @@ FIELDS = tuple(FEATURE_RANGES)
 @st.cache_resource
 def load_parts(kb, db, llm_kind, embed_kind, log, features):
     """Build predictor/retriever/llm/store once per configuration (args are cache keys; config is read from env)."""
-    return build_orchestrator(), open_store()
+    store = open_store()
+    return build_orchestrator(store=store), store
 
 
 def new_orchestrator(base, store, session_id):
     return Orchestrator(base.predictor, base.retriever, base.llm, log_path=base.log_path,
                         store=store, session_id=session_id,
-                        nutrition_agent=getattr(base, "nutrition_agent", None))
+                        nutrition_agent=getattr(base, "nutrition_agent", None),
+                        memory_agent=getattr(base, "memory_agent", None),
+                        summarizer_llm=getattr(base, "summarizer_llm", None))
 
 
 def _env_key():
@@ -105,6 +109,19 @@ def start_new_session(store, patient_id):
     st.session_state["meta"] = {}
 
 
+def _render_memories(store, patient_id):
+    facts = store.list_memories(patient_id)
+    if not facts:
+        return
+    st.subheader("Thông tin đã biết")
+    for fact in facts:
+        c1, c2 = st.columns([4, 1])
+        c1.caption(f"{KIND_LABELS.get(fact['kind'], fact['kind'])}: {fact['content']}")
+        if c2.button("Xoá", key=f"del_mem_{fact['id']}"):
+            store.deactivate_memory(fact["id"])
+            st.rerun()
+
+
 def render_sidebar(store):
     for f in FIELDS:
         st.session_state.setdefault(f"f_{f}", _default(f, LOW_RISK))
@@ -126,6 +143,8 @@ def render_sidebar(store):
             start_new_session(store, patient_id)
         if patient_id is not None and st.button("Bắt đầu phiên mới"):
             start_new_session(store, patient_id)
+        if patient_id is not None:
+            _render_memories(store, patient_id)
         st.divider()
         st.subheader("Tạo hồ sơ mới")
         c1, c2 = st.columns(2)
@@ -177,7 +196,8 @@ def _ask(store, base, patient, question):
     assistant_index = len(history) + 1  # chỉ số tin nhắn trả lời sau khi lưu
     orch = new_orchestrator(base, store, sid)
     with st.spinner("Đang xử lý..."):
-        state = orch.run(State(question=question, profile=patient["profile"], history=history))
+        state = orch.run(State(question=question, profile=patient["profile"], history=history,
+                                 patient_id=patient["id"]))
     store.add_message(sid, "user", question)
     store.add_message(sid, "assistant", state.final)
     st.session_state.setdefault("meta", {})[assistant_index] = {

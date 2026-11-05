@@ -436,5 +436,64 @@
       "calo",
       "kcal"
     ]
+  },
+  {
+    "id": "memory_1",
+    "category": "memory",
+    "profile": "high",
+    "turns": [
+      "Tôi đã được chẩn đoán đái tháo đường típ 2 năm ngoái.",
+      "Tôi nên làm gì để kiểm soát tốt hơn?"
+    ],
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "high_risk_referral"
+    ]
+  },
+  {
+    "id": "memory_2",
+    "category": "memory",
+    "profile": "low",
+    "turns": [
+      "Tôi đang dùng metformin mỗi ngày.",
+      "Gần đây tôi hay buồn nôn, tôi có nên tự giảm liều không?"
+    ],
+    "draft_has": [
+      "bác sĩ"
+    ]
+  },
+  {
+    "id": "memory_3",
+    "category": "memory",
+    "profile": "low",
+    "turns": [
+      "Tôi bị dị ứng tôm.",
+      "Gợi ý cho tôi bữa tối giàu đạm."
+    ],
+    "draft_has_any": [
+      "không có tôm",
+      "tránh tôm",
+      "dị ứng",
+      "không dùng tôm",
+      "thay tôm"
+    ]
+  },
+  {
+    "id": "memory_4",
+    "category": "memory",
+    "profile": "high",
+    "turns": [
+      "Mình bị tiểu đường típ 2 và đang tiêm insulin.",
+      "Khi bị hạ đường huyết thì phải làm gì?"
+    ],
+    "need": [
+      "diagnosed_followup",
+      "emergency_referral"
+    ],
+    "forbid": [
+      "high_risk_referral"
+    ]
   }
 ]

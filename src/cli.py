@@ -56,7 +56,8 @@ def _print_stats(store, print_fn):
 
 def _ask(orch, store, session_id, patient, question, print_fn):
     history = store.get_history(session_id)
-    state = orch.run(State(question=question, profile=patient["profile"], history=history))
+    state = orch.run(State(question=question, profile=patient["profile"], history=history,
+                           patient_id=patient["id"]))
     store.add_message(session_id, "user", question)
     store.add_message(session_id, "assistant", state.final)
     band = risk_band(state.risk) if state.risk is not None else "chưa tính"

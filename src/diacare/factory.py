@@ -4,6 +4,7 @@ from pathlib import Path
 from diacare.db import Store
 from diacare.kb import load_kb
 from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
+from diacare.memory import MemoryAgent
 from diacare.nutrition import NutritionAgent, load_foods
 from diacare.orchestrator import Orchestrator
 from diacare.predictor import Predictor
@@ -40,7 +41,7 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition",)  # sẽ thêm "memory", "hybrid" ở các bước sau
+FEATURES_ALL = ("nutrition", "memory")  # sẽ thêm "hybrid" ở bước sau
 
 
 def parse_features(value=None):
@@ -83,8 +84,9 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     nutrition_agent = None
     if "nutrition" in features:
         nutrition_agent = NutritionAgent(load_foods(ROOT / "data" / "nutrition" / "vn_foods.json"))
+    memory_agent = MemoryAgent(store or Store(":memory:")) if "memory" in features else None
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score)
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
-        session_id=session_id, nutrition_agent=nutrition_agent
+        session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent
     )

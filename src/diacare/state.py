@@ -13,3 +13,5 @@ class State:
     flags: list = field(default_factory=list)
     usage: dict = field(default_factory=dict)
     nutrition: dict | None = None
+    patient_id: int | None = None
+    memory: list = field(default_factory=list)

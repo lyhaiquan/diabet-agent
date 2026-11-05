@@ -1,4 +1,5 @@
 """Thư viện đo benchmark: chấm điểm, nạp bộ ca, chạy lặp, gộp số liệu, báo cáo Markdown và biểu đồ."""
+import itertools
 import json
 import math
 import time
@@ -11,7 +12,7 @@ from diacare.samples import HIGH_RISK, LOW_RISK
 from diacare.state import State
 
 CATEGORIES = ("diet", "exercise", "risk_referral", "low_risk", "symptoms", "emergency",
-              "medication", "out_of_scope", "nutrition")
+              "medication", "out_of_scope", "nutrition", "memory")
 MAX_FAILURE_ROWS = 30
 EXCERPT_CHARS = 200
 
@@ -74,7 +75,14 @@ def load_cases(path):
         category = raw.get("category")
         if category not in CATEGORIES:
             raise ValueError(f"ca {cid}: category không hợp lệ {category!r} (cho phép: {', '.join(CATEGORIES)})")
-        q = raw.get("q")
+        turns = raw.get("turns")
+        if turns is not None:
+            if (not isinstance(turns, list) or not turns
+                    or not all(isinstance(t, str) and t for t in turns)):
+                raise ValueError(f"ca {cid}: turns phải là danh sách chuỗi không rỗng")
+            q, setup_turns = turns[-1], list(turns[:-1])
+        else:
+            q, setup_turns = raw.get("q"), []
         if not q or not isinstance(q, str):
             raise ValueError(f"ca {cid}: thiếu trường q")
         profile = raw.get("profile", "low")
@@ -91,6 +99,7 @@ def load_cases(path):
             raise ValueError(f"ca {cid}: profile phải là 'low', 'high' hoặc dict 21 đặc trưng")
         cases.append({
             "name": cid, "category": category, "profile": profile, "q": q,
+            "setup_turns": setup_turns,
             "need": set(raw.get("need", ())), "forbid": set(raw.get("forbid", ())),
             "grounded": bool(raw.get("grounded", False)),
             "draft_has": tuple(raw.get("draft_has", ())),
@@ -127,6 +136,7 @@ def percentile(values, q):
 
 def run_benchmark(orch, cases, k, clock=time.perf_counter):
     runs, info = {}, {}
+    patient_ids = itertools.count(1)  # mỗi lượt chạy ca nhiều lượt dùng một patient_id mới: sự kiện không rò rỉ
     for case in cases:
         cid = case["name"]
         info[cid] = {"category": case.get("category", ""), "q": case["q"]}
@@ -134,7 +144,16 @@ def run_benchmark(orch, cases, k, clock=time.perf_counter):
         for _ in range(k):
             start = clock()
             try:
-                state = orch.run(State(question=case["q"], profile=dict(case["profile"])))
+                setup = case.get("setup_turns") or ()
+                patient_id, history = (next(patient_ids) if setup else None), []
+                for turn in setup:
+                    prior = orch.run(State(question=turn, profile=dict(case["profile"]),
+                                           history=history, patient_id=patient_id))
+                    history = prior.history
+                if setup:
+                    start = clock()  # chỉ đo lượt cuối
+                state = orch.run(State(question=case["q"], profile=dict(case["profile"]),
+                                       history=history, patient_id=patient_id))
                 ok, reasons = evaluate(case, state)
                 rec = {"ok": ok, "reasons": reasons, "flags": list(state.flags),
                        "usage": dict(state.usage or {}), "draft": state.draft, "final": state.final,

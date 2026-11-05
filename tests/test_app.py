@@ -67,3 +67,17 @@ def test_assistant_message_shows_risk_sources_and_details(env):
     at.chat_input[0].set_value("Còn tập thể dục thì sao?").run()
     assert not at.exception
     assert [e.label for e in at.expander].count("Chi tiết kỹ thuật") == 2
+
+
+def test_sidebar_shows_and_deletes_memory(env):
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    at.chat_input[0].set_value("Tôi bị dị ứng tôm.").run()
+    store = open_store()
+    pid = store.list_patients()[0]["id"]
+    assert [m["content"] for m in store.list_memories(pid)] == ["tôm"]
+    at.run()
+    assert any("dị ứng: tôm" in c.value for c in at.sidebar.caption)
+    next(b for b in at.sidebar.button if b.label == "Xoá").click().run()
+    assert open_store().list_memories(pid) == []

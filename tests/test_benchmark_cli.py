@@ -28,7 +28,7 @@ def test_cli_demo_end_to_end(tmp_path, monkeypatch):
     assert "Pass^2" in report
     data = json.loads((out / "results.json").read_text(encoding="utf-8"))
     assert data["meta"]["k"] == 2 and "demo" in data["results"]
-    assert len(data["results"]["demo"]["runs"]) == 42
+    assert len(data["results"]["demo"]["runs"]) == 46
     assert list(out.glob("*.png"))
 
 
