@@ -38,6 +38,7 @@ LABELS = {
     "Income": "thu nhập 1-8",
 }
 FIELDS = tuple(FEATURE_RANGES)
+PAGES = ("Tư vấn", "Lịch sử", "Thống kê")
 
 
 @st.cache_resource
@@ -274,12 +275,14 @@ def main():
         st.info("Chế độ demo đang bật: mô hình ngôn ngữ giả lập hoặc embedding băm, chỉ dùng để thử giao diện.")
     base, store = load_parts(*_env_key())
     patient_id = render_sidebar(store)
-    tab_chat, tab_hist, tab_stats = st.tabs(["Tư vấn", "Lịch sử", "Thống kê"])
-    with tab_chat:
+    # Dùng nút chọn trang thay cho st.tabs: st.chat_input chỉ được ghim xuống đáy màn hình
+    # (kiểu ChatGPT) khi nằm ở cấp ngoài cùng, không ở trong tab/cột/expander.
+    page = st.radio("Trang", PAGES, horizontal=True, key="page", label_visibility="collapsed")
+    if page == "Tư vấn":
         render_chat(store, base, patient_id)
-    with tab_hist:
+    elif page == "Lịch sử":
         render_history(store)
-    with tab_stats:
+    else:
         render_stats(store)
 
 

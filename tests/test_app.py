@@ -29,7 +29,21 @@ def test_app_runs_and_shows_demo_banner(env):
     at = new_app().run()
     assert not at.exception
     assert any("demo" in i.value.lower() for i in at.info)
-    assert [t.label for t in at.tabs] == ["Tư vấn", "Lịch sử", "Thống kê"]
+    assert list(at.radio(key="page").options) == ["Tư vấn", "Lịch sử", "Thống kê"]
+
+
+def test_chat_input_pinned_at_top_level(env):
+    # Streamlit chỉ ghim ô chat xuống đáy khi st.chat_input không nằm trong tab/cột/expander
+    at = new_app().run()
+    at.sidebar.text_input[0].set_value("An")
+    at.sidebar.button[-1].click().run()
+    assert len(at.tabs) == 0
+    assert len(at.chat_input) == 1
+    at.radio(key="page").set_value("Lịch sử").run()
+    assert not at.exception
+    assert len(at.chat_input) == 0
+    at.radio(key="page").set_value("Thống kê").run()
+    assert not at.exception
 
 
 def test_create_patient_and_chat(env):
