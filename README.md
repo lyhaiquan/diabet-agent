@@ -143,6 +143,35 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
 | `DIACARE_FEATURES` | `v2` | `v2` = nutrition, memory, labs; `all` = thêm truy xuất lai; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid` |
 
+## Đồ thị tri thức (Knowledge Graph)
+
+`src/diacare/kg.py` dựng một đồ thị tri thức về tiểu đường từ chính dữ liệu của dự án. Cạnh **có kiểu và tách
+theo nguồn gốc**, vì ba nguồn có độ tin cậy khác nhau:
+
+| Loại cạnh | Nối | Nguồn | Độ tin cậy |
+|---|---|---|---|
+| `indicates` | LabTest → Condition | ngưỡng ADA 2024 (`labs.THRESHOLDS`) | tra cứu |
+| `requires` | Symptom → Action | luật chuyển khám, cấp cứu (`rules.py`) | tra cứu |
+| `contains` | Food → Nutrient | USDA FoodData Central (`vn_foods.json`) | tra cứu |
+| `associated_with` | RiskFactor → Condition | BRFSS 2015, odds ratio khi xét riêng và khi hiệu chỉnh 21 chỉ số | đo được, là liên hệ chứ không phải nhân quả |
+| `claims_risk` | RiskFactor → Condition | câu trong `kb/` (MedlinePlus, WHO) | lời khẳng định, đem đối chiếu |
+
+Mỗi cạnh `claims_risk` được đối chiếu với cạnh `associated_with` cùng yếu tố: **nhất quán**, **mâu thuẫn**,
+**không đủ bằng chứng**, hoặc **không kiểm chứng được** khi BRFSS không đo yếu tố đó. Trên `kb/` hiện tại:
+28 khẳng định, 15 nhất quán, 13 không kiểm chứng được (tiền sử gia đình, chủng tộc, thai kỳ, PCOS...),
+0 mâu thuẫn. Hai điểm dữ liệu cho thấy mà tài liệu không nói: hút thuốc có OR 1,42 khi xét riêng nhưng 0,99
+khi hiệu chỉnh; vận động có OR 0,49 khi xét riêng nhưng 0,95 khi hiệu chỉnh.
+
+```bash
+python tools/build_kg_stats.py     # tính lại kb/graph/brfss_associations.json từ CSV BRFSS (không tự tải)
+python tools/kg_neo4j.py           # nạp vào Neo4j trong Docker, chạy 6 truy vấn Cypher
+```
+
+`kg_neo4j.py` dùng container riêng `diacare-neo4j` trên cổng **7475** (Browser) và **7688** (bolt), mật khẩu
+sinh ngẫu nhiên lưu trong `neo4j.local.json` (đã gitignore). Mở http://localhost:7475 để xem đồ thị.
+Đồ thị mặc định chạy bằng networkx trong bộ nhớ, nên test, chế độ demo và Kaggle không cần Docker.
+**Chưa nối vào Orchestrator**: các agent hiện chưa dùng đồ thị khi trả lời.
+
 ## Đánh giá
 
 **Predictor** (tập kiểm tra 20%, khoảng 50.736 mẫu, xem `models/metrics.json`):

@@ -1,0 +1,285 @@
+{
+ "nodes": 108,
+ "edges": 220,
+ "graph": {
+  "nodes": 108,
+  "edges": 220,
+  "by_relation": {
+   "indicates": 13,
+   "requires": 27,
+   "contains": 143,
+   "associated_with": 9,
+   "claims_risk": 28
+  },
+  "by_label": {
+   "Condition": 5,
+   "LabTest": 4,
+   "Action": 2,
+   "Symptom": 27,
+   "Nutrient": 3,
+   "Food": 50,
+   "RiskFactor": 17
+  },
+  "claim_verdicts": {
+   "nhất quán": 15,
+   "không kiểm chứng được": 13
+  }
+ },
+ "queries": [
+  {
+   "question": "Yếu tố nào tài liệu nêu là nguy cơ nhưng dữ liệu BRFSS không đo được?",
+   "cypher": "MATCH (f:RiskFactor)-[c:claims_risk]->(:Condition {id: 'T2D'}) WHERE NOT f.measurable RETURN f.name AS yeu_to, collect(DISTINCT c.source) AS nguon ORDER BY yeu_to",
+   "rows": [
+    {
+     "yeu_to": "Gai đen (acanthosis nigricans)",
+     "nguon": [
+      "medlineplus_type2_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Hội chứng buồng trứng đa nang",
+     "nguon": [
+      "medlineplus_type2_diabetes.txt",
+      "medlineplus_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Nhóm chủng tộc",
+     "nguon": [
+      "medlineplus_diabetes.txt",
+      "medlineplus_type2_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Tiền sử gia đình",
+     "nguon": [
+      "medlineplus_diabetes.txt",
+      "medlineplus_type2_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Tiền đái tháo đường",
+     "nguon": [
+      "medlineplus_diabetes.txt",
+      "medlineplus_type2_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Trầm cảm",
+     "nguon": [
+      "medlineplus_type2_diabetes.txt"
+     ]
+    },
+    {
+     "yeu_to": "Yếu tố di truyền",
+     "nguon": [
+      "who_diabetes_factsheet.txt"
+     ]
+    },
+    {
+     "yeu_to": "Đái tháo đường thai kỳ, con to khi sinh",
+     "nguon": [
+      "medlineplus_type2_diabetes.txt",
+      "medlineplus_diabetes.txt"
+     ]
+    }
+   ]
+  },
+  {
+   "question": "Với yếu tố đo được: tài liệu nói gì, dữ liệu đo được bao nhiêu?",
+   "cypher": "MATCH (f:RiskFactor)-[a:associated_with]->(t:Condition {id: 'T2D'}) OPTIONAL MATCH (f)-[c:claims_risk]->(t) RETURN f.name AS yeu_to, a.or_marginal AS or_rieng, a.or_adjusted AS or_hieu_chinh, count(c) AS so_tai_lieu_neu, collect(DISTINCT c.verdict) AS ket_luan ORDER BY or_rieng DESC",
+   "rows": [
+    {
+     "yeu_to": "Tăng huyết áp",
+     "or_rieng": 5.037,
+     "or_hieu_chinh": 2.132,
+     "so_tai_lieu_neu": 2,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Bệnh tim",
+     "or_rieng": 3.622,
+     "or_hieu_chinh": 1.245,
+     "so_tai_lieu_neu": 1,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Rối loạn mỡ máu",
+     "or_rieng": 3.254,
+     "or_hieu_chinh": 1.785,
+     "so_tai_lieu_neu": 1,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Đột quỵ",
+     "or_rieng": 3.063,
+     "or_hieu_chinh": 1.135,
+     "so_tai_lieu_neu": 1,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Tuổi cao",
+     "or_rieng": 1.779,
+     "or_hieu_chinh": 1.46,
+     "so_tai_lieu_neu": 2,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Thừa cân, béo phì",
+     "or_rieng": 1.681,
+     "or_hieu_chinh": 1.496,
+     "so_tai_lieu_neu": 3,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Hút thuốc lá",
+     "or_rieng": 1.418,
+     "or_hieu_chinh": 0.99,
+     "so_tai_lieu_neu": 1,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Ăn nhiều rau, trái cây",
+     "or_rieng": 0.679,
+     "or_hieu_chinh": 0.965,
+     "so_tai_lieu_neu": 1,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    },
+    {
+     "yeu_to": "Ít vận động",
+     "or_rieng": 0.49,
+     "or_hieu_chinh": 0.949,
+     "so_tai_lieu_neu": 3,
+     "ket_luan": [
+      "nhất quán"
+     ]
+    }
+   ]
+  },
+  {
+   "question": "HbA1c bao nhiêu thì ở mức nào (ngưỡng ADA 2024)?",
+   "cypher": "MATCH (:LabTest {id: 'hba1c'})-[r:indicates]->(c:Condition) RETURN c.name AS muc, r.min AS tu, r.max AS duoi, r.unit AS don_vi ORDER BY coalesce(r.min, 0)",
+   "rows": [
+    {
+     "muc": "Bình thường",
+     "tu": null,
+     "duoi": 5.7,
+     "don_vi": "%"
+    },
+    {
+     "muc": "Tiền đái tháo đường",
+     "tu": 5.7,
+     "duoi": 6.5,
+     "don_vi": "%"
+    },
+    {
+     "muc": "Ngưỡng chẩn đoán đái tháo đường",
+     "tu": 6.5,
+     "duoi": null,
+     "don_vi": "%"
+    }
+   ]
+  },
+  {
+   "question": "Triệu chứng nào phải gọi cấp cứu?",
+   "cypher": "MATCH (s:Symptom)-[:requires]->(:Action {id: 'EMERGENCY'}) RETURN s.name AS trieu_chung ORDER BY trieu_chung",
+   "rows": [
+    {
+     "trieu_chung": "co giật"
+    },
+    {
+     "trieu_chung": "hôn mê"
+    },
+    {
+     "trieu_chung": "hơi thở có mùi"
+    },
+    {
+     "trieu_chung": "hạ đường huyết"
+    },
+    {
+     "trieu_chung": "khó thở"
+    },
+    {
+     "trieu_chung": "lú lẫn"
+    },
+    {
+     "trieu_chung": "ngất"
+    },
+    {
+     "trieu_chung": "đau ngực"
+    },
+    {
+     "trieu_chung": "đường huyết thấp"
+    }
+   ]
+  },
+  {
+   "question": "Năm món nhiều tinh bột nhất trên 100 g",
+   "cypher": "MATCH (f:Food)-[r:contains]->(:Nutrient {id: 'carb_g'}) RETURN f.name AS mon, r.g_per_100g AS carb_g ORDER BY carb_g DESC LIMIT 5",
+   "rows": [
+    {
+     "mon": "đường",
+     "carb_g": 99.98
+    },
+    {
+     "mon": "miến khô",
+     "carb_g": 86.09
+    },
+    {
+     "mon": "mật ong",
+     "carb_g": 82.4
+    },
+    {
+     "mon": "mì gói",
+     "carb_g": 60.26
+    },
+    {
+     "mon": "sữa đặc",
+     "carb_g": 54.4
+    }
+   ]
+  },
+  {
+   "question": "Đếm cạnh theo loại",
+   "cypher": "MATCH ()-[r]->() RETURN type(r) AS loai_canh, count(*) AS so_canh ORDER BY so_canh DESC",
+   "rows": [
+    {
+     "loai_canh": "contains",
+     "so_canh": 143
+    },
+    {
+     "loai_canh": "claims_risk",
+     "so_canh": 28
+    },
+    {
+     "loai_canh": "requires",
+     "so_canh": 27
+    },
+    {
+     "loai_canh": "indicates",
+     "so_canh": 13
+    },
+    {
+     "loai_canh": "associated_with",
+     "so_canh": 9
+    }
+   ]
+  }
+ ]
+}
