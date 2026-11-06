@@ -8,8 +8,9 @@ nối kho tài liệu (KB) với đồ thị (KG).
 1. Bật **Docker Desktop**, chờ biểu tượng cá voi báo đang chạy.
 2. Bấm đúp **`chay_kg.bat`**. Script làm bốn việc: bật Ollama, bật Neo4j trong Docker, nạp đồ thị vào Neo4j,
    rồi mở giao diện chat với Graph agent đọc từ Neo4j.
-3. Mở **http://localhost:7475** (Neo4j Browser). Ô *Connect URL* sửa thành `bolt://localhost:7688`,
-   user `neo4j`, mật khẩu lấy trong tệp `neo4j.local.json` ở gốc repo.
+3. Mở **http://localhost:7475** (Neo4j Browser). Ô kết nối đã điền sẵn `localhost:7688`; user `neo4j`,
+   mật khẩu lấy trong tệp `neo4j.local.json` ở gốc repo (chuỗi bắt đầu bằng `dc-`). Trang trắng thì nhấn
+   Ctrl+F5 để tải lại.
 
 Chỉ cần nạp lại đồ thị mà không mở giao diện: `python tools/kg_neo4j.py`.
 

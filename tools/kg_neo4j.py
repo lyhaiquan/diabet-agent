@@ -73,10 +73,26 @@ def _mounted_here():
     return any(m.get("Destination") == "/data" and m.get("Type") == "bind" for m in mounts)
 
 
+# Neo4j trong container tưởng mình ở cổng 7687/7474 và báo địa chỉ đó cho Neo4j Browser; trang Browser sẽ tự
+# kết nối nhầm sang 7687 (có thể là Neo4j của dự án khác). Phải báo đúng cổng đã ánh xạ ra ngoài.
+ADVERTISED = {"NEO4J_server_bolt_advertised__address": "localhost:7688",
+              "NEO4J_server_http_advertised__address": "localhost:7475"}
+
+
+def _advertised_ok():
+    out = subprocess.run(["docker", "inspect", NAME, "--format", "{{json .Config.Env}}"],
+                         capture_output=True, text=True).stdout
+    try:
+        env = set(json.loads(out))
+    except ValueError:
+        return False
+    return all(f"{k}={v}" in env for k, v in ADVERTISED.items())
+
+
 def _start(cfg):
     have = subprocess.run(["docker", "ps", "-a", "-q", "-f", f"name=^{NAME}$"],
                           capture_output=True, text=True).stdout.strip()
-    if have and not _mounted_here():
+    if have and not (_mounted_here() and _advertised_ok()):
         # Container cũ lưu dữ liệu trong volume ẩn danh, không nhìn thấy từ Windows: dựng lại.
         # Không mất gì vì đồ thị được nạp lại từ tệp ngay sau đó.
         subprocess.run(["docker", "rm", "-f", NAME], check=True, capture_output=True)
@@ -88,6 +104,7 @@ def _start(cfg):
     (DATA_DIR / "logs").mkdir(parents=True, exist_ok=True)
     subprocess.run(["docker", "run", "-d", "--name", NAME, "-p", "7475:7474", "-p", "7688:7687",
                     "-v", f"{DATA_DIR / 'data'}:/data", "-v", f"{DATA_DIR / 'logs'}:/logs",
+                    *[a for k, v in ADVERTISED.items() for a in ("-e", f"{k}={v}")],
                     "-e", f"NEO4J_AUTH={cfg['user']}/{cfg['password']}", "neo4j:5"],
                    check=True, capture_output=True)
 
