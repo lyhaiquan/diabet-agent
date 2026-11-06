@@ -42,7 +42,8 @@ def _short(items, n=3):
 
 class Orchestrator:
     def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
-                 nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None):
+                 nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None,
+                 graph_agent=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
@@ -52,6 +53,7 @@ class Orchestrator:
         self.nutrition_agent = nutrition_agent
         self.memory_agent = memory_agent
         self.lab_agent = lab_agent
+        self.graph_agent = graph_agent
         self.summarizer_llm = summarizer_llm if summarizer_llm is not None else (
             llm if memory_agent is not None else None)
 
@@ -105,6 +107,11 @@ class Orchestrator:
             state.docs = self.retriever.search(state.question)
             step("Retriever", f"{len(state.docs)} đoạn tài liệu: {_short(d['source'] for d in state.docs)}"
                  if state.docs else "không tìm thấy tài liệu phù hợp")
+            if self.graph_agent is not None:
+                state.kg = self.graph_agent.lookup(state.question)
+                step("Graph", f"{state.kg['backend']}: " + (
+                    "yếu tố " + _short(state.kg["factors"]) if state.kg["factors"]
+                    else "câu hỏi không nhắc tới yếu tố nguy cơ nào trong đồ thị"))
             if self.nutrition_agent is not None:
                 analysis = self.nutrition_agent.analyze(state.question)
                 state.nutrition = analysis if is_nutrition_question(state.question, analysis) else None
@@ -178,6 +185,7 @@ class Orchestrator:
             "memory_kinds": [m["kind"] for m in state.memory],
             "nutrition_items": [i["name"] for i in (state.nutrition or {}).get("items", [])],
             "lab_levels": {r["test"]: r["level"] for r in state.labs},
+            "kg_factors": (state.kg or {}).get("factors", []),
             "trace": state.trace,
         }
         if error:

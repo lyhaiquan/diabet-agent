@@ -1,6 +1,7 @@
 import math
 
 from diacare.llm import DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT
+from diacare.kg import format_kg
 from diacare.labs import format_labs
 from diacare.memory import format_memory, has_diagnosis
 from diacare.nutrition import format_table
@@ -11,6 +12,7 @@ SYSTEM_RESERVE_TOKENS = 250     # system prompt + nhãn tài liệu + dòng mứ
 HISTORY_TOKEN_BUDGET = 800
 MEMORY_TOKEN_BUDGET = 150          # trí nhớ dài hạn về bệnh nhân, tính trước dinh dưỡng và tài liệu
 DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu
+KG_TOKEN_BUDGET = 250           # tri thức từ đồ thị: tối đa 3 yếu tố, mỗi yếu tố một dòng
 
 
 def estimate_tokens(text):
@@ -51,6 +53,15 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             nutrition_text = format_table(state.nutrition)
             nutrition_tokens = estimate_tokens(nutrition_text)
             remaining -= nutrition_tokens
+        kg_text, kg_tokens = "", 0
+        if state.kg and state.kg.get("lines"):  # sau dinh dưỡng, trước tài liệu; bỏ dòng cuối nếu vượt ngân sách
+            lines = list(state.kg["lines"])
+            while lines and estimate_tokens(format_kg({**state.kg, "lines": lines})) > KG_TOKEN_BUDGET:
+                lines.pop()
+            if lines:
+                kg_text = format_kg({**state.kg, "lines": lines})
+                kg_tokens = estimate_tokens(kg_text)
+                remaining -= kg_tokens
         docs, docs_tokens = [], 0
         if remaining > 0:
             for d in state.docs:
@@ -68,8 +79,9 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             "memory_text": memory_text,
             "nutrition_text": nutrition_text,
             "lab_text": lab_text,
+            "kg_text": kg_text,
             "est_tokens": (SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + memory_tokens
-                           + lab_tokens + nutrition_tokens + docs_tokens),
+                           + lab_tokens + nutrition_tokens + kg_tokens + docs_tokens),
         }
     if agent == "rule":
         return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question,

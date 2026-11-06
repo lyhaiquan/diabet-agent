@@ -1,7 +1,8 @@
 ﻿# Chạy DiaCare-MAS trên máy cá nhân với LLM thật qua Ollama (mặc định qwen2.5:3b).
 #   Bấm đúp chay_local.bat, hoặc:  powershell -ExecutionPolicy Bypass -File chay_local.ps1 [-Model qwen2.5:7b]
 #   Chat ngay trong terminal (không mở trình duyệt): chay_cli.bat, tức là thêm -Cli [-HoSo đường_dẫn.json]
-param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli,
+#   Bật đồ thị tri thức đọc từ Neo4j (cần Docker Desktop): chay_kg.bat, tức là thêm -KG
+param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli, [switch]$KG,
       [string]$HoSo = "docs\samples\hoso_nguy_co_cao.json", [string]$Ten = "Nguoi dung terminal")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -45,6 +46,17 @@ $env:DIACARE_NUM_CTX = "4096"
 $env:DIACARE_KB = Join-Path $root "kb"
 $env:DIACARE_DB = Join-Path $root "data\diacare.db"
 $env:DIACARE_LOG = Join-Path $root "logs\runs.jsonl"
+
+if ($KG) {
+    # Bật Neo4j trong Docker, nạp đồ thị, rồi cho Graph agent đọc từ Neo4j.
+    Write-Host "Đang bật Neo4j và nạp đồ thị tri thức..."
+    $env:PYTHONIOENCODING = "utf-8"
+    python tools/kg_neo4j.py | Select-Object -First 1
+    if ($LASTEXITCODE -ne 0) { throw "Không bật được Neo4j: Docker Desktop đã chạy chưa?" }
+    $env:DIACARE_FEATURES = "v2,kg"
+    $env:DIACARE_KG = "neo4j"
+    Write-Host "Neo4j Browser: http://localhost:7475  (bolt://localhost:7688, user neo4j, mật khẩu trong neo4j.local.json)"
+}
 
 if ($Cli) {
     $env:PYTHONIOENCODING = "utf-8"

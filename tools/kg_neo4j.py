@@ -4,6 +4,11 @@ Dùng container riêng `diacare-neo4j` trên cổng 7475 (Browser) và 7688 (bol
 Neo4j của dự án khác trên 7474/7687: script xoá sạch cơ sở dữ liệu trước khi nạp.
 Mật khẩu sinh ngẫu nhiên, lưu trong neo4j.local.json ở gốc repo (đã gitignore).
 
+Dữ liệu của Neo4j được gắn ra thư mục neo4j_data/ ở gốc repo (đã gitignore), giống thư mục data của MySQL:
+  neo4j_data/data/databases/neo4j/      tệp lưu nút, cạnh, thuộc tính (neostore.*.db)
+  neo4j_data/data/transactions/neo4j/   nhật ký giao dịch, ghi trước rồi mới chép vào neostore
+Xoá container không mất dữ liệu; xoá thư mục này thì mất.
+
 Chạy:  python tools/kg_neo4j.py
 Rồi mở http://localhost:7475, kết nối bolt://localhost:7688, user neo4j, mật khẩu trong neo4j.local.json.
 Kết quả truy vấn ghi ra docs/results/kg_neo4j_queries.json.
@@ -54,15 +59,37 @@ def _config():
     return json.loads(CFG.read_text(encoding="utf-8"))
 
 
+DATA_DIR = ROOT / "neo4j_data"
+
+
+def _mounted_here():
+    """Container hiện có đã gắn /data ra neo4j_data/ chưa (bản cũ dùng volume ẩn danh của Docker)."""
+    out = subprocess.run(["docker", "inspect", NAME, "--format", "{{json .Mounts}}"],
+                         capture_output=True, text=True).stdout
+    try:
+        mounts = json.loads(out)
+    except ValueError:
+        return False
+    return any(m.get("Destination") == "/data" and m.get("Type") == "bind" for m in mounts)
+
+
 def _start(cfg):
     have = subprocess.run(["docker", "ps", "-a", "-q", "-f", f"name=^{NAME}$"],
                           capture_output=True, text=True).stdout.strip()
+    if have and not _mounted_here():
+        # Container cũ lưu dữ liệu trong volume ẩn danh, không nhìn thấy từ Windows: dựng lại.
+        # Không mất gì vì đồ thị được nạp lại từ tệp ngay sau đó.
+        subprocess.run(["docker", "rm", "-f", NAME], check=True, capture_output=True)
+        have = ""
     if have:
         subprocess.run(["docker", "start", NAME], check=True, capture_output=True)
-    else:
-        subprocess.run(["docker", "run", "-d", "--name", NAME, "-p", "7475:7474", "-p", "7688:7687",
-                        "-e", f"NEO4J_AUTH={cfg['user']}/{cfg['password']}", "neo4j:5"],
-                       check=True, capture_output=True)
+        return
+    (DATA_DIR / "data").mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / "logs").mkdir(parents=True, exist_ok=True)
+    subprocess.run(["docker", "run", "-d", "--name", NAME, "-p", "7475:7474", "-p", "7688:7687",
+                    "-v", f"{DATA_DIR / 'data'}:/data", "-v", f"{DATA_DIR / 'logs'}:/logs",
+                    "-e", f"NEO4J_AUTH={cfg['user']}/{cfg['password']}", "neo4j:5"],
+                   check=True, capture_output=True)
 
 
 def _connect(cfg):
@@ -101,6 +128,16 @@ def main():
             for r in rows[:10]:
                 print("  ", r)
     drv.close()
+
+    # Khởi động lại container: khi tắt êm, Neo4j chép hết nhật ký giao dịch vào tệp neostore.*.db
+    # (bản Community không có thủ tục db.checkpoint). Đếm lại sau khi bật là bằng chứng dữ liệu nằm trên đĩa.
+    subprocess.run(["docker", "restart", NAME], check=True, capture_output=True)
+    drv = _connect(cfg)
+    with drv.session() as s:
+        after = s.run("MATCH (n) RETURN count(n) AS c").single()["c"]
+    drv.close()
+    print(f"\nSau khi khởi động lại Neo4j: còn {after} nút. Dữ liệu nằm ở {DATA_DIR / 'data' / 'databases' / 'neo4j'}")
+    res["nodes_after_restart"] = after
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
 

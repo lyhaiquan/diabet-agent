@@ -1,8 +1,10 @@
+import json
 import os
 from pathlib import Path
 
 from diacare.db import Store
 from diacare.kb import load_kb
+from diacare.kg import GraphAgent, MemoryKG, Neo4jKG
 from diacare.labs import LabAgent
 from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
 from diacare.memory import MemoryAgent
@@ -42,7 +44,7 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid")
+FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
 FEATURES_DEFAULT = ("nutrition", "memory", "labs")
@@ -95,8 +97,33 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     lab_agent = LabAgent(shared) if "labs" in features else None
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score,
                           mode="hybrid" if "hybrid" in features else "dense")
+    graph_agent = make_graph_agent() if "kg" in features else None
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
         session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent,
-        lab_agent=lab_agent,
+        lab_agent=lab_agent, graph_agent=graph_agent,
     )
+
+
+def neo4j_config():
+    """Kết nối Neo4j: biến môi trường NEO4J_URI/USER/PASSWORD, nếu không có thì neo4j.local.json."""
+    cfg = {}
+    path = ROOT / "neo4j.local.json"
+    if path.exists():
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+    return (os.environ.get("NEO4J_URI", cfg.get("uri", "bolt://localhost:7688")),
+            os.environ.get("NEO4J_USER", cfg.get("user", "neo4j")),
+            os.environ.get("NEO4J_PASSWORD", cfg.get("password")))
+
+
+def make_graph_agent(kind=None):
+    """DIACARE_KG=neo4j: đọc đồ thị từ Neo4j (tools/kg_neo4j.py phải đã nạp).
+    Mặc định, hoặc khi không kết nối được Neo4j: dựng đồ thị networkx trong bộ nhớ từ tệp."""
+    kind = (kind or os.environ.get("DIACARE_KG") or "memory").lower()
+    if kind == "neo4j":
+        uri, user, password = neo4j_config()
+        try:
+            return GraphAgent(Neo4jKG(uri, user, password))
+        except Exception as exc:  # không có Neo4j thì vẫn chạy được, ghi rõ đang dùng gì
+            print(f"[kg] Không kết nối được Neo4j ở {uri} ({type(exc).__name__}); dùng networkx trong bộ nhớ.")
+    return GraphAgent(MemoryKG())

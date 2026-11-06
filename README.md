@@ -168,9 +168,15 @@ python tools/kg_neo4j.py           # nạp vào Neo4j trong Docker, chạy 6 tru
 ```
 
 `kg_neo4j.py` dùng container riêng `diacare-neo4j` trên cổng **7475** (Browser) và **7688** (bolt), mật khẩu
-sinh ngẫu nhiên lưu trong `neo4j.local.json` (đã gitignore). Mở http://localhost:7475 để xem đồ thị.
-Đồ thị mặc định chạy bằng networkx trong bộ nhớ, nên test, chế độ demo và Kaggle không cần Docker.
-**Chưa nối vào Orchestrator**: các agent hiện chưa dùng đồ thị khi trả lời.
+sinh ngẫu nhiên lưu trong `neo4j.local.json` (đã gitignore). Dữ liệu Neo4j được gắn ra thư mục
+**`neo4j_data/`** ở gốc repo (đã gitignore): tệp lưu nút, cạnh nằm ở `neo4j_data/data/databases/neo4j/`.
+
+**Graph agent** đọc đồ thị khi trả lời, đứng sau Retriever: nối câu hỏi tiếng Việt vào nút yếu tố nguy cơ rồi
+đưa cho LLM một khối "tài liệu nói gì, dữ liệu BRFSS đo được gì" (tối đa 250 token). Bật bằng
+`DIACARE_FEATURES=v2,kg`, mặc định **tắt** và chưa được đo lại trên benchmark. `DIACARE_KG=neo4j` cho agent
+truy vấn Neo4j bằng Cypher; mặc định (`memory`) hoặc khi không kết nối được Neo4j thì dùng networkx trong bộ nhớ,
+nên test, chế độ demo và Kaggle không cần Docker. Một cú bấm: **`chay_kg.bat`** bật Neo4j, nạp đồ thị, mở giao
+diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản đồ code: [`docs/kg_demo.md`](docs/kg_demo.md).
 
 ## Đánh giá
 

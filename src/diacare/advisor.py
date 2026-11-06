@@ -22,11 +22,14 @@ def build_messages(ctx):
     memory_block = f"{memory}\n\n" if memory else ""
     labs = ctx.get("lab_text") or ""
     lab_block = f"{labs}\n\n" if labs else ""
+    kg = ctx.get("kg_text") or ""
+    kg_block = f"{kg}\n\n" if kg else ""
     user = (
         f"{memory_block}"
         f"{lab_block}"
         f"Mức nguy cơ tiểu đường ước tính của người dùng: {band}\n\n"
         f"{nutrition_block}"
+        f"{kg_block}"
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
     )

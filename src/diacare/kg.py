@@ -56,7 +56,8 @@ RISK_FACTORS = {
     "HEALTHY_DIET":    dict(name="Ăn nhiều rau, trái cây", feature="Veggies", approx=True,
                             vi=["rau", "trái cây", "hoa quả", "ăn uống lành mạnh", "chế độ ăn"]),
     "FAMILY_HISTORY":  dict(name="Tiền sử gia đình", feature=None,
-                            vi=["di truyền", "gia đình", "bố mẹ", "cha mẹ", "anh chị em"]),
+                            vi=["di truyền", "gia đình", "bố mẹ", "cha mẹ", "anh chị em", "bố tôi",
+                                "mẹ tôi", "ông bà", "người thân"]),
     "PREDIABETES":     dict(name="Tiền đái tháo đường", feature=None,
                             vi=["tiền tiểu đường", "tiền đái tháo đường"]),
     "GESTATIONAL":     dict(name="Đái tháo đường thai kỳ, con to khi sinh", feature=None,
@@ -301,8 +302,9 @@ def describe_factor(facts):
     a = facts["association"]
     if a:
         n = f"{a['n']:,}".replace(",", ".")
-        parts.append(f"BRFSS 2015 (n = {n}): OR {a['or_marginal']:g} khi xét riêng, "
-                     f"{a['or_adjusted']:g} khi hiệu chỉnh 21 chỉ số ({a['unit']}); là liên hệ, không phải nhân quả.")
+        vn = lambda x: f"{x:g}".replace(".", ",")   # noqa: E731  số thập phân kiểu Việt
+        parts.append(f"BRFSS 2015 (n = {n}): OR {vn(a['or_marginal'])} khi xét riêng, "
+                     f"{vn(a['or_adjusted'])} khi hiệu chỉnh 21 chỉ số ({a['unit']}); là liên hệ, không phải nhân quả.")
         far = not 1 / OR_WEAK <= a["or_marginal"] <= OR_WEAK
         near = 1 / OR_WEAK <= a["or_adjusted"] <= OR_WEAK
         if far and near:
@@ -357,3 +359,72 @@ def to_cypher(g):
         lines.append(f"MATCH (a:Entity {{id: {_cy(u)}}}), (b:Entity {{id: {_cy(v)}}}) "
                      f"MERGE (a)-[:{d['rel']} {{{props}}}]->(b);")
     return "\n".join(lines) + "\n"
+
+
+# ---------- đọc đồ thị từ Neo4j ----------
+
+# Cùng một câu hỏi như factor_facts() nhưng chạy bằng Cypher trên Neo4j.
+FACTOR_CYPHER = """
+MATCH (f:RiskFactor {id: $fid})
+OPTIONAL MATCH (f)-[a:associated_with]->(:Condition {id: 'T2D'})
+OPTIONAL MATCH (f)-[c:claims_risk]->(:Condition {id: 'T2D'})
+RETURN f.name AS name, f.measurable AS measurable,
+       a {.or_marginal, .or_adjusted, .unit, .n} AS association,
+       collect(c {.source, .direction, .verdict}) AS claims
+"""
+
+
+class Neo4jKG:
+    """Đồ thị nằm trong Neo4j; ứng dụng truy vấn qua bolt thay vì dựng lại trong bộ nhớ."""
+
+    name = "neo4j"
+
+    def __init__(self, uri, user, password):
+        from neo4j import GraphDatabase   # chỉ cần thư viện neo4j khi thật sự dùng Neo4j
+        self.uri = uri
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.driver.verify_connectivity()
+
+    def factor_facts(self, fid):
+        with self.driver.session() as s:
+            r = s.run(FACTOR_CYPHER, fid=fid).single()
+        if r is None:
+            return None
+        return {"factor": fid, "name": r["name"], "measurable": r["measurable"],
+                "association": r["association"], "claims": r["claims"]}
+
+    def close(self):
+        self.driver.close()
+
+
+class MemoryKG:
+    """Đồ thị networkx trong bộ nhớ, dựng từ tệp. Dùng khi không có Neo4j (test, demo, Kaggle)."""
+
+    name = "networkx"
+
+    def __init__(self, g=None):
+        self.g = g if g is not None else load_default_graph()
+
+    def factor_facts(self, fid):
+        return factor_facts(self.g, fid) if fid in self.g else None
+
+
+class GraphAgent:
+    """Agent đồ thị: nối câu hỏi vào nút yếu tố nguy cơ rồi lấy cả ba loại cạnh của từng nút."""
+
+    def __init__(self, backend, limit=3):
+        self.backend, self.limit = backend, limit
+
+    def lookup(self, question):
+        facts = [f for f in (self.backend.factor_facts(fid) for fid in link_factors(question)[:self.limit]) if f]
+        return {"backend": self.backend.name, "factors": [f["factor"] for f in facts],
+                "lines": [describe_factor(f) for f in facts]}
+
+
+def format_kg(kg):
+    """Khối ngữ cảnh gửi cho Advisor."""
+    if not kg or not kg["lines"]:
+        return ""
+    return ("Tri thức từ đồ thị [kg] (tài liệu nói gì và dữ liệu BRFSS đo được gì; "
+            "số liệu là mối liên hệ thống kê, không phải quan hệ nhân quả):\n"
+            + "\n".join("- " + line for line in kg["lines"]))

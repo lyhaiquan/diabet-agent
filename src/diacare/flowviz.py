@@ -11,6 +11,7 @@ NODES = [
     ("Lab", "Lab", "Đối chiếu ngưỡng xét nghiệm", "🧪", "ADA 2024", (415, 40)),
     ("Predictor", "Predictor", "Dự đoán nguy cơ (MLP)", "📈", "BRFSS · 21 chỉ số", (615, 40)),
     ("Retriever", "Retriever", "Tìm tài liệu (RAG)", "🔎", "KB · sbert", (815, 40)),
+    ("Graph", "Graph", "Tra đồ thị tri thức", "🕸️", "Neo4j · KG", (1015, 40)),
     ("Nutrition", "Nutrition", "Tra dinh dưỡng món ăn", "🥗", "USDA FDC", (215, 470)),
     ("Context", "Context", "Cắt ngữ cảnh từng agent", "🧩", "ngân sách token", (415, 470)),
     ("Advisor", "Advisor", "LLM viết bản nháp", "💬", "Ollama qwen2.5:7b", (615, 470)),
@@ -37,7 +38,7 @@ def _svg():
     parts = ['<svg viewBox="0 0 1200 590" xmlns="http://www.w3.org/2000/svg" role="img" '
              'aria-label="Sơ đồ luồng agent DiaCare">']
     # vùng nhóm (nét đứt) giống sơ đồ kiến trúc
-    parts.append('<rect class="zone" x="200" y="18" width="800" height="138" rx="16"/>'
+    parts.append('<rect class="zone" x="200" y="18" width="995" height="138" rx="16"/>'
                  '<text class="zlabel" x="214" y="34">AGENT CHUYÊN TRÁCH · TRƯỚC LLM</text>')
     parts.append('<rect class="zone" x="200" y="448" width="800" height="134" rx="16"/>'
                  '<text class="zlabel" x="214" y="577">ĐẦU RA · LLM VÀ KIỂM TRA AN TOÀN</text>')
@@ -60,9 +61,10 @@ def _svg():
     parts.append(_box("Done", "Hoàn tất", "Lưu log + lịch sử", "🏁", "runs · trace_json",
                       1010, 380, 170, 92, cls="node final"))
     parts.append('<circle class="dot" id="{uid}-dot" r="7" cx="-50" cy="-50"/>')
-    parts.append('<text class="note" x="1010" y="70">Orchestrator gọi từng agent</text>'
-                 '<text class="note" x="1010" y="88">theo thứ tự, nhận kết quả về,</text>'
-                 '<text class="note" x="1010" y="106">rồi mới gọi agent kế tiếp.</text>')
+    # chú thích nằm dưới hộp Câu hỏi; góc trên phải giờ là hộp Graph
+    parts.append('<text class="note" x="20" y="384">Orchestrator gọi từng agent</text>'
+                 '<text class="note" x="20" y="402">theo thứ tự, nhận kết quả về,</text>'
+                 '<text class="note" x="20" y="420">rồi mới gọi agent kế tiếp.</text>')
     parts.append('</svg>')
     return "".join(parts)
 
@@ -123,7 +125,7 @@ const $ = id => document.getElementById(U + "-" + id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const dot = $("dot"), logEl = root.querySelector(".log"), draftEl = root.querySelector(".draft");
 const statusEl = root.querySelector(".st"), speedEl = root.querySelector("select");
-const ALL = ["Memory","Lab","Predictor","Retriever","Nutrition","Context","Advisor","Rules"];
+const ALL = ["Memory","Lab","Predictor","Retriever","Graph","Nutrition","Context","Advisor","Rules"];
 let token = 0;
 const center = id => { const g = $(id); const r = g.querySelector("rect"); const t = g.transform.baseVal[0].matrix;
   return [t.e + (+r.getAttribute("width"))/2, t.f + (+r.getAttribute("height"))/2]; };

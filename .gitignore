@@ -16,3 +16,4 @@ kaggle/app_kernel/
 
 # mat khau Neo4j cuc bo (tools/kg_neo4j.py)
 neo4j.local.json
+neo4j_data/
