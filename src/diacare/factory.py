@@ -81,10 +81,6 @@ def open_store(path=None):
     return Store(path)
 
 
-def make_rl_agent(policy_path=None):
-    return RLAgent() if policy_path is None else RLAgent(weights=None)
-
-
 def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
                        session_id=None, embed_fn=None, min_score=None, features=None):
     kb_dir = kb_dir or os.environ.get("DIACARE_KB") or ROOT / "kb"

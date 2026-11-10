@@ -2,7 +2,8 @@
 #   Bấm đúp chay_local.bat, hoặc:  powershell -ExecutionPolicy Bypass -File chay_local.ps1 [-Model qwen2.5:7b]
 #   Chat ngay trong terminal (không mở trình duyệt): chay_cli.bat, tức là thêm -Cli [-HoSo đường_dẫn.json]
 #   Bật đồ thị tri thức đọc từ Neo4j (cần Docker Desktop): chay_kg.bat, tức là thêm -KG
-param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli, [switch]$KG,
+#   Bật bản V3 (đồ thị tri thức trong bộ nhớ + agent RL, không cần Docker): chay_v3.bat, tức là thêm -V3
+param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli, [switch]$KG, [switch]$V3,
       [string]$HoSo = "docs\samples\hoso_nguy_co_cao.json", [string]$Ten = "Nguoi dung terminal")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -53,9 +54,17 @@ if ($KG) {
     $env:PYTHONIOENCODING = "utf-8"
     python tools/kg_neo4j.py | Select-Object -First 1
     if ($LASTEXITCODE -ne 0) { throw "Không bật được Neo4j: Docker Desktop đã chạy chưa?" }
-    $env:DIACARE_FEATURES = "v2,kg"
     $env:DIACARE_KG = "neo4j"
     Write-Host "Neo4j Browser: http://localhost:7475  (bolt://localhost:7688, user neo4j, mật khẩu trong neo4j.local.json)"
+}
+
+# Không dùng "v3" vì "v3" bật cả hybrid, mà hybrid lọc câu ngoài chủ đề kém hơn dense (xem factory.py).
+$features = @("v2")
+if ($KG -or $V3) { $features += "kg" }
+if ($V3) { $features += "rl" }
+if ($features.Count -gt 1) {
+    $env:DIACARE_FEATURES = $features -join ","
+    Write-Host "Tính năng bật: $env:DIACARE_FEATURES"
 }
 
 if ($Cli) {
