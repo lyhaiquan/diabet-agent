@@ -5,12 +5,14 @@ from pathlib import Path
 
 from diacare.advisor import advise
 from diacare.context import HISTORY_TOKEN_BUDGET, build_context, estimate_tokens
+from diacare.contracts import (MODEL_VERSION, SYSTEM_VERSION, PatientDataAgent, build_decision_report,
+                               evaluate_pre_rules, make_message, new_request_id)
 from diacare.llm import DEFAULT_NUM_CTX
 from diacare.labs import parse_lab_text
-from diacare.memory import compress_history
+from diacare.memory import compress_history, has_diagnosis
 from diacare.nutrition import is_nutrition_question
-from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, LAB_NOTES, SMALL_TALK_REPLY, apply_rules,
-                           is_small_talk, risk_band, validate_profile)
+from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_NOTES, SMALL_TALK_REPLY,
+                           apply_rules, is_small_talk, risk_band)
 
 # Hỏi thẳng về nguy cơ / khám thì nhắc lại lời khuyên đi khám dù đã nhắc trong phiên.
 _RISK_WORDS = ("nguy cơ", "có bị", "xét nghiệm", "đi khám", "risk")
@@ -43,7 +45,7 @@ def _short(items, n=3):
 class Orchestrator:
     def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
                  nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None,
-                 graph_agent=None):
+                 graph_agent=None, rl_agent=None, data_agent=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
@@ -54,6 +56,8 @@ class Orchestrator:
         self.memory_agent = memory_agent
         self.lab_agent = lab_agent
         self.graph_agent = graph_agent
+        self.rl_agent = rl_agent
+        self.data_agent = data_agent or PatientDataAgent()
         self.summarizer_llm = summarizer_llm if summarizer_llm is not None else (
             llm if memory_agent is not None else None)
 
@@ -61,11 +65,21 @@ class Orchestrator:
         """on_token: nhận từng đoạn bản nháp khi LLM đang viết (giao diện dùng để hiện chữ dần).
         on_step: nhận mỗi bước agent {agent, detail, ms} ngay khi bước đó xong."""
         step = _Tracer(state, on_step)
-        errors = validate_profile(state.profile)
+        req_id = state.request_id or new_request_id()
+        state.request_id = req_id
+        state.messages = []
+
+        data_res = self.data_agent.validate(state.profile)
+        errors = data_res["errors"]
+        state.messages.append(make_message(
+            req_id, "PatientDataAgent", "error" if errors else "ok",
+            {"valid": data_res["valid"], "errors": errors},
+        ))
         if errors:
             step("Orchestrator", f"hồ sơ không hợp lệ ({len(errors)} lỗi), dừng")
             state.flags = ["invalid_input"]
             state.final = "Dữ liệu nhập chưa hợp lệ: " + "; ".join(errors)
+            state.report = build_decision_report(state, request_id=req_id)
             self._log(state)
             return state
 
@@ -78,6 +92,7 @@ class Orchestrator:
                 {"role": "user", "content": state.question},
                 {"role": "assistant", "content": state.final},
             ]
+            state.report = build_decision_report(state, request_id=req_id)
             self._log(state)
             return state
         summary_usage, summarised = None, False
@@ -104,6 +119,22 @@ class Orchestrator:
                                    for r in state.labs) if state.labs else "không có kết quả xét nghiệm")
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
             step("Predictor", f"MLP trên 21 chỉ số hồ sơ BRFSS: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}")
+            state.messages.append(make_message(
+                req_id, "DiabetesPredictionAgent", "ok",
+                {"prediction": int(state.risk >= HIGH_RISK_THRESHOLD), "score": round(float(state.risk), 4),
+                 "risk_band": risk_band(state.risk)},
+                model_version=MODEL_VERSION,
+            ))
+
+            # Suy diễn luật tiền xử lý (Mục 5.3 Bước 7: Rule Agent đánh giá trên features + prediction trước Explanation)
+            state.pre_rules = evaluate_pre_rules(
+                state.risk, state.profile, state.question,
+                diagnosed=has_diagnosis(state.memory), labs=state.labs,
+            )
+            state.messages.append(make_message(
+                req_id, "RuleBasedAgent", "ok", state.pre_rules,
+            ))
+
             state.docs = self.retriever.search(state.question)
             step("Retriever", f"{len(state.docs)} đoạn tài liệu: {_short(d['source'] for d in state.docs)}"
                  if state.docs else "không tìm thấy tài liệu phù hợp")
@@ -112,11 +143,20 @@ class Orchestrator:
                 step("Graph", f"{state.kg['backend']}: " + (
                     "yếu tố " + _short(state.kg["factors"]) if state.kg["factors"]
                     else "câu hỏi không nhắc tới yếu tố nguy cơ nào trong đồ thị"))
+            state.messages.append(make_message(
+                req_id, "KnowledgeGraphRAGAgent", "ok",
+                {"docs_count": len(state.docs), "kg_factors": list((state.kg or {}).get("factors", []))},
+                evidence=[d["source"] for d in state.docs],
+            ))
             if self.nutrition_agent is not None:
                 analysis = self.nutrition_agent.analyze(state.question)
                 state.nutrition = analysis if is_nutrition_question(state.question, analysis) else None
                 step("Nutrition", "tra USDA: " + _short(i["name"] for i in state.nutrition["items"])
                      if state.nutrition else "không phải câu hỏi dinh dưỡng, bỏ qua")
+            if self.rl_agent is not None:
+                state.rl = self.rl_agent.recommend(state)
+                step("RL", f"chính sách Q-learning: {state.rl['label']} (Q={state.rl['q_value']:+.2f})")
+                state.messages.append(make_message(req_id, "RLAgent", "ok", state.rl))
             num_ctx = getattr(self.llm, "num_ctx", DEFAULT_NUM_CTX)
             ctx = build_context("advisor", state, num_ctx=num_ctx)
             step("Context", f"ghép ngữ cảnh cho Advisor: ~{ctx['est_tokens']} token / num_ctx {num_ctx}")
@@ -142,11 +182,18 @@ class Orchestrator:
                 rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
                 remind_risk=asks_risk or not already, labs=labs_for_rules)
             step("Rules", "kiểm tra an toàn: " + (", ".join(flags) if flags else "không bật cờ nào"))
+            state.messages.append(make_message(
+                req_id, "ExplanationAgent", "ok",
+                {"draft": state.draft, "final": state.final},
+                evidence=[d["source"] for d in state.docs],
+            ))
         except Exception as exc:
             step("Orchestrator", f"lỗi {type(exc).__name__}, trả lời thông báo sự cố")
             state.history = full_history
             state.flags = ["system_error"]
             state.final = "Hệ thống đang gặp sự cố, vui lòng thử lại sau."
+            state.messages.append(make_message(req_id, "MonitoringAgent", "error", {"error": type(exc).__name__}))
+            state.report = build_decision_report(state, request_id=req_id)
             self._log(state, error=type(exc).__name__)
             return state
         state.flags = flags
@@ -159,6 +206,11 @@ class Orchestrator:
             {"role": "user", "content": state.question},
             {"role": "assistant", "content": state.final},
         ]
+        state.report = build_decision_report(state, request_id=req_id)
+        state.messages.append(make_message(
+            req_id, "MonitoringAgent", "ok",
+            {"flags": state.report["rules"]["flags"], "steps": len(state.trace), "usage": state.usage},
+        ))
         self._log(state)
         return state
 
@@ -176,16 +228,21 @@ class Orchestrator:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "ts": datetime.now(timezone.utc).isoformat(),
+            "request_id": state.request_id,
+            "model_version": MODEL_VERSION,
+            "system_version": SYSTEM_VERSION,
             "question": state.question,
             "risk": state.risk,
             "sources": [d["source"] for d in state.docs],
             "flags": state.flags,
+            "review_flags": (state.pre_rules or {}).get("review_flags", []),
             "final_chars": len(state.final),
             "usage": state.usage,
             "memory_kinds": [m["kind"] for m in state.memory],
             "nutrition_items": [i["name"] for i in (state.nutrition or {}).get("items", [])],
             "lab_levels": {r["test"]: r["level"] for r in state.labs},
             "kg_factors": (state.kg or {}).get("factors", []),
+            "rl_action": (state.rl or {}).get("action"),
             "trace": state.trace,
         }
         if error:

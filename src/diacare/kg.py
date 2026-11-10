@@ -30,6 +30,7 @@ from diacare.rules import EMERGENCY_TERMS, SYMPTOM_TERMS
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_STATS = ROOT / "kb" / "graph" / "brfss_associations.json"
+DEFAULT_CYPHER = ROOT / "DB_diabet.cypher"
 DEFAULT_FOODS = ROOT / "data" / "nutrition" / "vn_foods.json"
 DEFAULT_KB = ROOT / "kb"
 
@@ -359,6 +360,15 @@ def to_cypher(g):
         lines.append(f"MATCH (a:Entity {{id: {_cy(u)}}}), (b:Entity {{id: {_cy(v)}}}) "
                      f"MERGE (a)-[:{d['rel']} {{{props}}}]->(b);")
     return "\n".join(lines) + "\n"
+
+
+def export_cypher_file(g=None, path=DEFAULT_CYPHER):
+    """Xuất toàn bộ đồ thị tri thức ra tệp kịch bản khởi tạo Neo4j (DB_diabet.cypher)."""
+    g = g if g is not None else load_default_graph()
+    path = Path(path)
+    script = to_cypher(g)
+    path.write_text(script, encoding="utf-8")
+    return path
 
 
 # ---------- đọc đồ thị từ Neo4j ----------

@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from pypdf import PdfReader
+from diacare.ocr import extract_pdf_text
 
 
-def load_kb(kb_dir):
+def load_kb(kb_dir, ocr_fn=None):
     kb_path = Path(kb_dir)
     if not kb_path.is_dir():
         raise FileNotFoundError(f"Không tìm thấy thư mục tri thức: {kb_path}")
@@ -13,6 +13,5 @@ def load_kb(kb_dir):
         if suffix in (".txt", ".md"):
             docs.append((path.name, path.read_text(encoding="utf-8")))
         elif suffix == ".pdf":
-            pages = [p.extract_text() or "" for p in PdfReader(path).pages]
-            docs.append((path.name, "\n".join(pages)))
+            docs.append((path.name, extract_pdf_text(path, ocr_fn=ocr_fn)))
     return docs

@@ -3,12 +3,12 @@
 Đồ án học tập. **Không thay thế bác sĩ**: mọi câu trả lời đều kèm lời nhắc tham khảo ý kiến chuyên môn,
 kết quả xét nghiệm chỉ được *đối chiếu ngưỡng*, không phải chẩn đoán.
 
-Hệ thống kết hợp ba khối theo sơ đồ ý tưởng ban đầu:
+Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
 1. **Học sâu dự đoán nguy cơ**: MLP (PyTorch) huấn luyện trên CDC BRFSS 2015 (253.680 mẫu, 21 chỉ số).
-2. **Tri thức + RAG + LLM**: truy xuất tài liệu (MedlinePlus, WHO) rồi để LLM chạy cục bộ qua Ollama viết câu trả lời.
-3. **Luật an toàn**: chặn lời khuyên đổi thuốc, chuyển khám khi có triệu chứng, cấp cứu, xét nghiệm vượt ngưỡng.
-   (Khối học tăng cường RL là phần V3, chưa làm.)
+2. **Tri thức + RAG + Đồ thị tri thức (KG) + LLM**: truy xuất tài liệu (MedlinePlus, WHO) và đồ thị tri thức 5 loại cạnh rồi để LLM chạy cục bộ qua Ollama viết câu trả lời.
+3. **Học tăng cường (RL - V3)**: chính sách Q-learning tuyến tính chọn trọng tâm can thiệp cá nhân hóa từ hồ sơ, xét nghiệm và lịch sử hội thoại.
+4. **Luật an toàn**: chặn lời khuyên đổi thuốc, chuyển khám khi có triệu chứng, cấp cứu, xét nghiệm vượt ngưỡng.
 
 ## Kiến trúc
 
@@ -16,10 +16,12 @@ Hệ thống kết hợp ba khối theo sơ đồ ý tưởng ban đầu:
 flowchart LR
     Q[Câu hỏi + hồ sơ] --> O{Orchestrator}
     O --> M[Memory<br/>nhớ thông tin bệnh nhân]
-    O --> L[Lab<br/>đối chiếu ngưỡng ADA 2024]
+    O --> L[Lab + OCR<br/>đối chiếu ngưỡng ADA 2024]
     O --> P[Predictor<br/>MLP · BRFSS]
     O --> R[Retriever<br/>RAG · sbert]
+    O --> G[Graph<br/>Neo4j / NetworkX KG]
     O --> N[Nutrition<br/>bảng USDA]
+    O --> RL[RL Policy<br/>Q-learning · V3]
     O --> C[Context<br/>cắt ngữ cảnh theo agent]
     C --> A[Advisor<br/>LLM Ollama qwen2.5]
     A --> RU[Rules<br/>lọc an toàn + cờ]
@@ -29,16 +31,18 @@ flowchart LR
 ```
 
 Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗi agent chỉ nhận lát ngữ cảnh mình cần
-(`build_context`), bộ nhớ đứng trước xét nghiệm, rồi đến dinh dưỡng và tài liệu khi cắt theo ngân sách token.
+(`build_context`), bộ nhớ đứng trước xét nghiệm, rồi đến dinh dưỡng, đồ thị tri thức, định hướng RL và tài liệu khi cắt theo ngân sách token.
 
-| Agent | File | Vai trò |
+| Agent / Module | File | Vai trò |
 |---|---|---|
 | Orchestrator | `src/diacare/orchestrator.py` | Điều phối, bắt câu chào hỏi, ghi trace từng bước |
 | Memory | `src/diacare/memory.py` | Trích và nhớ thông tin bệnh nhân (dị ứng, thuốc, chẩn đoán), tóm tắt lịch sử dài |
-| Lab | `src/diacare/labs.py` | Đọc HbA1c, đường huyết lúc đói, OGTT 2 giờ, đường huyết bất kỳ; đổi đơn vị; xếp mức |
+| Lab + OCR | `src/diacare/labs.py`, `ocr.py` | Đọc HbA1c, đường huyết lúc đói, OGTT 2 giờ, đường huyết bất kỳ (từ chữ, PDF scan, ảnh chụp); đổi đơn vị; xếp mức |
 | Predictor | `src/diacare/predictor.py` | MLP dự đoán xác suất tiểu đường từ 21 chỉ số hồ sơ |
 | Retriever | `src/diacare/retriever.py` | Truy xuất dense (sbert), tuỳ chọn lai BM25 + RRF |
+| Graph (KG) | `src/diacare/kg.py` | Đồ thị tri thức 5 loại cạnh (ADA 2024, luật, USDA, thống kê BRFSS, khẳng định KB đã kiểm chứng) trên Neo4j hoặc NetworkX |
 | Nutrition | `src/diacare/nutrition.py` | Nhận món ăn Việt, tra USDA FoodData Central, xử lý từ đa nghĩa |
+| RL (V3) | `src/diacare/rl.py` | Chính sách Q-learning chọn trọng tâm tư vấn cá nhân hóa từ trạng thái bệnh nhân |
 | Advisor | `src/diacare/advisor.py`, `llm.py` | Gọi Ollama `/api/chat`, hỗ trợ stream |
 | Rules | `src/diacare/rules.py` | Chặn lời khuyên đổi thuốc, gắn cờ chuyển khám / cấp cứu / xét nghiệm |
 
@@ -46,8 +50,9 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 
 - **Giao diện chat** (Streamlit). Ô chat ghim dưới đáy màn hình. Câu trả lời **hiện dần theo từng câu** khi LLM
   đang viết: mỗi câu phải qua bộ lọc an toàn trước khi hiện, nên lời khuyên đổi thuốc không bao giờ lọt lên màn hình.
-- **Nhập kết quả xét nghiệm**: tải `.txt`, `.csv`, `.json`, `.pdf` (có lớp chữ), dán nội dung phiếu, hoặc gõ thẳng
-  trong chat ("HbA1c của tôi 6.8%"). Tự đổi mmol/L sang mg/dL, mmol/mol sang %. File mẫu: `docs/samples/xet_nghiem_mau.txt`.
+- **Nhập kết quả xét nghiệm (kèm OCR cho PDF scan & ảnh chụp)**: tải `.txt`, `.csv`, `.json`, `.pdf` (có lớp chữ hoặc PDF scan),
+  ảnh `.png`, `.jpg`, `.jpeg`, dán nội dung phiếu, hoặc gõ thẳng trong chat ("HbA1c của tôi 6.8%"). Tự đổi mmol/L sang mg/dL,
+  mmol/mol sang %, tự sửa lỗi OCR đơn vị phổ biến (`0/0` -> `%`, `mg/d1` -> `mg/dL`). File mẫu: `docs/samples/xet_nghiem_mau.txt`.
 
   | Chỉ số | Bình thường | Tiền tiểu đường | Ngưỡng tiểu đường |
   |---|---|---|---|
@@ -141,7 +146,8 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
-| `DIACARE_FEATURES` | `v2` | `v2` = nutrition, memory, labs; `all` = thêm truy xuất lai; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid` |
+| `DIACARE_FEATURES` | `v2` | `v2` = nutrition, memory, labs; `all`/`v3` = thêm hybrid, kg, rl; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
+| `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 
 ## Đồ thị tri thức (Knowledge Graph)
 
@@ -177,6 +183,19 @@ sinh ngẫu nhiên lưu trong `neo4j.local.json` (đã gitignore). Dữ liệu N
 truy vấn Neo4j bằng Cypher; mặc định (`memory`) hoặc khi không kết nối được Neo4j thì dùng networkx trong bộ nhớ,
 nên test, chế độ demo và Kaggle không cần Docker. Một cú bấm: **`chay_kg.bat`** bật Neo4j, nạp đồ thị, mở giao
 diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản đồ code: [`docs/kg_demo.md`](docs/kg_demo.md).
+
+## Học tăng cường (Reinforcement Learning - V3)
+
+`src/diacare/rl.py` cài đặt `RLAgent` theo mô hình Q-learning xấp xỉ tuyến tính ($Q(s, a) = w_a^\top \phi(s)$) trên
+vector đặc trưng trạng thái bệnh nhân 12 chiều (mức nguy cơ MLP, mức xét nghiệm ADA, trạng thái đã chẩn đoán,
+các yếu tố nguy cơ có thể thay đổi như BMI/ít vận động/tim mạch-hút thuốc, và chủ đề câu hỏi) để chọn 1 trong 6
+chiến lược tư vấn trọng tâm (`urgent_eval`, `glycemic_followup`, `weight_diet`, `physical_activity`, `cardio_control`,
+`preventive_habit`) đưa vào ngữ cảnh Advisor (ngân sách `RL_TOKEN_BUDGET = 120` token). Bật bằng `DIACARE_FEATURES=v2,rl`
+hoặc `DIACARE_FEATURES=v3`.
+
+```bash
+python tools/train_rl.py           # huấn luyện lại models/rl_policy.json và đánh giá so với chính sách ngẫu nhiên
+```
 
 ## Đánh giá
 
@@ -216,9 +235,10 @@ python -m pytest -q
 src/app.py              giao diện Streamlit
 src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP trên BRFSS
-src/diacare/            các agent, context, DB, LLM, sơ đồ động (flowviz.py)
-kb/                     tài liệu tri thức (MedlinePlus, WHO)
+src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
+kb/                     tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
 data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC)
+tools/                  công cụ tạo thống kê KG (build_kg_stats.py), nạp Neo4j (kg_neo4j.py), huấn luyện RL (train_rl.py)
 eval/                   bộ ca benchmark, chấm điểm, đánh giá truy xuất
 kaggle/                 sinh notebook Kaggle (giao diện và benchmark)
 docs/results/           kết quả các lần chạy benchmark
@@ -232,8 +252,6 @@ tests/                  test (pytest)
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt.
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
 - Nhóm câu ngoài chủ đề (`out_of_scope`) mới đạt 0.50: model vẫn làm thơ hoặc chỉ cách nấu ăn thay vì từ chối.
-- Chưa đọc được PDF dạng ảnh chụp (cần OCR).
-- Khối học tăng cường (RL) thuộc V3, chưa làm.
 
 ## Nguồn dữ liệu
 

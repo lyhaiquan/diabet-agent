@@ -46,7 +46,7 @@ PAGES = ("Tư vấn", "Hoạt động agent", "Lịch sử", "Thống kê")
 
 
 @st.cache_resource
-def load_parts(kb, db, llm_kind, embed_kind, log, features):
+def load_parts(kb, db, llm_kind, embed_kind, log, features, kg_kind=""):
     """Build predictor/retriever/llm/store once per configuration (args are cache keys; config is read from env)."""
     store = open_store()
     return build_orchestrator(store=store), store
@@ -58,12 +58,15 @@ def new_orchestrator(base, store, session_id):
                         nutrition_agent=getattr(base, "nutrition_agent", None),
                         memory_agent=getattr(base, "memory_agent", None),
                         summarizer_llm=getattr(base, "summarizer_llm", None),
-                        lab_agent=getattr(base, "lab_agent", None))
+                        lab_agent=getattr(base, "lab_agent", None),
+                        graph_agent=getattr(base, "graph_agent", None),
+                        rl_agent=getattr(base, "rl_agent", None))
 
 
 def _env_key():
     return tuple(os.environ.get(k, "") for k in
-                 ("DIACARE_KB", "DIACARE_DB", "DIACARE_LLM", "DIACARE_EMBED", "DIACARE_LOG", "DIACARE_FEATURES"))
+                 ("DIACARE_KB", "DIACARE_DB", "DIACARE_LLM", "DIACARE_EMBED",
+                  "DIACARE_LOG", "DIACARE_FEATURES", "DIACARE_KG"))
 
 
 # ---- sidebar ----------------------------------------------------------------
@@ -161,7 +164,8 @@ def _render_labs(store, patient_id):
     if not labs:
         st.caption("Chưa có kết quả. Có thể nhập file hoặc gõ thẳng vào chat, vd \"HbA1c của tôi 6.8%\".")
     with st.expander("Nhập kết quả xét nghiệm", expanded=not labs):
-        st.file_uploader("File kết quả (.txt, .csv, .json, .pdf có chữ)", type=["txt", "csv", "json", "pdf"],
+        st.file_uploader("File kết quả (.txt, .csv, .json, .pdf có chữ/scan, .png, .jpg)",
+                         type=["txt", "csv", "json", "pdf", "png", "jpg", "jpeg"],
                          key="lab_file")
         st.text_area("Hoặc dán nội dung phiếu xét nghiệm", key="lab_text",
                      placeholder="HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L")
@@ -268,6 +272,14 @@ def _render_meta(meta):
             st.warning("Ngữ cảnh gần chạm giới hạn num_ctx, câu trả lời có thể bị cắt.")
         st.markdown("**Bản nháp của mô hình**")
         st.write(meta.get("draft") or "(trống)")
+        kg = meta.get("kg")
+        if kg and kg.get("lines"):
+            st.markdown(f"**Đồ thị tri thức ({kg.get('backend', 'kg')})**")
+            for line in kg["lines"]:
+                st.caption("- " + line)
+        rl = meta.get("rl")
+        if rl and rl.get("action"):
+            st.markdown(f"**Chính sách RL (V3):** `{rl['action']}` · {rl['label']} (Q = {rl['q_value']:+.2f})")
         nutrition = meta.get("nutrition")
         if nutrition:
             st.markdown("**Bảng dinh dưỡng (USDA, khẩu phần ước lượng)**")
@@ -308,6 +320,7 @@ def _ask(store, base, patient, question, status=None, box=None):
     st.session_state.setdefault("meta", {})[assistant_index] = {
         "risk": state.risk, "flags": list(state.flags), "sources": [d["source"] for d in state.docs],
         "draft": state.draft, "usage": dict(state.usage), "nutrition": state.nutrition,
+        "kg": state.kg, "rl": state.rl,
         "trace": list(state.trace), "lab_level": worst_level(state.labs),
         "patient": f"#{patient['id']} {patient['name']}",
     }

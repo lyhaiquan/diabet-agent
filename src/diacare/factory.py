@@ -12,6 +12,7 @@ from diacare.nutrition import NutritionAgent, load_foods
 from diacare.orchestrator import Orchestrator
 from diacare.predictor import Predictor
 from diacare.retriever import Retriever
+from diacare.rl import RLAgent
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DB_PATH = ROOT / "data" / "diacare.db"
@@ -44,14 +45,14 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg")
+FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg", "rl")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
 FEATURES_DEFAULT = ("nutrition", "memory", "labs")
 
 
 def parse_features(value=None):
-    """Mặc định / 'v2' = FEATURES_DEFAULT; 'all' = mọi tính năng; 'v1'/'none'/'' = tắt hết; hoặc danh sách."""
+    """Mặc định / 'v2' = FEATURES_DEFAULT; 'all'/'v3' = mọi tính năng; 'v1'/'none'/'' = tắt hết; hoặc danh sách."""
     if value is None:
         value = os.environ.get("DIACARE_FEATURES")
         if value is None:
@@ -61,7 +62,7 @@ def parse_features(value=None):
         return set()
     out = set()
     for part in (p.strip() for p in value.split(",")):
-        if part == "all":
+        if part in ("all", "v3"):
             out |= set(FEATURES_ALL)
         elif part == "v2":
             out |= set(FEATURES_DEFAULT)
@@ -78,6 +79,10 @@ def open_store(path=None):
     path = Path(path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     return Store(path)
+
+
+def make_rl_agent(policy_path=None):
+    return RLAgent() if policy_path is None else RLAgent(weights=None)
 
 
 def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
@@ -98,10 +103,11 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score,
                           mode="hybrid" if "hybrid" in features else "dense")
     graph_agent = make_graph_agent() if "kg" in features else None
+    rl_agent = RLAgent() if "rl" in features else None
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
         session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent,
-        lab_agent=lab_agent, graph_agent=graph_agent,
+        lab_agent=lab_agent, graph_agent=graph_agent, rl_agent=rl_agent,
     )
 
 

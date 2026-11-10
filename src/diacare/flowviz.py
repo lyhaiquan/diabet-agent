@@ -8,14 +8,15 @@ import uuid
 # id, tên, mô tả, biểu tượng, tài nguyên dùng, toạ độ (x, y) góc trên trái
 NODES = [
     ("Memory", "Memory", "Nhớ thông tin bệnh nhân", "🧠", "SQLite", (215, 40)),
-    ("Lab", "Lab", "Đối chiếu ngưỡng xét nghiệm", "🧪", "ADA 2024", (415, 40)),
+    ("Lab", "Lab", "Đối chiếu ngưỡng xét nghiệm", "🧪", "ADA 2024 · OCR", (415, 40)),
     ("Predictor", "Predictor", "Dự đoán nguy cơ (MLP)", "📈", "BRFSS · 21 chỉ số", (615, 40)),
     ("Retriever", "Retriever", "Tìm tài liệu (RAG)", "🔎", "KB · sbert", (815, 40)),
     ("Graph", "Graph", "Tra đồ thị tri thức", "🕸️", "Neo4j · KG", (1015, 40)),
     ("Nutrition", "Nutrition", "Tra dinh dưỡng món ăn", "🥗", "USDA FDC", (215, 470)),
-    ("Context", "Context", "Cắt ngữ cảnh từng agent", "🧩", "ngân sách token", (415, 470)),
-    ("Advisor", "Advisor", "LLM viết bản nháp", "💬", "Ollama qwen2.5:7b", (615, 470)),
-    ("Rules", "Rules", "Lọc an toàn, gắn cờ", "🛡️", "luật y khoa", (815, 470)),
+    ("RL", "RL", "Chọn trọng tâm tư vấn", "🎯", "Q-learning · V3", (405, 470)),
+    ("Context", "Context", "Cắt ngữ cảnh từng agent", "🧩", "ngân sách token", (595, 470)),
+    ("Advisor", "Advisor", "LLM viết bản nháp", "💬", "Ollama qwen2.5:7b", (785, 470)),
+    ("Rules", "Rules", "Lọc an toàn, gắn cờ", "🛡️", "luật y khoa", (975, 470)),
 ]
 NODE_W, NODE_H = 170, 92
 
@@ -40,8 +41,8 @@ def _svg():
     # vùng nhóm (nét đứt) giống sơ đồ kiến trúc
     parts.append('<rect class="zone" x="200" y="18" width="995" height="138" rx="16"/>'
                  '<text class="zlabel" x="214" y="34">AGENT CHUYÊN TRÁCH · TRƯỚC LLM</text>')
-    parts.append('<rect class="zone" x="200" y="448" width="800" height="134" rx="16"/>'
-                 '<text class="zlabel" x="214" y="577">ĐẦU RA · LLM VÀ KIỂM TRA AN TOÀN</text>')
+    parts.append('<rect class="zone" x="200" y="448" width="965" height="134" rx="16"/>'
+                 '<text class="zlabel" x="214" y="577">CHÍNH SÁCH RL · LLM VÀ KIỂM TRA AN TOÀN</text>')
     # cạnh orchestrator <-> agent (vẽ trước để nằm dưới các hộp)
     ox, oy = 570, 305
     for node_id, *_rest, (x, y) in NODES:
@@ -125,7 +126,7 @@ const $ = id => document.getElementById(U + "-" + id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const dot = $("dot"), logEl = root.querySelector(".log"), draftEl = root.querySelector(".draft");
 const statusEl = root.querySelector(".st"), speedEl = root.querySelector("select");
-const ALL = ["Memory","Lab","Predictor","Retriever","Graph","Nutrition","Context","Advisor","Rules"];
+const ALL = ["Memory","Lab","Predictor","Retriever","Graph","Nutrition","RL","Context","Advisor","Rules"];
 let token = 0;
 const center = id => { const g = $(id); const r = g.querySelector("rect"); const t = g.transform.baseVal[0].matrix;
   return [t.e + (+r.getAttribute("width"))/2, t.f + (+r.getAttribute("height"))/2]; };

@@ -8,6 +8,7 @@ import json
 import re
 
 from diacare.nutrition import strip_accents
+from diacare.ocr import IMAGE_EXTENSIONS, clean_ocr_text, extract_pdf_text, ocr_image
 
 SOURCE_TAG = "[ada_2024]"
 MGDL_PER_MMOL = 18.0
@@ -54,7 +55,7 @@ def parse_lab_text(text):
     """Trả danh sách {test, value, unit} (unit đã chuẩn hóa, có thể None) theo thứ tự xuất hiện."""
     if not text:
         return []
-    t = _norm(text)
+    t = _norm(clean_ocr_text(text))
     matches = []
     for test, pat in _PATTERNS:
         for m in pat.finditer(t):
@@ -98,14 +99,13 @@ def _flatten_json(obj, prefix=""):
         yield f"{prefix}: {obj}"
 
 
-def parse_lab_file(filename, data):
-    """Đọc file kết quả (.txt, .csv, .json, .pdf có lớp chữ) rồi trích chỉ số."""
+def parse_lab_file(filename, data, ocr_fn=None):
+    """Đọc file kết quả (.txt, .csv, .json, .pdf có chữ hoặc PDF scan/ảnh chụp) rồi trích chỉ số."""
     name = filename.lower()
     if name.endswith(".pdf"):
-        import io
-
-        from pypdf import PdfReader
-        text = "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(data)).pages)
+        text = extract_pdf_text(data, ocr_fn=ocr_fn)
+    elif name.endswith(IMAGE_EXTENSIONS):
+        text = ocr_image(data, ocr_fn=ocr_fn)
     else:
         text = data.decode("utf-8-sig", errors="replace")
         if name.endswith(".json"):
