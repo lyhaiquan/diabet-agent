@@ -106,6 +106,9 @@ class Store:
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(runs)")}
         if "trace_json" not in cols:  # DB tạo từ bản cũ
             self.conn.execute("ALTER TABLE runs ADD COLUMN trace_json TEXT")
+        scols = {r["name"] for r in self.conn.execute("PRAGMA table_info(summaries)")}
+        if "anchor" not in scols:  # dấu nhận dạng đoạn lịch sử đã tóm tắt
+            self.conn.execute("ALTER TABLE summaries ADD COLUMN anchor TEXT")
         mcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(messages)")}
         if "rl_event_id" not in mcols:  # trước khi có agent RL học từ phản hồi
             self.conn.execute("ALTER TABLE messages ADD COLUMN rl_event_id INTEGER")
@@ -234,6 +237,17 @@ class Store:
         self.conn.commit()
         return cur.lastrowid
 
+    def deactivate_memory_by_content(self, patient_id, kind, content):
+        """Tắt thông tin đang bật có cùng loại và nội dung (so không phân biệt hoa thường). Trả về số dòng tắt."""
+        n = 0
+        for r in self.conn.execute("SELECT id, content FROM memories WHERE patient_id = ? AND kind = ? AND active = 1",
+                                   (patient_id, kind)).fetchall():
+            if _key(r["content"]) == _key(content):
+                self.conn.execute("UPDATE memories SET active = 0, updated_at = ? WHERE id = ?", (_now(), r["id"]))
+                n += 1
+        self.conn.commit()
+        return n
+
     def list_memories(self, patient_id, active_only=True):
         sql = "SELECT * FROM memories WHERE patient_id = ?"
         if active_only:
@@ -271,10 +285,11 @@ class Store:
         self.conn.execute("DELETE FROM labs WHERE patient_id = ?", (patient_id,))
         self.conn.commit()
 
-    def save_summary(self, session_id, upto_message_index, content):
+    def save_summary(self, session_id, upto_message_index, content, anchor=None):
         cur = self.conn.execute(
-            "INSERT INTO summaries (session_id, upto_message_index, content, created_at) VALUES (?, ?, ?, ?)",
-            (session_id, upto_message_index, content, _now()),
+            "INSERT INTO summaries (session_id, upto_message_index, content, created_at, anchor)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (session_id, upto_message_index, content, _now(), anchor),
         )
         self.conn.commit()
         return cur.lastrowid

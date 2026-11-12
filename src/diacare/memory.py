@@ -1,4 +1,5 @@
 """Trí nhớ dài hạn về bệnh nhân (trích xuất theo luật) và nén lịch sử hội thoại bằng tóm tắt."""
+import hashlib
 import re
 import unicodedata
 
@@ -43,6 +44,12 @@ _MED = (
     rf"(?:{_I}\s+(?:(?:đang|vẫn|hiện đang)\s+)?|{_I}[^?.!;\n]*?\bvà\s+(?:đang\s+)?)"
     rf"(?:dùng|uống|tiêm|sử dụng)\s+({'|'.join(DRUGS)})(?!\w)"
 )
+# "tôi đã ngừng metformin", "mình bỏ uống insulin rồi", "tôi không còn dùng metformin nữa"
+_MED_STOPPED = (
+    rf"{_I}\s+(?:(?:đã|vừa|mới)\s+)?(?:ngừng|dừng|ngưng|bỏ|thôi|không còn|hết)\s+"
+    rf"(?:(?:dùng|uống|tiêm|sử dụng)\s+)?({'|'.join(DRUGS)})(?!\w)"
+    rf"|{_I}\s+không\s+(?:dùng|uống|tiêm|sử dụng)\s+({'|'.join(DRUGS)})\s+nữa(?!\w)"
+)
 _STOP_WORDS = (
     "nên", "nhưng", "thì", "khi", "mà", "vậy", "rồi", "nhé", "ạ", "vì", "nếu", "còn", "có", "không",
     "được", "cho", "giúp", "hãy", "với", "để", "nhưng", "và hay", "gợi", "xin", "làm", "thế",
@@ -61,7 +68,7 @@ def _both(pattern):
 
 
 _RE = {name: _both(p) for name, p in {
-    "diag": _DIAG, "med": _MED, "allergy": _ALLERGY, "veg": _DIET_VEG, "noeat": _DIET_NO,
+    "diag": _DIAG, "med": _MED, "med_stopped": _MED_STOPPED, "allergy": _ALLERGY, "veg": _DIET_VEG, "noeat": _DIET_NO,
     "conds": _CONDS, "bp": rf"(?<!\w){_BP}", "lipid": rf"(?<!\w){_LIPID}", "kin": _KIN,
 }.items()}
 _STOP = frozenset(_STOP_WORDS) | frozenset(strip_accents(w) for w in _STOP_WORDS)
@@ -121,6 +128,31 @@ def extract_facts(text):
     return facts
 
 
+_QUESTION_TAIL = _both(r"(?:được|có sao|có nên|nên|hay|có)\s+không(?!\w)|(?<!\w)không\s*$|(?<!\w)chưa\s*$")
+_QUESTION_HEAD = _both(r"\s*,?\s*(?:thì\s+)?(?:được|có sao|có nên|nên|hay|có)\s+không(?!\w)")
+
+
+def extract_retractions(text):
+    """Thông tin người dùng nói không còn đúng nữa: hiện chỉ có "đã ngừng thuốc X". Trả về [(kind, content)].
+    Cũng chỉ nhận câu ngôi thứ nhất; "mẹ tôi ngừng metformin" không làm tắt thuốc của người dùng."""
+    text = _norm(text or "")
+    out = []
+    for accented in (True, False):
+        i = 0 if accented else 1
+        t = text if accented else strip_accents(text)
+        t = _RE["kin"][i].sub(" xxkhac ", t)
+        for m in _RE["med_stopped"][i].finditer(t):
+            # "tôi ngừng metformin được không?" là câu hỏi; "tôi ngừng metformin rồi, giờ ăn gì?" thì không
+            rest = re.split(r"[.!;\n]", t[m.end():], maxsplit=1)[0]
+            clause = rest.split(",", 1)[0]
+            if "?" in clause or _QUESTION_TAIL[i].search(clause) or _QUESTION_HEAD[i].match(rest):
+                continue
+            drug = m.group(1) or m.group(2)
+            if ("medication", drug) not in out:
+                out.append(("medication", drug))
+    return out
+
+
 def format_memory(facts):
     lines = [MEMORY_HEADER]
     for f in facts:
@@ -137,10 +169,16 @@ class MemoryAgent:
         self.store = store
 
     def observe(self, patient_id, text):
-        facts = extract_facts(text)
+        """Ghi thông tin mới rồi tắt những thông tin người dùng nói đã không còn đúng. Trả về thông tin mới."""
+        return self.update(patient_id, text)["learned"]
+
+    def update(self, patient_id, text):
+        stopped = extract_retractions(text)
+        facts = [f for f in extract_facts(text) if f not in stopped]
         for kind, content in facts:
             self.store.add_memory(patient_id, kind, content, source="rule")
-        return facts
+        retracted = [(k, c) for k, c in stopped if self.store.deactivate_memory_by_content(patient_id, k, c)]
+        return {"learned": facts, "retracted": retracted}
 
     def recall(self, patient_id):
         return self.store.list_memories(patient_id)
@@ -162,8 +200,36 @@ def summarise_history(messages, llm):
     return reply.strip()
 
 
-def compress_history(history, llm, budget_tokens, estimate):
-    """Nếu lịch sử vượt ngân sách: giữ tin mới nhất vừa nửa ngân sách, tóm tắt phần cũ."""
+def message_anchor(messages):
+    """Dấu nhận dạng đoạn lịch sử đã tóm tắt: số tin và băm của tin cuối. Lịch sử bị cắt cửa sổ hay
+    bị sửa thì dấu không khớp, nên không bao giờ dùng nhầm bản tóm tắt cũ."""
+    if not messages:
+        return ""
+    last = messages[-1]
+    digest = hashlib.sha1(f"{last['role']}\n{last['content']}".encode("utf-8")).hexdigest()[:16]
+    return f"{len(messages)}:{digest}"
+
+
+class SummaryCache:
+    """Bản tóm tắt mới nhất của một phiên, lưu trong bảng summaries của SQLite."""
+
+    def __init__(self, store, session_id):
+        self.store, self.session_id = store, session_id
+
+    def get(self):
+        return self.store.get_summary(self.session_id)
+
+    def save(self, upto, content, anchor):
+        self.store.save_summary(self.session_id, upto, content, anchor=anchor)
+
+
+def compress_history(history, llm, budget_tokens, estimate, cache=None):
+    """Nếu lịch sử vượt ngân sách: giữ tin mới nhất vừa nửa ngân sách, tóm tắt phần cũ.
+
+    cache (SummaryCache): nếu bản đã lưu phủ đúng phần cũ thì dùng lại, không gọi LLM; nếu nó phủ một đoạn
+    đầu của phần cũ thì chỉ tóm tắt thêm các tin mới (tóm tắt tăng dần); không khớp thì tóm tắt lại từ đầu.
+    Trả về (lịch sử mới, có tóm tắt không); lượt dùng lại bản cũ thì `compress_history.last_mode` = "reused"."""
+    compress_history.last_mode = None
     if sum(estimate(m["content"]) for m in history) <= budget_tokens:
         return history, False
     kept, used = [], 0
@@ -176,5 +242,21 @@ def compress_history(history, llm, budget_tokens, estimate):
     older = history[:len(history) - len(kept)]
     if not older:
         return history, False
-    summary = summarise_history(older, llm)
+    prev = cache.get() if cache is not None else None
+    upto = prev["upto_message_index"] if prev else 0
+    valid = bool(prev) and 0 < upto <= len(older) and prev.get("anchor") == message_anchor(older[:upto])
+    if valid and upto == len(older):
+        summary, mode = prev["content"], "reused"
+    elif valid:
+        summary = summarise_history([{"role": "system", "content": SUMMARY_PREFIX + prev["content"]}]
+                                    + older[upto:], llm)
+        mode = "incremental"
+    else:
+        summary, mode = summarise_history(older, llm), "full"
+    if cache is not None and mode != "reused":
+        cache.save(len(older), summary, message_anchor(older))
+    compress_history.last_mode = mode
     return [{"role": "system", "content": SUMMARY_PREFIX + summary}] + kept, True
+
+
+compress_history.last_mode = None

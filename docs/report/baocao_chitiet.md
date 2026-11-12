@@ -23,7 +23,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14. Giao diện Streamlit, mô hình ngôn ngữ qua Ollama, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
-- Quy mô lúc viết báo cáo: 58 commit, 28 tệp test với 467 test tự động, bộ benchmark 50 ca.
+- Quy mô lúc viết báo cáo: 60 commit, 28 tệp test với 488 test tự động, bộ benchmark 50 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -125,11 +125,23 @@ Lớp `_Tracer` ghi mỗi bước thành `{agent, detail, ms}`. Lỗi trong hàm
 
 Tệp `memory.py`.
 
-**Bộ nhớ dài hạn** lưu năm loại sự kiện: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được.
+**Bộ nhớ dài hạn** lưu năm loại sự kiện: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được (xoá mềm, `active = 0`).
+
+**Thôi ghi nhớ khi thông tin hết đúng.** Hàm `extract_retractions` nhận câu ngôi thứ nhất kiểu "tôi đã ngừng metformin", "mình bỏ uống insulin", "tôi không dùng insulin nữa" và tắt mục thuốc tương ứng; vết thực thi ghi "thôi ghi nhớ metformin". Câu hỏi như "tôi ngừng metformin được không?" hay câu về người thân ("mẹ tôi ngừng metformin") không làm tắt gì. Khai lại "tôi đang dùng metformin" thì mục đó được bật lại.
 
 Khi đưa vào ngữ cảnh, bộ nhớ chiếm tối đa 150 token; nếu vượt thì bỏ sự kiện cũ nhất trước. Sự kiện "đã được chẩn đoán" còn được agent Rules dùng: với người đã chẩn đoán, hệ nhắc tái khám theo lịch thay vì khuyên đi xét nghiệm sàng lọc.
 
 **Bộ nhớ ngắn hạn** là lịch sử phiên. Hàm `compress_history` giữ nguyên các tin nhắn mới nhất chiếm tối đa nửa ngân sách 800 token và nhờ mô hình tóm tắt phần cũ thành một tin nhắn hệ thống. Nếu tóm tắt lỗi, hệ dùng lịch sử gốc và để `build_context` cắt bớt như ở V1.
+
+Bản tóm tắt được **lưu lại** vào bảng `summaries` cùng số tin đã phủ và một dấu nhận dạng (số tin và mã băm của tin cuối). Lượt sau có ba trường hợp:
+
+| Trường hợp | Làm gì | Gọi LLM |
+|---|---|---|
+| phần cũ vẫn đúng như lần trước | dùng lại bản đã lưu | không |
+| phần cũ dài thêm vài tin | tóm tắt bản cũ cộng các tin mới (tăng dần) | có, ngắn |
+| dấu nhận dạng không khớp (lịch sử bị cắt cửa sổ hay khác phiên) | tóm tắt lại từ đầu | có |
+
+Trước đây mỗi lượt của một hội thoại dài đều tóm tắt lại toàn bộ phần cũ; nay phần đã tóm tắt không bao giờ phải đưa lại cho mô hình. Dấu nhận dạng bảo đảm không dùng nhầm bản tóm tắt của một đoạn lịch sử khác.
 
 ## 3.4. Lab: đọc và xếp mức xét nghiệm
 
@@ -422,7 +434,7 @@ SQLite, tệp `db.py`. Chín bảng:
 | `messages` | tin nhắn | `session_id`, `role`, `content` |
 | `memories` | sự kiện dài hạn | `patient_id`, `kind`, `content`, `active` |
 | `labs` | kết quả xét nghiệm | `patient_id`, `test`, `value`, `unit`, `source` |
-| `summaries` | bản tóm tắt lịch sử | `session_id`, `upto_message_index`, `content` |
+| `summaries` | bản tóm tắt lịch sử, dùng lại giữa các lượt | `session_id`, `upto_message_index`, `content`, `anchor` |
 | `runs` | log từng lượt chạy | `question`, `risk`, `flags_json`, `sources_json`, `draft`, `final`, `usage_json`, `error`, `trace_json` |
 | `rl_events` | quyết định của agent RL và phản hồi | `state_json`, `action`, `propensity`, `mode`, `policy_version`, `reward`, `rated_at` |
 | `rl_model` | mô hình RL đã học tới hiện tại (một dòng) | `model_json` |
@@ -513,7 +525,7 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 
 ## 7.1. Unit test
 
-473 test chạy bằng `pytest` trong khoảng một phút rưỡi, không cần GPU hay mạng. Phân bố theo tệp test (đã tính tham số hoá): rules 86, memory 71, nutrition 67, labs 31, orchestrator 27, bench 24, retriever 17, eval 17, kg 16, rl 14, app 11, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, predictor 2, model 1.
+488 test chạy bằng `pytest` trong khoảng một phút rưỡi, không cần GPU hay mạng. Phân bố theo tệp test (đã tính tham số hoá): memory 86, rules 86, nutrition 67, labs 31, orchestrator 27, bench 24, retriever 17, eval 17, kg 16, rl 14, app 11, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, predictor 2, model 1.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -599,6 +611,7 @@ Hai bài học rút ra:
 - Đồ thị tri thức chưa được đo trên benchmark hội thoại; chưa biết nó làm câu trả lời tốt hơn bao nhiêu.
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
+- Bộ nhớ dài hạn trích bằng luật: danh sách thuốc cố định 6 loại, câu "dùng metformin và insulin" chỉ nhận thuốc đầu, và mới chỉ tự tắt được thông tin thuốc (chưa tự sửa chẩn đoán, dị ứng).
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
 
 **Hướng phát triển**

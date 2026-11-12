@@ -365,3 +365,99 @@ def test_features_memory(tmp_path):
                             log_path=tmp_path / "l.jsonl", store=Store())
     assert isinstance(on.memory_agent, MemoryAgent)
     assert on.summarizer_llm is on.llm
+
+
+# ---------- thôi ghi nhớ thuốc đã ngừng ----------
+
+@pytest.mark.parametrize("text,stopped", [
+    ("Tôi đã ngừng metformin rồi", ["metformin"]),
+    ("toi da ngung uong metformin", ["metformin"]),
+    ("Tôi không dùng insulin nữa", ["insulin"]),
+    ("Mình bỏ uống insulin và đang dùng metformin", ["insulin"]),
+    ("Mẹ tôi ngừng metformin", []),                      # người thân, không phải người dùng
+    ("Tôi ngừng metformin được không?", []),              # câu hỏi, chưa phải đã ngừng
+    ("tôi ngừng metformin có sao không", []),
+    ("Tôi có nên ngừng metformin không?", []),
+    ("Tôi đang dùng metformin", []),
+])
+def test_extract_retractions(text, stopped):
+    from diacare.memory import extract_retractions
+    assert [c for _, c in extract_retractions(text)] == stopped
+
+
+def test_memory_agent_turns_off_stopped_medication():
+    store = Store()
+    agent = MemoryAgent(store)
+    agent.observe(1, "Tôi đang dùng metformin")
+    agent.observe(1, "Tôi đang tiêm insulin")
+    assert {m["content"] for m in agent.recall(1)} == {"metformin", "insulin"}
+    upd = agent.update(1, "Mình bỏ uống insulin và đang dùng metformin")
+    assert upd["retracted"] == [("medication", "insulin")]
+    assert {m["content"] for m in agent.recall(1)} == {"metformin"}
+    assert [m["active"] for m in store.list_memories(1, active_only=False) if m["content"] == "insulin"] == [False]
+    agent.observe(1, "Tôi đang dùng insulin")                 # khai lại thì bật lại
+    assert {m["content"] for m in agent.recall(1)} == {"metformin", "insulin"}
+    assert agent.update(1, "Mẹ tôi ngừng insulin")["retracted"] == []
+
+
+def test_orchestrator_reports_retracted_medication():
+    store = Store()
+    MemoryAgent(store).observe(1, "Tôi đang dùng metformin")
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), SummLLM(), memory_agent=MemoryAgent(store))
+    st = orch.run(State(question="Tôi đã ngừng metformin rồi, giờ nên ăn gì?", profile=LOW_RISK, patient_id=1))
+    assert st.memory == []
+    assert any("thôi ghi nhớ metformin" in e["detail"] for e in st.trace if e["agent"] == "Memory")
+
+
+# ---------- lưu và dùng lại bản tóm tắt ----------
+
+def test_summary_cache_reuses_then_extends_incrementally():
+    from diacare.memory import SummaryCache, message_anchor
+    store = Store()
+    cache = SummaryCache(store, 7)
+    llm = SummLLM()
+    h = long_history(12)
+    new1, did = compress_history(h, llm, 800, estimate_tokens, cache=cache)
+    assert did and compress_history.last_mode == "full" and len(llm.calls) == 1
+    saved = store.get_summary(7)
+    n_old = len(h) - (len(new1) - 1)
+    assert saved["upto_message_index"] == n_old and saved["anchor"] == message_anchor(h[:n_old])
+
+    new2, _ = compress_history(h, llm, 800, estimate_tokens, cache=cache)      # cùng lịch sử: không gọi LLM
+    assert compress_history.last_mode == "reused" and len(llm.calls) == 1 and new2 == new1
+
+    h2 = h + long_history(2)                                                    # thêm 2 tin: chỉ tóm tắt phần mới
+    compress_history(h2, llm, 800, estimate_tokens, cache=cache)
+    assert compress_history.last_mode == "incremental" and len(llm.calls) == 2
+    sent = llm.calls[-1][1]["content"]
+    assert "Tóm tắt hội thoại trước" in sent and h[0]["content"] not in sent
+
+
+def test_summary_cache_ignores_stale_summary():
+    from diacare.memory import SummaryCache
+    store = Store()
+    store.save_summary(7, 3, "tóm tắt của lịch sử khác", anchor="3:deadbeef")
+    llm = SummLLM()
+    compress_history(long_history(12), llm, 800, estimate_tokens, cache=SummaryCache(store, 7))
+    assert compress_history.last_mode == "full"
+
+
+def test_orchestrator_with_store_summarises_once_per_history():
+    store = Store()
+    sid = store.start_session(1)
+    llm = SummLLM()
+    orch = Orchestrator(FakePredictor(0.1), FakeRetriever(), llm, store=store, session_id=sid,
+                        memory_agent=MemoryAgent(store))
+    h = long_history()
+    orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=h, patient_id=1))
+    st = orch.run(State(question="Ăn gì?", profile=LOW_RISK, history=h, patient_id=1))
+    summaries = [c for c in llm.calls if "Tóm tắt ngắn gọn" in c[0]["content"]]
+    assert len(summaries) == 1
+    assert "history_summarized" in st.flags and "summary_prompt_tokens" not in st.usage
+    assert any("dùng lại bản tóm tắt" in e["detail"] for e in st.trace)
+
+
+def test_retraction_question_vs_statement_with_comma():
+    from diacare.memory import extract_retractions
+    assert extract_retractions("Tôi đã ngừng metformin rồi, giờ nên ăn gì?") == [("medication", "metformin")]
+    assert extract_retractions("Tôi ngừng metformin, có sao không?") == []

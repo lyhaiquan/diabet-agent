@@ -9,7 +9,7 @@ from diacare.contracts import (MODEL_VERSION, SYSTEM_VERSION, PatientDataAgent, 
                                evaluate_pre_rules, make_message, new_request_id)
 from diacare.llm import DEFAULT_NUM_CTX
 from diacare.labs import parse_lab_text
-from diacare.memory import compress_history, has_diagnosis
+from diacare.memory import SummaryCache, compress_history, has_diagnosis
 from diacare.nutrition import is_nutrition_question
 from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_NOTES, SMALL_TALK_REPLY,
                            apply_rules, is_small_talk, risk_band)
@@ -98,21 +98,29 @@ class Orchestrator:
         summary_usage, summarised = None, False
         try:
             if self.memory_agent is not None and state.patient_id is not None:
-                learned = self.memory_agent.observe(state.patient_id, state.question)
+                upd = self.memory_agent.update(state.patient_id, state.question)
+                learned, retracted = upd["learned"], upd["retracted"]
                 state.memory = self.memory_agent.recall(state.patient_id)
                 new = f"ghi nhận {len(learned)} thông tin mới, " if learned else ""
+                new += f"thôi ghi nhớ {_short(c for _, c in retracted)}, " if retracted else ""
                 step("Memory", f"{new}nhớ {len(state.memory)} thông tin về bệnh nhân"
                      + (f": {_short(m['content'] for m in state.memory)}" if state.memory else ""))
             if self.memory_agent is not None:
                 try:
+                    cache = (SummaryCache(self.store, self.session_id)
+                             if self.store is not None and self.session_id is not None else None)
                     compressed, summarised = compress_history(
-                        full_history, self.summarizer_llm, HISTORY_TOKEN_BUDGET, estimate_tokens)
+                        full_history, self.summarizer_llm, HISTORY_TOKEN_BUDGET, estimate_tokens, cache=cache)
                 except Exception:  # tóm tắt hỏng thì dùng lịch sử gốc (sẽ bị cắt như V1)
                     compressed, summarised = full_history, False
                 if summarised:
-                    step("Memory", f"lịch sử dài: tóm tắt {len(full_history)} tin nhắn để vừa ngữ cảnh")
+                    mode = compress_history.last_mode
+                    step("Memory", {"reused": "lịch sử dài: dùng lại bản tóm tắt đã lưu, không gọi LLM",
+                                    "incremental": "lịch sử dài: tóm tắt thêm các tin mới vào bản đã lưu"}.get(
+                        mode, f"lịch sử dài: tóm tắt {len(full_history)} tin nhắn để vừa ngữ cảnh"))
                     state.history = compressed
-                    summary_usage = dict(getattr(self.summarizer_llm, "last_usage", None) or {})
+                    if mode != "reused":
+                        summary_usage = dict(getattr(self.summarizer_llm, "last_usage", None) or {})
             if self.lab_agent is not None:
                 state.labs = self.lab_agent.collect(state.patient_id, state.question)
                 step("Lab", _short(f"{r['label']} {r['value_std']:g} {r['unit_std']} → {r['level']}"
