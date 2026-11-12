@@ -63,6 +63,26 @@ CREATE TABLE IF NOT EXISTS summaries (
     content TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS rl_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER,
+    run_id INTEGER,
+    ts TEXT NOT NULL,
+    state_json TEXT NOT NULL,
+    action TEXT NOT NULL,
+    propensity REAL NOT NULL,
+    explored INTEGER NOT NULL DEFAULT 0,
+    mode TEXT,
+    policy_version TEXT,
+    reward REAL,
+    rated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_rl_events_session ON rl_events(session_id);
+CREATE TABLE IF NOT EXISTS rl_model (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    model_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -86,6 +106,9 @@ class Store:
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(runs)")}
         if "trace_json" not in cols:  # DB tạo từ bản cũ
             self.conn.execute("ALTER TABLE runs ADD COLUMN trace_json TEXT")
+        mcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(messages)")}
+        if "rl_event_id" not in mcols:  # trước khi có agent RL học từ phản hồi
+            self.conn.execute("ALTER TABLE messages ADD COLUMN rl_event_id INTEGER")
         self.conn.commit()
 
     def close(self):
@@ -123,19 +146,72 @@ class Store:
         self.conn.commit()
         return cur.lastrowid
 
-    def add_message(self, session_id, role, content):
+    def add_message(self, session_id, role, content, rl_event_id=None):
         self.conn.execute(
-            "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
-            (session_id, role, content, _now()),
+            "INSERT INTO messages (session_id, role, content, created_at, rl_event_id) VALUES (?, ?, ?, ?, ?)",
+            (session_id, role, content, _now(), rl_event_id),
         )
         self.conn.commit()
 
     def get_history(self, session_id, limit=50):
+        """Tin nhắn trả lời có trọng tâm RL thì kèm `rl_action`, `rl_event_id` (để phạt lặp và để chấm)."""
         rows = self.conn.execute(
-            "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+            "SELECT m.role, m.content, m.rl_event_id, e.action FROM messages m"
+            " LEFT JOIN rl_events e ON e.id = m.rl_event_id"
+            " WHERE m.session_id = ? ORDER BY m.id DESC LIMIT ?",
             (session_id, limit),
         ).fetchall()
-        return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+        out = []
+        for r in reversed(rows):
+            m = {"role": r["role"], "content": r["content"]}
+            if r["rl_event_id"] is not None:
+                m["rl_event_id"], m["rl_action"] = r["rl_event_id"], r["action"]
+            out.append(m)
+        return out
+
+    # ---- học tăng cường: quyết định, phản hồi và mô hình trực tuyến ----
+    def add_rl_event(self, session_id, run_id, rl):
+        cur = self.conn.execute(
+            "INSERT INTO rl_events (session_id, run_id, ts, state_json, action, propensity, explored, mode,"
+            " policy_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (session_id, run_id, _now(), _dumps(rl["state"]), rl["action"], rl["propensity"],
+             int(bool(rl.get("explored"))), rl.get("mode"), rl.get("policy_version")),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    @staticmethod
+    def _rl_event(row):
+        return {"id": row["id"], "session_id": row["session_id"], "run_id": row["run_id"], "ts": row["ts"],
+                "state": json.loads(row["state_json"]), "action": row["action"], "propensity": row["propensity"],
+                "explored": bool(row["explored"]), "mode": row["mode"], "policy_version": row["policy_version"],
+                "reward": row["reward"], "rated_at": row["rated_at"]}
+
+    def get_rl_event(self, event_id):
+        row = self.conn.execute("SELECT * FROM rl_events WHERE id = ?", (event_id,)).fetchone()
+        return self._rl_event(row) if row else None
+
+    def rate_rl_event(self, event_id, reward):
+        """Ghi phần thưởng một lần duy nhất. Trả về sự kiện nếu vừa ghi, None nếu không có hoặc đã chấm."""
+        cur = self.conn.execute("UPDATE rl_events SET reward = ?, rated_at = ? WHERE id = ? AND reward IS NULL",
+                                (float(reward), _now(), event_id))
+        self.conn.commit()
+        return self.get_rl_event(event_id) if cur.rowcount == 1 else None
+
+    def rl_events(self, limit=None):
+        sql = "SELECT * FROM rl_events ORDER BY id"
+        rows = self.conn.execute(sql + (f" DESC LIMIT {int(limit)}" if limit else "")).fetchall()
+        return [self._rl_event(r) for r in rows]
+
+    def save_rl_model(self, model):
+        self.conn.execute("INSERT INTO rl_model (id, model_json, updated_at) VALUES (1, ?, ?)"
+                          " ON CONFLICT(id) DO UPDATE SET model_json = excluded.model_json,"
+                          " updated_at = excluded.updated_at", (_dumps(model), _now()))
+        self.conn.commit()
+
+    def load_rl_model(self):
+        row = self.conn.execute("SELECT model_json FROM rl_model WHERE id = 1").fetchone()
+        return json.loads(row["model_json"]) if row else None
 
     # ---- trí nhớ dài hạn & tóm tắt hội thoại ----
     def add_memory(self, patient_id, kind, content, source="rule"):

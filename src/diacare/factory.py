@@ -12,7 +12,7 @@ from diacare.nutrition import NutritionAgent, load_foods
 from diacare.orchestrator import Orchestrator
 from diacare.predictor import Predictor
 from diacare.retriever import Retriever
-from diacare.rl import RLAgent
+from diacare.rl import DEFAULT_EPSILON, RLAgent
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DB_PATH = ROOT / "data" / "diacare.db"
@@ -49,13 +49,13 @@ FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg", "rl")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
 FEATURES_V2 = ("nutrition", "memory", "labs")
-# Khi chạy ứng dụng không đặt DIACARE_FEATURES thì bật luôn đồ thị tri thức (KG). Nhãn 'v2' vẫn giữ
-# nguyên nghĩa cũ (không KG) để các benchmark đã chạy tái lập được; so sánh có/không KG bằng 'v2' và 'v2,kg'.
-FEATURES_DEFAULT = FEATURES_V2 + ("kg",)
+# Khi chạy ứng dụng không đặt DIACARE_FEATURES thì bật đồ thị tri thức (KG) và agent học tăng cường (RL).
+# Nhãn 'v2' vẫn giữ nguyên nghĩa cũ (không KG, không RL) để các benchmark đã chạy tái lập được.
+FEATURES_DEFAULT = FEATURES_V2 + ("kg", "rl")
 
 
 def parse_features(value=None):
-    """Mặc định / 'default' = FEATURES_DEFAULT (V2 + KG); 'v2' = FEATURES_V2; 'all'/'v3' = mọi tính năng;
+    """Mặc định / 'default' = FEATURES_DEFAULT (V2 + KG + RL); 'v2' = FEATURES_V2; 'all'/'v3' = mọi tính năng;
     'v1'/'none'/'' = tắt hết; hoặc danh sách."""
     if value is None:
         value = os.environ.get("DIACARE_FEATURES")
@@ -87,8 +87,16 @@ def open_store(path=None):
     return Store(path)
 
 
+def rl_epsilon(value=None):
+    """Tỉ lệ thăm dò của agent RL: tham số, rồi DIACARE_RL_EPSILON, rồi mặc định 0,1. Benchmark đặt 0."""
+    if value is not None:
+        return float(value)
+    env = os.environ.get("DIACARE_RL_EPSILON")
+    return float(env) if env is not None else DEFAULT_EPSILON
+
+
 def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, store=None,
-                       session_id=None, embed_fn=None, min_score=None, features=None):
+                       session_id=None, embed_fn=None, min_score=None, features=None, rl_epsilon_value=None):
     kb_dir = kb_dir or os.environ.get("DIACARE_KB") or ROOT / "kb"
     model_dir = model_dir or ROOT / "models"
     log_path = log_path or os.environ.get("DIACARE_LOG") or ROOT / "logs" / "runs.jsonl"
@@ -99,13 +107,14 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
     nutrition_agent = None
     if "nutrition" in features:
         nutrition_agent = NutritionAgent(load_foods(ROOT / "data" / "nutrition" / "vn_foods.json"))
-    shared = store or (Store(":memory:") if {"memory", "labs"} & features else None)
+    shared = store or (Store(":memory:") if {"memory", "labs", "rl"} & features else None)
     memory_agent = MemoryAgent(shared) if "memory" in features else None
     lab_agent = LabAgent(shared) if "labs" in features else None
     retriever = Retriever(embed_fn or make_embed_fn(), load_kb(kb_dir), min_score=min_score,
                           mode="hybrid" if "hybrid" in features else "dense")
     graph_agent = make_graph_agent() if "kg" in features else None
-    rl_agent = RLAgent() if "rl" in features else None
+    # RL học từ phản hồi lưu trong cùng SQLite với bệnh nhân (bảng rl_events, rl_model)
+    rl_agent = RLAgent(store=shared, epsilon=rl_epsilon(rl_epsilon_value)) if "rl" in features else None
     return Orchestrator(
         Predictor(model_dir), retriever, llm or make_llm(), log_path=log_path, store=store,
         session_id=session_id, nutrition_agent=nutrition_agent, memory_agent=memory_agent,

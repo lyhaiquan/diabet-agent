@@ -2,8 +2,8 @@
 #   Bấm đúp chay_local.bat, hoặc:  powershell -ExecutionPolicy Bypass -File chay_local.ps1 [-Model qwen2.5:7b]
 #   Chat ngay trong terminal (không mở trình duyệt): chay_cli.bat, tức là thêm -Cli [-HoSo đường_dẫn.json]
 #   Bật đồ thị tri thức đọc từ Neo4j (cần Docker Desktop): chay_kg.bat, tức là thêm -KG
-#   Đồ thị tri thức (networkx trong bộ nhớ) luôn bật; -KG chỉ đổi nơi đọc sang Neo4j.
-#   Bật bản V3 (thêm agent RL, không cần Docker): chay_v3.bat, tức là thêm -V3
+#   Đồ thị tri thức (networkx trong bộ nhớ) và agent học tăng cường luôn bật; -KG chỉ đổi nơi đọc sang Neo4j.
+#   -V3 (chay_v3.bat) giữ lại cho quen tay, giờ giống hệt bản thường.
 param([string]$Model = "qwen2.5:3b", [int]$Port = 8501, [switch]$Cli, [switch]$KG, [switch]$V3,
       [string]$HoSo = "docs\samples\hoso_nguy_co_cao.json", [string]$Ten = "Nguoi dung terminal")
 $ErrorActionPreference = "Stop"
@@ -60,8 +60,7 @@ if ($KG) {
 }
 
 # Không dùng "v3" vì "v3" bật cả hybrid, mà hybrid lọc câu ngoài chủ đề kém hơn dense (xem factory.py).
-$features = @("v2", "kg")
-if ($V3) { $features += "rl" }
+$features = @("v2", "kg", "rl")
 $env:DIACARE_FEATURES = $features -join ","
 Write-Host "Tính năng bật: $env:DIACARE_FEATURES"
 

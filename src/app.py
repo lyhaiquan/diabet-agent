@@ -14,6 +14,7 @@ from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_fi
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
+from diacare.rl import ACTION_LABELS, off_policy_report  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
@@ -302,7 +303,10 @@ def _render_meta(meta):
         st.write(meta.get("draft") or "(trống)")
         rl = meta.get("rl")
         if rl and rl.get("action"):
-            st.markdown(f"**Chính sách RL (V3):** `{rl['action']}` · {rl['label']} (Q = {rl['q_value']:+.2f})")
+            st.markdown(f"**Agent RL:** `{rl['action']}` · {rl['label']} · {rl['mode']} · điểm {rl['q_value']:+.2f}"
+                        f" · xác suất chọn {rl['propensity']:.2f} · chính sách {rl['policy_version']}")
+            st.caption("Ba trọng tâm điểm cao nhất: " + ", ".join(f"{ACTION_LABELS[a]} ({q:+.2f})"
+                                                                 for a, q in rl["ranking"]))
         nutrition = meta.get("nutrition")
         if nutrition:
             st.markdown("**Bảng dinh dưỡng (USDA, khẩu phần ước lượng)**")
@@ -339,7 +343,7 @@ def _ask(store, base, patient, question, status=None, box=None):
         status.update(label=f"Các agent đã xong: {len(state.trace)} bước, {total:.1f} s",
                       state="error" if "system_error" in state.flags else "complete", expanded=False)
     store.add_message(sid, "user", question)
-    store.add_message(sid, "assistant", state.final)
+    store.add_message(sid, "assistant", state.final, rl_event_id=(state.rl or {}).get("event_id"))
     st.session_state.setdefault("meta", {})[assistant_index] = {
         "risk": state.risk, "flags": list(state.flags), "sources": [d["source"] for d in state.docs],
         "draft": state.draft, "usage": dict(state.usage), "nutrition": state.nutrition,
@@ -358,7 +362,7 @@ def render_chat(store, base, patient_id):
     st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · hồ sơ nguy cơ {band} · "
                f"Phiên {st.session_state['session_id']} · Đổi bệnh nhân hoặc lưu hồ sơ mới ở thanh bên")
     question = st.chat_input("Nhập câu hỏi về phòng ngừa tiểu đường...")
-    _render_messages(store)
+    _render_messages(store, base)
     if question:
         with st.chat_message("user"):
             st.write(question)
@@ -369,7 +373,30 @@ def render_chat(store, base, patient_id):
         st.rerun()  # vẽ lại từ lịch sử để có câu trả lời cuối (đã qua Rules) và phần chi tiết
 
 
-def _render_messages(store):
+def _on_rl_feedback(agent, event_id):
+    value = st.session_state.get(f"rl_fb_{event_id}")
+    if value is None:
+        return
+    res = agent.feedback(event_id, "up" if value == 1 else "down")
+    if res:
+        st.toast(f"Đã ghi nhận. Agent RL vừa học từ phản hồi này (chính sách {res['policy_version']}).")
+
+
+def _render_rl_feedback(store, base, event_id):
+    """Hỏi người dùng trọng tâm do agent RL chọn có hợp không; 👍/👎 là phần thưởng để agent học."""
+    agent = getattr(base, "rl_agent", None)
+    ev = store.get_rl_event(event_id)
+    if agent is None or ev is None:
+        return
+    text = f"Trọng tâm tư vấn do agent học tăng cường chọn: **{ACTION_LABELS[ev['action']]}** ({ev['mode']})"
+    if ev["reward"] is not None:
+        st.caption(text + f" · bạn đã chấm {'👍' if ev['reward'] > 0 else '👎'}")
+        return
+    st.caption(text + ". Trọng tâm này có hợp với bạn không?")
+    st.feedback("thumbs", key=f"rl_fb_{event_id}", on_change=_on_rl_feedback, args=(agent, event_id))
+
+
+def _render_messages(store, base=None):
     meta = st.session_state.get("meta", {})
     for i, m in enumerate(store.get_history(st.session_state["session_id"])):
         with st.chat_message(m["role"]):
@@ -381,6 +408,8 @@ def _render_messages(store):
                 st.write(m["content"])
             if "invalid_input" in flags:
                 st.warning("Dữ liệu hồ sơ chưa hợp lệ.")
+            if m["role"] == "assistant" and m.get("rl_event_id") and base is not None:
+                _render_rl_feedback(store, base, m["rl_event_id"])
             if m["role"] == "assistant" and info:
                 _render_meta(info)
 
@@ -441,7 +470,33 @@ def render_agents(store):
     st.caption(f"Tính trên {len(rows)} lượt chạy gần nhất. Advisor gồm cả thời gian LLM viết câu trả lời.")
 
 
-def render_stats(store):
+def _render_rl_stats(store, base):
+    """Agent RL: số quyết định, số phản hồi, phần thưởng theo trọng tâm, và đánh giá ngoài chính sách."""
+    agent = getattr(base, "rl_agent", None)
+    if agent is None:
+        return
+    events = store.rl_events()
+    rep = off_policy_report(events, agent.model)
+    st.subheader("Agent học tăng cường")
+    c = st.columns(4)
+    c[0].metric("Quyết định đã ghi", rep["n_events"])
+    c[1].metric("Phản hồi 👍/👎", rep["n_rated"])
+    c[2].metric("Phần thưởng TB đã nhận", "-" if rep["logged_mean_reward"] is None else f"{rep['logged_mean_reward']:+.2f}")
+    c[3].metric("Ước lượng SNIPS chính sách hiện tại", "-" if rep["snips"] is None else f"{rep['snips']:+.2f}")
+    st.caption(f"Chính sách {agent.version}: khởi động từ tiên nghiệm, đã học thêm {agent.model.n_updates} phản hồi. "
+               f"Tỉ lệ thăm dò {agent.epsilon:.2f}. SNIPS ước lượng phần thưởng nếu luôn chọn theo chính sách hiện "
+               "tại, tính lại từ các lượt đã ghi (cần đủ phản hồi mới đáng tin).")
+    if rep["by_action"]:
+        st.dataframe([{"Trọng tâm": ACTION_LABELS[a], "Số phản hồi": v["n"], "Phần thưởng TB": v["mean_reward"]}
+                      for a, v in rep["by_action"].items()], hide_index=True)
+    modes = {}
+    for e in events:
+        modes[e["mode"]] = modes.get(e["mode"], 0) + 1
+    if modes:
+        st.caption("Cách chọn: " + ", ".join(f"{k} {v}" for k, v in modes.items()))
+
+
+def render_stats(store, base=None):
     stats = store.run_stats()
 
     def fmt(v):
@@ -462,6 +517,8 @@ def render_stats(store):
         fig.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+    if base is not None:
+        _render_rl_stats(store, base)
 
 
 _NO_TRANSLATE_JS = """<script>
@@ -502,7 +559,7 @@ def main():
     elif page == "Lịch sử":
         render_history(store)
     else:
-        render_stats(store)
+        render_stats(store, base)
 
 
 main()

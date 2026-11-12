@@ -1,0 +1,190 @@
+{
+ "source": "BRFSS 2015 (253680 người), mức nguy cơ từ Predictor; chủ đề từ eval/cases.json (50 câu hỏi)",
+ "n": 253680,
+ "profiles": [
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 53621
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 34624
+  },
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 31784
+  },
+  {
+   "band": "thấp",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 29171
+  },
+  {
+   "band": "thấp",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 26343
+  },
+  {
+   "band": "thấp",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 13927
+  },
+  {
+   "band": "thấp",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 13615
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 10792
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 7324
+  },
+  {
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 7223
+  },
+  {
+   "band": "thấp",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 5451
+  },
+  {
+   "band": "thấp",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 4261
+  },
+  {
+   "band": "cao",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 3517
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 2625
+  },
+  {
+   "band": "cao",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 1572
+  },
+  {
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 1564
+  },
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 1480
+  },
+  {
+   "band": "thấp",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 1322
+  },
+  {
+   "band": "thấp",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 1045
+  },
+  {
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 1035
+  },
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 1021
+  },
+  {
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 306
+  },
+  {
+   "band": "cao",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 40
+  },
+  {
+   "band": "cao",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 17
+  }
+ ],
+ "topics": {
+  "exercise": 0.04,
+  "general": 0.38,
+  "lab": 0.08,
+  "nutrition": 0.32,
+  "symptom": 0.18
+ },
+ "lab_prior": {
+  "none": 0.45,
+  "normal": 0.2,
+  "prediabetes": 0.15,
+  "diabetes": 0.15,
+  "low": 0.05
+ },
+ "diagnosed_prior": 0.25,
+ "note": "lab_prior và diagnosed_prior là giả định (BRFSS không có xét nghiệm, chẩn đoán trong hồ sơ)."
+}

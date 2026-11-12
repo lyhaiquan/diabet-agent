@@ -59,7 +59,7 @@ def _ask(orch, store, session_id, patient, question, print_fn):
     state = orch.run(State(question=question, profile=patient["profile"], history=history,
                            patient_id=patient["id"]))
     store.add_message(session_id, "user", question)
-    store.add_message(session_id, "assistant", state.final)
+    store.add_message(session_id, "assistant", state.final, rl_event_id=(state.rl or {}).get("event_id"))
     band = risk_band(state.risk) if state.risk is not None else "chưa tính"
     sources = ", ".join(d["source"] for d in state.docs) or "(không có)"
     print_fn(f"\n[nguy cơ: {band}] [flags: {state.flags}]\nNguồn: {sources}")

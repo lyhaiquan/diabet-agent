@@ -7,7 +7,7 @@ Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
 1. **Học sâu dự đoán nguy cơ**: MLP (PyTorch) huấn luyện trên CDC BRFSS 2015 (253.680 mẫu, 21 chỉ số).
 2. **Tri thức + RAG + Đồ thị tri thức (KG) + LLM**: truy xuất tài liệu (MedlinePlus, WHO) và đồ thị tri thức 5 loại cạnh rồi để LLM chạy cục bộ qua Ollama viết câu trả lời.
-3. **Học tăng cường (RL - V3)**: chính sách Q-learning tuyến tính chọn trọng tâm can thiệp cá nhân hóa từ hồ sơ, xét nghiệm và lịch sử hội thoại.
+3. **Học tăng cường (RL)**: contextual bandit chọn trọng tâm can thiệp cá nhân hoá và học từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn.
 4. **Luật an toàn**: chặn lời khuyên đổi thuốc, chuyển khám khi có triệu chứng, cấp cứu, xét nghiệm vượt ngưỡng.
 
 ## Kiến trúc
@@ -21,7 +21,7 @@ flowchart LR
     O --> R[Retriever<br/>RAG · sbert]
     O --> G[Graph<br/>Neo4j / NetworkX KG]
     O --> N[Nutrition<br/>bảng USDA]
-    O --> RL[RL Policy<br/>Q-learning · V3]
+    O --> RL[RL Agent<br/>bandit · học từ 👍/👎]
     O --> C[Context<br/>cắt ngữ cảnh theo agent]
     C --> A[Advisor<br/>LLM Ollama qwen2.5]
     A --> RU[Rules<br/>lọc an toàn + cờ]
@@ -42,7 +42,7 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 | Retriever | `src/diacare/retriever.py` | Truy xuất dense (sbert), tuỳ chọn lai BM25 + RRF |
 | Graph (KG) | `src/diacare/kg.py` | Đồ thị tri thức 5 loại cạnh (ADA 2024, luật, USDA, thống kê BRFSS, khẳng định KB đã kiểm chứng) trên Neo4j hoặc NetworkX |
 | Nutrition | `src/diacare/nutrition.py` | Nhận món ăn Việt, tra USDA FoodData Central, xử lý từ đa nghĩa |
-| RL (V3) | `src/diacare/rl.py` | Chính sách Q-learning chọn trọng tâm tư vấn cá nhân hóa từ trạng thái bệnh nhân |
+| RL | `src/diacare/rl.py` | Contextual bandit chọn trọng tâm tư vấn, học từ phản hồi người dùng (bảng `rl_events`, `rl_model`) |
 | Advisor | `src/diacare/advisor.py`, `llm.py` | Gọi Ollama `/api/chat`, hỗ trợ stream |
 | Rules | `src/diacare/rules.py` | Chặn lời khuyên đổi thuốc, gắn cờ chuyển khám / cấp cứu / xét nghiệm |
 
@@ -96,9 +96,9 @@ nạp sẵn model vào GPU, đặt các biến môi trường rồi mở giao di
 (vừa GPU 4 GB, mỗi câu khoảng 5–10 giây); muốn dùng 7B thì chạy `chay_local.bat qwen2.5:7b`. Thư mục model lấy từ
 biến môi trường `OLLAMA_MODELS` (ví dụ `D:\ollama\models` để không đầy ổ C).
 
-**Bản V3** (thêm agent học tăng cường): bấm đúp `chay_v3.bat`. Đồ thị tri thức chạy bằng networkx trong bộ
-nhớ nên không cần Docker; bản này bật `DIACARE_FEATURES=v2,kg,rl` (không bật hybrid). Muốn đồ thị đọc từ Neo4j thì
-dùng `chay_kg.bat` (cần Docker Desktop). Trong Git Bash gọi bằng `./chay_v3.bat`, không phải `.\chay_v3.bat`.
+`chay_local.bat` bật đủ đồ thị tri thức và agent học tăng cường (`DIACARE_FEATURES=v2,kg,rl`, không bật hybrid);
+đồ thị chạy bằng networkx trong bộ nhớ nên không cần Docker. `chay_v3.bat` giữ lại cho quen tay, giờ giống hệt.
+Muốn đồ thị đọc từ Neo4j thì dùng `chay_kg.bat` (cần Docker Desktop). Trong Git Bash gọi bằng `./chay_kg.bat`.
 
 **Chat ngay trong terminal** (không mở trình duyệt): bấm đúp `chay_cli.bat`. Mặc định dùng hồ sơ
 `docs/samples/hoso_nguy_co_cao.json`; hồ sơ khác: `chay_cli.bat docs\samples\hoso_nguy_co_thap.json`. Trong lúc chat
@@ -150,7 +150,7 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
-| `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG); `all`/`v3` = thêm hybrid, kg, rl; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
+| `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 
 ## Đồ thị tri thức (Knowledge Graph)
@@ -189,17 +189,26 @@ truy vấn Neo4j bằng Cypher; mặc định (`memory`) hoặc khi không kết
 nên test, chế độ demo và Kaggle không cần Docker. Một cú bấm: **`chay_kg.bat`** bật Neo4j, nạp đồ thị, mở giao
 diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản đồ code: [`docs/kg_demo.md`](docs/kg_demo.md).
 
-## Học tăng cường (Reinforcement Learning - V3)
+## Học tăng cường (Reinforcement Learning)
 
-`src/diacare/rl.py` cài đặt `RLAgent` theo mô hình Q-learning xấp xỉ tuyến tính ($Q(s, a) = w_a^\top \phi(s)$) trên
-vector đặc trưng trạng thái bệnh nhân 12 chiều (mức nguy cơ MLP, mức xét nghiệm ADA, trạng thái đã chẩn đoán,
-các yếu tố nguy cơ có thể thay đổi như BMI/ít vận động/tim mạch-hút thuốc, và chủ đề câu hỏi) để chọn 1 trong 6
-chiến lược tư vấn trọng tâm (`urgent_eval`, `glycemic_followup`, `weight_diet`, `physical_activity`, `cardio_control`,
-`preventive_habit`) đưa vào ngữ cảnh Advisor (ngân sách `RL_TOKEN_BUDGET = 120` token). Bật bằng `DIACARE_FEATURES=v2,rl`
-hoặc `DIACARE_FEATURES=v3`.
+`src/diacare/rl.py`, **bật mặc định**. `RLAgent` chọn 1 trong 6 trọng tâm tư vấn (`urgent_eval`, `glycemic_followup`,
+`weight_diet`, `physical_activity`, `cardio_control`, `preventive_habit`), đưa vào ngữ cảnh Advisor
+(`RL_TOKEN_BUDGET = 120` token), rồi **học từ phản hồi 👍/👎** mà người dùng bấm dưới câu trả lời.
+
+- Bài toán: contextual bandit (học tăng cường một bước, $\gamma = 0$). Trạng thái là vector 13 đặc trưng
+  $\phi(s)$; mỗi hành động có một mô hình ridge tuyến tính $\hat r_a(s) = w_a^\top \phi(s)$, $w_a = A_a^{-1} b_a$.
+  Một phản hồi cập nhật $A_a \mathrel{+}= \phi\phi^\top$, $b_a \mathrel{+}= r\phi$ với $r = \pm 1$.
+- Chọn hành động: mặt nạ an toàn (xét nghiệm báo động hoặc triệu chứng thì luôn `urgent_eval`), ngoài ra
+  epsilon-greedy với $\varepsilon = 0{,}1$ (`DIACARE_RL_EPSILON`; benchmark đặt 0). Rules vẫn chạy sau cùng.
+- Lưu trữ: mỗi quyết định và xác suất chọn vào bảng SQLite `rl_events`; mô hình đã học vào `rl_model`.
+  Trang Thống kê hiện số phản hồi và ước lượng ngoài chính sách SNIPS.
+- Khởi động: tiên nghiệm lâm sàng thang $[-1, 1]$ trên trạng thái lấy theo phân bố thật của 253.680 người BRFSS
+  (`kb/rl/brfss_state_freq.json`). Điểm tiên nghiệm trên 5.000 trạng thái mới: chính sách 0,893, ngẫu nhiên 0,173,
+  cận trên 0,917. Đây chỉ là điểm xuất phát; chưa có phản hồi của người dùng thật.
 
 ```bash
-python tools/train_rl.py           # huấn luyện lại models/rl_policy.json và đánh giá so với chính sách ngẫu nhiên
+python tools/build_rl_states.py    # phân bố trạng thái từ BRFSS (cần tệp CSV) -> kb/rl/brfss_state_freq.json
+python tools/train_rl.py           # chính sách khởi động -> models/rl_policy.json
 ```
 
 ## Đánh giá

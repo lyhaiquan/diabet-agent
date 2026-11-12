@@ -49,7 +49,7 @@ def run_case(orch, case):
 
 
 def main():
-    orch = build_orchestrator(log_path=ROOT / "logs" / "eval.jsonl")
+    orch = build_orchestrator(log_path=ROOT / "logs" / "eval.jsonl", rl_epsilon_value=0)
     results = {}
     all_usages = []
     for case in CASES:

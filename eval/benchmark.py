@@ -61,7 +61,7 @@ def main(argv=None):
     for model in models:
         llm = make_llm(kind, model=None if kind == "demo" else model, num_ctx=args.num_ctx)
         orch = build_orchestrator(kb_dir=kb_dir, log_path=out / f"runs_{model.replace(':', '_')}.jsonl",
-                                  llm=llm, embed_fn=embed_fn, features=features)
+                                  llm=llm, embed_fn=embed_fn, features=features, rl_epsilon_value=0)
         print(f"Đang đo mô hình {model} ({len(cases)} ca x {args.k} lượt)...", flush=True)
         results[model] = bench.run_benchmark(orch, cases, args.k)
         if kind == "ollama" and _all_runs_system_failure(results[model]):

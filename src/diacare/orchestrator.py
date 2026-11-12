@@ -155,7 +155,8 @@ class Orchestrator:
                      if state.nutrition else "không phải câu hỏi dinh dưỡng, bỏ qua")
             if self.rl_agent is not None:
                 state.rl = self.rl_agent.recommend(state)
-                step("RL", f"chính sách Q-learning: {state.rl['label']} (Q={state.rl['q_value']:+.2f})")
+                step("RL", f"{state.rl['mode']}: {state.rl['label']} (điểm {state.rl['q_value']:+.2f}, "
+                           f"chính sách {state.rl['policy_version']})")
                 state.messages.append(make_message(req_id, "RLAgent", "ok", state.rl))
             num_ctx = getattr(self.llm, "num_ctx", DEFAULT_NUM_CTX)
             ctx = build_context("advisor", state, num_ctx=num_ctx)
@@ -216,9 +217,15 @@ class Orchestrator:
 
     def _log(self, state, error=None):
         self._log_file(state, error)
+        run_id = None
         if self.store is not None:
             try:
-                self.store.log_run(self.session_id, state, error)
+                run_id = self.store.log_run(self.session_id, state, error)
+            except Exception:
+                pass
+        if self.rl_agent is not None and state.rl and not error:
+            try:  # ghi quyết định RL để người dùng chấm và agent học (không có store thì bỏ qua)
+                state.rl["event_id"] = self.rl_agent.record(state.rl, self.session_id, run_id)
             except Exception:
                 pass
 
