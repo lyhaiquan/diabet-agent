@@ -15,15 +15,15 @@ toc-title: "Mục lục"
 
 ## 1.1. Dự án là gì
 
-DiaCare-MAS là một trợ lý trò chuyện bằng tiếng Việt về phòng ngừa và chăm sóc bệnh tiểu đường. Người dùng tạo hồ sơ sức khỏe, có thể nhập kết quả xét nghiệm, rồi đặt câu hỏi như "tôi nên ăn gì", "đi tiểu nước có kiến bâu có sao không", "HbA1c 6,8% là cao hay thấp". Hệ trả lời bằng một mô hình ngôn ngữ lớn chạy cục bộ, có trích nguồn tài liệu, và luôn kèm lời nhắc tham khảo bác sĩ.
+DiaCare-MAS là một trợ lý trò chuyện bằng tiếng Việt về phòng ngừa và chăm sóc bệnh tiểu đường. Người dùng tạo hồ sơ sức khỏe, có thể nhập kết quả xét nghiệm, rồi đặt câu hỏi như "tôi nên ăn gì", "nước tiểu có kiến bâu có sao không", "HbA1c 6,8% là cao hay thấp". Hệ trả lời bằng một mô hình ngôn ngữ lớn chạy cục bộ, có trích nguồn tài liệu, và luôn kèm lời nhắc tham khảo bác sĩ.
 
-Bên trong, câu trả lời không do một mô hình duy nhất tạo ra. Mười tác tử (agent) chia nhau công việc: một agent nhớ thông tin bệnh nhân, một agent đọc xét nghiệm, một mạng nơ-ron dự đoán nguy cơ, một agent tìm tài liệu, một agent tra đồ thị tri thức, một agent tra dinh dưỡng, một agent học tăng cường chọn trọng tâm tư vấn và học từ phản hồi của người dùng, một agent cắt ngữ cảnh, mô hình ngôn ngữ viết bản nháp, và một agent luật kiểm tra trước khi trả lời. Một Orchestrator điều phối cả mười.
+Bên trong, câu trả lời không do một mô hình duy nhất tạo ra. Mười tác tử (agent) chia nhau công việc: một agent nhớ thông tin bệnh nhân, một agent đọc xét nghiệm, một mạng nơ-ron dự đoán nguy cơ, một agent tìm tài liệu, một agent tra đồ thị tri thức, một agent tra dinh dưỡng, một agent học tăng cường chọn trọng tâm tư vấn và học từ phản hồi của người dùng, một agent cắt ngữ cảnh, mô hình ngôn ngữ viết bản nháp, và một agent luật kiểm tra trước khi trả lời. Một Orchestrator điều phối cả mười. Trong mười bước đó, chỉ một bước gọi mô hình ngôn ngữ; các bước còn lại là code có test.
 
 Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** và không được dùng để chẩn đoán.
 
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14. Giao diện Streamlit, mô hình ngôn ngữ qua Ollama, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
-- Quy mô lúc viết báo cáo: 60 commit, 28 tệp test với 488 test tự động, bộ benchmark 50 ca.
+- Quy mô lúc viết báo cáo: 61 commit, 28 tệp test với 488 test tự động, bộ benchmark 50 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -70,7 +70,7 @@ Ngoài phạm vi: chẩn đoán, kê đơn, câu hỏi y khoa không liên quan 
 
 Kiến trúc theo mẫu orchestrator-worker. Orchestrator giữ một đối tượng trạng thái `State` cho mỗi lượt hỏi, gọi lần lượt mười agent, mỗi agent đọc phần trạng thái nó cần và ghi kết quả vào đó. Các tài nguyên nằm ngoài khung harness: cơ sở dữ liệu SQLite, tệp mô hình đã huấn luyện, kho tài liệu, đồ thị tri thức (Neo4j hoặc tệp), chính sách học tăng cường, bảng dinh dưỡng và máy chủ Ollama.
 
-Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định bật cả mười agent, trừ truy hồi lai BM25. Agent bị tắt thì Orchestrator bỏ qua, không ảnh hưởng các agent còn lại.
+Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định cả mười agent đều chạy; chỉ chế độ truy hồi lai BM25 của Retriever là tắt (lý do ở mục 3.6). Agent bị tắt thì Orchestrator bỏ qua, không ảnh hưởng các agent còn lại.
 
 ## 2.2. Vì sao là pipeline cố định chứ không phải vòng lặp agent
 
@@ -78,11 +78,11 @@ Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định
 
 Kiểu agent phổ biến hiện nay cho mô hình tự quyết định gọi công cụ nào ở mỗi bước. DiaCare-MAS cố ý không làm vậy, vì ba lý do:
 
-1. Mô hình 7B chạy cục bộ chọn công cụ không ổn định. Thứ tự cố định loại bỏ hẳn lớp lỗi "chọn sai công cụ".
+1. Mô hình 3B–7B chạy cục bộ chọn công cụ không ổn định. Thứ tự cố định loại bỏ hẳn lớp lỗi "chọn sai công cụ".
 2. Những việc cần chính xác tuyệt đối (đổi đơn vị xét nghiệm, so ngưỡng, tính nguy cơ) được làm bằng code có test, không giao cho mô hình.
 3. Agent kiểm tra an toàn phải luôn chạy cuối cùng. Trong vòng lặp tự do, mô hình có thể kết thúc mà không qua bước kiểm tra.
 
-Kết quả là trong mười bước chỉ một bước gọi mô hình ngôn ngữ (Advisor). Bước tóm tắt lịch sử của Memory cũng gọi mô hình, nhưng chỉ khi hội thoại dài quá ngân sách.
+Kết quả là trong mười bước chỉ một bước gọi mô hình ngôn ngữ (Advisor). Bước tóm tắt lịch sử của Memory cũng gọi mô hình, nhưng chỉ khi hội thoại dài quá ngân sách và chỉ cho phần chưa tóm tắt (mục 3.3).
 
 ## 2.3. Luồng xử lý một câu hỏi
 
@@ -100,7 +100,7 @@ Lấy ví dụ người dùng có hồ sơ nguy cơ cao, đã nhập phiếu xé
 10. **Advisor** gọi Ollama, nhận bản nháp từng đoạn và đẩy lên giao diện theo từng câu đã qua kiểm tra.
 11. **Rules** kiểm tra bản nháp, gắn ba cờ `high_risk_referral`, `lab_diabetes_range`, `symptom_referral` kèm ba ghi chú chuyển khám, rồi thêm lời nhắc bác sĩ.
 
-Toàn bộ các bước được ghi vào vết thực thi và lưu trong cơ sở dữ liệu. Nếu người dùng hỏi tiếp "Tôi bị béo phì và huyết áp cao, có dễ bị tiểu đường không?", bước Graph nhận ra hai yếu tố `OBESITY` và `HIGH_BP`, và ngữ cảnh gửi cho Advisor tăng từ khoảng 940 lên 1.120 token (số đo ở chế độ demo). Dưới câu trả lời, người dùng có thể bấm 👍/👎 cho trọng tâm mà RL đã chọn.
+Toàn bộ các bước được ghi vào vết thực thi và lưu trong cơ sở dữ liệu. Nếu người dùng hỏi tiếp "Tôi bị béo phì và huyết áp cao, có dễ bị tiểu đường không?", bước Graph nhận ra hai yếu tố `OBESITY` và `HIGH_BP` và thêm một khối tri thức khoảng 210 token vào ngữ cảnh; bước RL không còn bị mặt nạ an toàn nên chọn theo chính sách đã học. Dưới câu trả lời, người dùng có thể bấm 👍/👎 cho trọng tâm mà RL đã chọn.
 
 # 3. Thiết kế chi tiết từng thành phần
 
@@ -125,7 +125,7 @@ Lớp `_Tracer` ghi mỗi bước thành `{agent, detail, ms}`. Lỗi trong hàm
 
 Tệp `memory.py`.
 
-**Bộ nhớ dài hạn** lưu năm loại sự kiện: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được (xoá mềm, `active = 0`).
+**Bộ nhớ dài hạn** lưu năm loại thông tin: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được (xoá mềm, `active = 0`).
 
 **Thôi ghi nhớ khi thông tin hết đúng.** Hàm `extract_retractions` nhận câu ngôi thứ nhất kiểu "tôi đã ngừng metformin", "mình bỏ uống insulin", "tôi không dùng insulin nữa" và tắt mục thuốc tương ứng; vết thực thi ghi "thôi ghi nhớ metformin". Câu hỏi như "tôi ngừng metformin được không?" hay câu về người thân ("mẹ tôi ngừng metformin") không làm tắt gì. Khai lại "tôi đang dùng metformin" thì mục đó được bật lại.
 
@@ -315,7 +315,7 @@ Mỗi lượt hỏi là một vòng tương tác:
 3. Dưới câu trả lời, giao diện hỏi "Trọng tâm này có hợp với bạn không?". Người dùng bấm 👍 hoặc 👎, tức phần thưởng $r = +1$ hoặc $-1$.
 4. Agent cập nhật chính sách bằng đúng cặp $(s, a, r)$ đó.
 
-Agent chỉ biết phần thưởng của hành động nó đã chọn, không biết hành động khác sẽ được chấm thế nào. Đó là học tăng cường với phản hồi đánh giá, khác học có giám sát (Sutton và Barto, chương 2). Hệ không quan sát được sức khoẻ của người dùng thay đổi ra sao sau lời khuyên, nên không có bước chuyển $s \to s'$ đáng tin để ước lượng giá trị dài hạn. Vì vậy bài toán được đặt đúng là **contextual bandit** (học tăng cường một bước, $\gamma = 0$), dạng RL được dùng nhiều nhất trong các hệ khuyến nghị chạy thật. Bản trước dùng Q-learning với $\gamma = 0{,}8$ trên một môi trường mô phỏng tự đặt; cách đó bị bỏ vì bước chuyển trạng thái là bịa, và vì thang điểm của nó (Q khoảng 3 đến 5) khiến một cú 👍 (+1) lại *hạ* điểm hành động vừa được khen.
+Agent chỉ biết phần thưởng của hành động nó đã chọn, không biết hành động khác sẽ được chấm thế nào. Đó là học tăng cường với phản hồi đánh giá, khác học có giám sát (Sutton và Barto, chương 2). Hệ không quan sát được sức khoẻ của người dùng thay đổi ra sao sau lời khuyên, nên không có bước chuyển $s \to s'$ đáng tin để ước lượng giá trị dài hạn. Vì vậy bài toán được đặt đúng là **contextual bandit** (học tăng cường một bước, $\gamma = 0$), dạng RL được dùng nhiều nhất trong các hệ khuyến nghị chạy thật. Bản trước dùng Q-learning với $\gamma = 0{,}8$ trên một môi trường mô phỏng tự đặt; cách đó bị bỏ vì bước chuyển trạng thái chỉ là giả định của nhóm, và vì thang điểm của nó (Q khoảng 3 đến 5) khiến một cú 👍 (+1) lại *hạ* điểm hành động vừa được khen.
 
 ### Mô hình và cập nhật
 
@@ -335,7 +335,7 @@ Mỗi quyết định được ghi vào bảng `rl_events` cùng trạng thái, 
 
 ### Khởi động trước khi có phản hồi
 
-Lúc chưa có người dùng nào chấm, chính sách xuất phát từ một **tiên nghiệm**: điểm ưu tiên lâm sàng do nhóm đặt (ví dụ "khám sớm" được +1 khi xét nghiệm ở ngưỡng tiểu đường, "vận động" được điểm cao khi người ít vận động hỏi về tập luyện), quy về thang $[-1, 1]$ giống 👍/👎. Trạng thái để khởi động không còn bịa ngẫu nhiên:
+Lúc chưa có người dùng nào chấm, chính sách xuất phát từ một **tiên nghiệm**: điểm ưu tiên lâm sàng do nhóm đặt (ví dụ "khám sớm" được +1 khi xét nghiệm ở ngưỡng tiểu đường, "vận động" được điểm cao khi người ít vận động hỏi về tập luyện), quy về thang $[-1, 1]$ giống 👍/👎. Trạng thái để khởi động lấy theo dữ liệu thật thay vì sinh ngẫu nhiên:
 
 - **Hồ sơ** lấy theo tần suất thật của 253.680 người BRFSS 2015: 24 tổ hợp (mức nguy cơ do chính Predictor tính, thừa cân, ít vận động, tim mạch). Tệp nhỏ `kb/rl/brfss_state_freq.json` do `tools/build_rl_states.py` sinh ra.
 - **Chủ đề câu hỏi** lấy theo 50 câu hỏi của bộ benchmark: chung 38%, dinh dưỡng 32%, triệu chứng 18%, xét nghiệm 8%, vận động 4%.
@@ -385,7 +385,7 @@ Agent Rules chỉ nhận mức nguy cơ, bản nháp, câu hỏi, cờ đã ch�
 
 ## 3.11. Advisor và mô hình ngôn ngữ
 
-Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống với khối bộ nhớ, khối xét nghiệm, mức nguy cơ (chỉ dạng chữ), bảng dinh dưỡng, khối tri thức đồ thị `[kg]`, trọng tâm RL, tài liệu có nhãn nguồn và câu hỏi. Lời dặn hệ thống yêu cầu:
+Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống, lịch sử hội thoại, rồi khối bộ nhớ, khối xét nghiệm, mức nguy cơ (chỉ dạng chữ), bảng dinh dưỡng, khối tri thức đồ thị `[kg]`, trọng tâm RL, tài liệu có nhãn nguồn và cuối cùng là câu hỏi (đặt cuối để nằm sát chỗ mô hình bắt đầu viết). Lời dặn hệ thống yêu cầu:
 
 - chỉ dùng tài liệu được cung cấp, trích nguồn dạng `[tên_tệp]`, nói rõ khi tài liệu không đủ;
 - không kê đơn, không hướng dẫn thay đổi liều thuốc hoặc insulin;
@@ -455,7 +455,7 @@ Thanh bên cho chọn bệnh nhân, bắt đầu phiên mới, xem và nhập k�
 
 ## 5.2. Trang Tư vấn
 
-![Trang Tư vấn ở chế độ demo: câu trả lời, dòng huy hiệu nguy cơ và cờ, mục "Agent đã làm gì".](figs/c6_ui_chat.png){width=100%}
+![Trang Tư vấn ở chế độ demo: câu trả lời, trọng tâm do agent RL chọn kèm nút 👍/👎, dòng huy hiệu nguy cơ và cờ, mục "Agent đã làm gì".](figs/c6_ui_chat.png){width=100%}
 
 Khi người dùng gửi câu hỏi, một khung trạng thái hiện từng bước agent ngay khi bước đó xong, và câu trả lời hiện dần theo từng câu. Khi xong, mỗi câu trả lời có:
 
@@ -475,7 +475,7 @@ Khi người dùng gửi câu hỏi, một khung trạng thái hiện từng bư
 
 ## 5.3. Trang Hoạt động agent
 
-![Sơ đồ động phát lại một lượt chạy từ log, đang ở bước Context.](figs/c6_ui_flow_dang_chay.png){width=100%}
+![Sơ đồ động phát lại một lượt chạy từ log, đang ở bước 6/10 (Nutrition).](figs/c6_ui_flow_dang_chay.png){width=100%}
 
 Trang này đọc vết thực thi đã lưu và phát lại thành sơ đồ động: chấm sáng đi từ Orchestrator tới từng agent theo thứ tự thật, agent đã xong có dấu kiểm và số mili giây, Advisor gõ dần bản nháp, Rules hiện cờ. Có nút phát lại, dừng, chọn tốc độ. Bên dưới là bảng từng bước, bản nháp so với câu trả lời cuối, và biểu đồ thời gian trung bình của mỗi agent.
 
@@ -529,9 +529,11 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
+Test của bộ nhớ kiểm tra thêm: tắt thông tin thuốc khi người dùng nói đã ngừng (và không tắt khi đó là câu hỏi hay nói về người thân), dùng lại bản tóm tắt đã lưu mà không gọi mô hình, tóm tắt tăng dần khi lịch sử dài thêm, và bỏ qua bản tóm tắt có dấu nhận dạng không khớp.
+
 Test của agent RL kiểm tra: phân bố trạng thái đúng tổng 253.680 người, phần thưởng tiên nghiệm nằm trong $[-1, 1]$, chính sách khởi động hơn các mốc trên trạng thái mới, mặt nạ an toàn giữ "khám sớm" kể cả khi thăm dò 100%, propensity ghi đúng, 👍 làm tăng và 👎 làm giảm điểm của chính sách đã phát hành, mỗi phản hồi chỉ học một lần và còn nguyên sau khi mở lại, người dùng mô phỏng kéo được chính sách đi, và phạt lặp đọc được hành động lượt trước từ cơ sở dữ liệu.
 
-Test giao diện dùng `streamlit.testing.v1.AppTest` với mô hình giả: tạo bệnh nhân, chat, nhập xét nghiệm, kiểm tra huy hiệu, chuyển trang, xem trang Hoạt động agent. Nhiều test được viết từ chính những lỗi gặp phải: câu "tiểu đường" không được tạo bảng dinh dưỡng, câu chào không được hiện nguy cơ, cơ sở dữ liệu cũ phải tự thêm cột `trace_json`.
+Test giao diện dùng `streamlit.testing.v1.AppTest` với mô hình giả: tạo bệnh nhân, chat, nhập xét nghiệm, kiểm tra huy hiệu, chuyển trang, xem trang Hoạt động agent. Nhiều test được viết từ chính những lỗi gặp phải: câu "tiểu đường" không được tạo bảng dinh dưỡng, câu chào không được hiện nguy cơ, cơ sở dữ liệu cũ phải tự thêm các cột mới.
 
 ## 7.2. Benchmark hội thoại
 
@@ -555,7 +557,7 @@ Kaggle, GPU T4, qwen2.5:7b, 46 ca × 3 lượt, đã chấm lại. Lần chạy 
 
 Nhóm bộ nhớ tăng từ 0,25 lên 1,00. Nhóm ngoài chủ đề đứng yên ở 0,50. Khoảng tin cậy còn chồng nhau. Qua 414 lượt chạy, mô hình không đưa ra lời khuyên đổi thuốc nguy hiểm nào; bốn lượt từng bị chặn đều là chặn nhầm câu cảnh báo, đã sửa ở bộ chấm.
 
-Đồ thị tri thức và agent RL **chưa được đo trên benchmark hội thoại**. Bước so sánh `v2` với `v2,kg` (cùng mô hình, cùng bộ ca, kiểm định McNemar trên từng cặp lượt) là việc tiếp theo; các mục 3.7 và 5.2 chỉ cho thấy đồ thị được đọc đúng và hiện ra đúng, chưa cho thấy câu trả lời tốt hơn. Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
+Đồ thị tri thức và agent RL **chưa được đo trên benchmark hội thoại**. Bước so sánh `v2`, `v2,kg` và `v2,kg,rl` (cùng mô hình, cùng bộ ca, $\varepsilon = 0$, kiểm định McNemar trên từng cặp lượt) là việc tiếp theo; các mục 3.7 và 5.2 chỉ cho thấy đồ thị được đọc đúng và hiện ra đúng, chưa cho thấy câu trả lời tốt hơn. Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
 
 ## 7.4. Khi đổi model
 
@@ -591,10 +593,12 @@ Sau mỗi lần đổi model nên chạy lại bộ benchmark và đọc các ca
 | 👍 lại làm giảm điểm hành động vừa được khen | RL | viết test với chính sách đã phát hành | Q cũ khoảng 3 đến 5, phần thưởng 👍 = +1; đưa tiên nghiệm về thang $[-1, 1]$, $\gamma = 0$ |
 | Phạt lặp lời khuyên không bao giờ chạy | RL | đọc lại `get_history` | lịch sử không lưu hành động RL; thêm cột `messages.rl_event_id` |
 | Người nguy cơ cao chưa chẩn đoán được khuyên "huyết áp" trước "khám sớm" | RL | so điểm từng hành động | thêm đặc trưng tương tác `high_undiagnosed` |
+| Hội thoại dài bị tóm tắt lại từ đầu ở mọi lượt | Memory | đọc lại mã: bảng `summaries` có nhưng không ai ghi | lưu bản tóm tắt kèm dấu nhận dạng, dùng lại hoặc tóm tắt tăng dần |
+| Người dùng nói đã ngừng thuốc nhưng hệ vẫn nhớ là đang dùng | Memory | rà soát luồng bộ nhớ | nhận câu "đã ngừng/bỏ/không dùng ... nữa", tắt mềm mục thuốc |
 
-Hai bài học rút ra:
+Ba bài học rút ra:
 
-1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong mười tám lỗi ở bảng, chỉ một lỗi (viết mãi) liên quan trực tiếp tới hành vi của mô hình, và cách sửa vẫn nằm ở harness.
+1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong hai mươi lỗi ở bảng, chỉ một lỗi (viết mãi) liên quan trực tiếp tới hành vi của mô hình, và cách sửa vẫn nằm ở harness.
 2. **Bộ chấm cũng là code và cũng sai.** Mỗi lần số liệu thay đổi, phải đọc bản nháp thật trước khi kết luận.
 3. **Phải hiểu nghĩa của cạnh trước khi dùng.** Một cạnh "bệnh A – bệnh B" trong đồ thị lớn có thể là quan hệ phân loại chứ không phải quan hệ nguy cơ. Một con số mô hình học ra mà đổi theo hạt giống thì chưa đủ tin để đưa cho người dùng.
 
@@ -608,15 +612,16 @@ Hai bài học rút ra:
 - Benchmark không chấm độ đúng y khoa của phần giải thích.
 - Nhóm câu ngoài chủ đề chỉ đạt khoảng một nửa với mô hình 7B.
 - Bộ ca 50 ca còn nhỏ, khoảng tin cậy rộng.
-- Đồ thị tri thức chưa được đo trên benchmark hội thoại; chưa biết nó làm câu trả lời tốt hơn bao nhiêu.
+- Đồ thị tri thức và agent RL chưa được đo trên benchmark hội thoại; chưa biết chúng làm câu trả lời tốt hơn bao nhiêu.
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
 - Bộ nhớ dài hạn trích bằng luật: danh sách thuốc cố định 6 loại, câu "dùng metformin và insulin" chỉ nhận thuốc đầu, và mới chỉ tự tắt được thông tin thuốc (chưa tự sửa chẩn đoán, dị ứng).
+- Chưa có đăng nhập: ai mở ứng dụng trên máy cũng xem được hồ sơ, bộ nhớ và lịch sử của mọi bệnh nhân.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
 
 **Hướng phát triển**
 
-1. Đo đồ thị tri thức trên benchmark: chạy `v2` và `v2,kg` cùng bộ ca, so từng cặp lượt bằng kiểm định McNemar, thêm ca hỏi về yếu tố nguy cơ.
+1. Đo đồ thị tri thức và RL trên benchmark: chạy `v2`, `v2,kg`, `v2,kg,rl` cùng bộ ca, so từng cặp lượt bằng kiểm định McNemar, thêm ca hỏi về yếu tố nguy cơ.
 2. Cho Rules, Lab và Nutrition đọc ngưỡng, triệu chứng và bảng dinh dưỡng từ đồ thị thay vì từ hằng số trong code, để đồ thị là nguồn sự thật duy nhất.
 3. Mở rộng đồ thị: biến chứng, thuốc, quan hệ giữa các yếu tố; trích khẳng định từ tài liệu tiếng Việt bằng mô hình ngôn ngữ, có người duyệt.
 4. Một bộ lọc chủ đề đặt trước Advisor, để từ chối câu ngoài phạm vi mà không phụ thuộc vào mô hình.

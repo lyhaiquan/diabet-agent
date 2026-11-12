@@ -7,7 +7,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8600"
-FIGS = Path(__file__).resolve().parent.parent / "figs"
+FIGS = Path(__file__).resolve().parent / "figs"
 LABS = "PHIẾU XÉT NGHIỆM\nHbA1c: 8.5 %\nGlucose lúc đói: 10.0 mmol/L\nNghiệm pháp dung nạp glucose 2h: 182 mg/dL"
 QUESTION = "Dạo này tôi khát nước liên tục, đi tiểu nhiều, nước tiểu có kiến bâu. Kết quả xét nghiệm của tôi thế nào?"
 

@@ -13,7 +13,7 @@ NODES = [
     ("Retriever", "Retriever", "Tìm tài liệu (RAG)", "🔎", "KB · sbert", (815, 40)),
     ("Graph", "Graph", "Tra đồ thị tri thức", "🕸️", "Neo4j · KG", (1015, 40)),
     ("Nutrition", "Nutrition", "Tra dinh dưỡng món ăn", "🥗", "USDA FDC", (215, 470)),
-    ("RL", "RL", "Chọn trọng tâm tư vấn", "🎯", "Q-learning · V3", (405, 470)),
+    ("RL", "RL", "Chọn trọng tâm tư vấn", "🎯", "học từ 👍/👎", (405, 470)),
     ("Context", "Context", "Cắt ngữ cảnh từng agent", "🧩", "ngân sách token", (595, 470)),
     ("Advisor", "Advisor", "LLM viết bản nháp", "💬", "Ollama qwen2.5:7b", (785, 470)),
     ("Rules", "Rules", "Lọc an toàn, gắn cờ", "🛡️", "luật y khoa", (975, 470)),
