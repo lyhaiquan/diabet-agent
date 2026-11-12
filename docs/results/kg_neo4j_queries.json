@@ -1,15 +1,16 @@
 {
  "nodes": 108,
- "edges": 220,
+ "edges": 228,
  "graph": {
   "nodes": 108,
-  "edges": 220,
+  "edges": 228,
   "by_relation": {
    "indicates": 13,
    "requires": 27,
    "contains": 143,
    "associated_with": 9,
-   "claims_risk": 28
+   "claims_risk": 28,
+   "shares_genes": 8
   },
   "by_label": {
    "Condition": 5,
@@ -39,22 +40,22 @@
     {
      "yeu_to": "Hội chứng buồng trứng đa nang",
      "nguon": [
-      "medlineplus_type2_diabetes.txt",
-      "medlineplus_diabetes.txt"
+      "medlineplus_diabetes.txt",
+      "medlineplus_type2_diabetes.txt"
      ]
     },
     {
      "yeu_to": "Nhóm chủng tộc",
      "nguon": [
-      "medlineplus_diabetes.txt",
-      "medlineplus_type2_diabetes.txt"
+      "medlineplus_type2_diabetes.txt",
+      "medlineplus_diabetes.txt"
      ]
     },
     {
      "yeu_to": "Tiền sử gia đình",
      "nguon": [
-      "medlineplus_diabetes.txt",
-      "medlineplus_type2_diabetes.txt"
+      "medlineplus_type2_diabetes.txt",
+      "medlineplus_diabetes.txt"
      ]
     },
     {
@@ -79,8 +80,8 @@
     {
      "yeu_to": "Đái tháo đường thai kỳ, con to khi sinh",
      "nguon": [
-      "medlineplus_type2_diabetes.txt",
-      "medlineplus_diabetes.txt"
+      "medlineplus_diabetes.txt",
+      "medlineplus_type2_diabetes.txt"
      ]
     }
    ]
@@ -278,6 +279,10 @@
     {
      "loai_canh": "associated_with",
      "so_canh": 9
+    },
+    {
+     "loai_canh": "shares_genes",
+     "so_canh": 8
     }
    ]
   }
