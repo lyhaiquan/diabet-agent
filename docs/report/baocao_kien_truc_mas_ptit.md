@@ -37,7 +37,7 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 | 4 | **Phân tích kết quả xét nghiệm đa phương thức**: Tiếp nhận kết quả cận lâm sàng dạng văn bản, hình ảnh hoặc tài liệu PDF scan, đối chiếu ngưỡng chuẩn quốc tế. | Hiện thực hóa qua `LabAgent` ([`labs.py`](file:///C:/DATA/diacare-mas/src/diacare/labs.py)) tích hợp module OCR ([`ocr.py`](file:///C:/DATA/diacare-mas/src/diacare/ocr.py)). Tự động chuyển đổi đơn vị ($mg/dL \leftrightarrow mmol/L$), xếp mức theo Hiệp hội Đái tháo đường Hoa Kỳ (ADA 2024) cho 4 chỉ số chính (HbA1c, FPG, OGTT 2h, Random Glucose). | **Hoàn thành 100%** |
 | 5 | **Tra cứu thành phần dinh dưỡng món ăn Việt Nam**: Đánh giá định lượng carbohydrate, chất xơ, calo của bữa ăn bản địa, hỗ trợ kiểm soát đường huyết sau ăn. | Hiện thực hóa qua `NutritionAgent` ([`nutrition.py`](file:///C:/DATA/diacare-mas/src/diacare/nutrition.py)) với cơ sở dữ liệu `vn_foods.json` gồm 50 món ăn Việt Nam chuẩn hóa từ USDA FoodData Central. Thuật toán phân tích ngữ cảnh 2 từ trước/sau giải quyết triệt để lỗi từ đa nghĩa. | **Hoàn thành 100%** |
 | 6 | **Rào chắn an toàn y khoa bất biến & Chuyển viện kịp thời**: Chặn 100% lời khuyên tự ý đổi thuốc, phát hiện dấu hiệu cấp cứu, triệu chứng lâm sàng và bắt buộc chuyển viện. | Hiện thực hóa qua `Rules` ([`rules.py`](file:///C:/DATA/diacare-mas/src/diacare/rules.py)) hoạt động độc lập ở bước cuối pipeline. Chặn lời khuyên thuốc bằng regex đa tầng (`_UNSAFE`, `_NEGATION`, `_CAUTION`), kích hoạt 13 cờ an toàn, truyền phát an toàn từng câu qua `SafeStream`. | **Hoàn thành 100%** |
-| 7 | **Cá nhân hóa tư vấn bằng Học tăng cường (Reinforcement Learning)**: Tự động điều chỉnh trọng tâm can thiệp phù hợp với từng bệnh nhân dựa trên tối ưu hóa hàm thưởng lâm sàng. | Hiện thực hóa ở phiên bản V3 qua `RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)). Thiết lập mô hình MDP với Linear Q-Learning, 12 đặc trưng trạng thái, 6 hành động can thiệp, phần thưởng trung bình đạt +2.459 (vượt trội so với +0.483 của ngẫu nhiên). | **Hoàn thành 100%** |
+| 7 | **Cá nhân hóa tư vấn bằng Học tăng cường (Reinforcement Learning)**: Tự động điều chỉnh trọng tâm can thiệp phù hợp với từng bệnh nhân dựa trên tối ưu hóa hàm thưởng lâm sàng. | Hiện thực hóa ở phiên bản V3 qua `RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)). Contextual bandit tuyến tính, 13 đặc trưng trạng thái, 6 trọng tâm can thiệp, học trực tuyến từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn và đánh giá SNIPS. Chưa có phản hồi thật. | **Hoàn thành 100%** |
 | 8 | **Khả năng quan sát, kiểm chuẩn và triển khai trên phần cứng tối thiểu**: Hệ thống phải trong suốt, đo đạc được tài nguyên, có bộ kiểm thử tự động và chạy được trên môi trường miễn phí. | Hiện thực hóa qua `_Tracer` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)), trang Hoạt động agent động SVG/JS ([`flowviz.py`](file:///C:/DATA/diacare-mas/src/diacare/flowviz.py)), hệ thống 419 unit test tự động, hỗ trợ chạy trơn tru trên laptop có GPU 4 GB hoặc môi trường Kaggle T4 miễn phí. | **Hoàn thành 100%** |
 
 ---
@@ -61,12 +61,12 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 4. **Lớp Tri thức & Suy luận (Knowledge & Inference Layer)**:
    - **Mô hình Ngôn ngữ cục bộ**: Ollama phục vụ các mô hình mã nguồn mở thế hệ mới như `qwen2.5:7b` hoặc `qwen2.5:3b`.
    - **Mạng Nơ-ron Học sâu**: PyTorch MLP dự đoán nguy cơ.
-   - **Chính sách Q-learning**: Ma trận trọng số $W \in \mathbb{R}^{6 \times 12}$ của `RLAgent`.
+   - **Chính sách RL**: 6 mô hình ridge tuyến tính ($A_a \in \mathbb{R}^{13 \times 13}$, $b_a \in \mathbb{R}^{13}$) của `RLAgent`, khởi động từ `models/rl_policy.json`, học tiếp trong SQLite.
    - **Hệ thống Tri thức Chuẩn mực**: Hướng dẫn thực hành ADA 2024, Bảng cơ sở dữ liệu dinh dưỡng USDA FoodData Central.
 5. **Lớp Lưu trữ & Dữ liệu Bền vững (Persistence & Storage Layer)**:
    - **Cơ sở dữ liệu Quan hệ SQLite** (`data/diacare.db` qua [`db.py`](file:///C:/DATA/diacare-mas/src/diacare/db.py)): Quản lý 7 bảng quan hệ (`patients`, `sessions`, `messages`, `memories`, `labs`, `summaries`, `runs`).
    - **Nhật ký Thực thi (JSONL Run Logs)**: Ghi vết tuần tự các lượt suy luận vào `logs/runs.jsonl`.
-   - **Đồ thị Tri thức Neo4j** (`neo4j_data/` qua `bolt://localhost:7688`): Lưu trữ đồ thị tri thức 108 nút và 220 cạnh.
+   - **Đồ thị Tri thức Neo4j** (`neo4j_data/` qua `bolt://localhost:7688`): Lưu trữ đồ thị tri thức 108 nút và 228 cạnh (6 loại quan hệ, có 8 cạnh gen chung lấy từ PrimeKG). Mặc định đồ thị chạy bằng networkx trong bộ nhớ; đặt `DIACARE_KG=neo4j` thì đọc từ Neo4j.
    - **Kho Văn bản Y khoa (Knowledge Base)**: Thư mục `kb/` chứa các tài liệu MedlinePlus, WHO và các đoạn cắt vector hóa.
 6. **Lớp An toàn & Rào chắn Pháp lý (Safety & Compliance Layer)**:
    - Cơ chế bất biến y khoa: Chạy ở khâu cuối cùng trước khi phản hồi người dùng.
@@ -105,7 +105,7 @@ flowchart TD
             AG_ADV["Advisor<br/>💬 Sinh bản nháp LLM"]
         end
         subgraph Guards ["Tác tử Rào chắn & Chính sách"]
-            AG_RL["RLAgent (V3)<br/>🎯 Chính sách Q-Learning"]
+            AG_RL["RLAgent<br/>🎯 Contextual bandit học từ 👍/👎"]
             AG_RULE["Rule-Based Agent<br/>🛡️ Rào chắn An toàn Y khoa"]
         end
     end
@@ -113,7 +113,7 @@ flowchart TD
     subgraph L4 ["4. LỚP TRI THỨC & SUY LUẬN (Knowledge & Inference Layer)"]
         OLLAMA["Ollama LLM (qwen2.5:7b / 3b)"]
         PYTORCH["PyTorch Engine (MLP Model)"]
-        RL_MODEL["Mô hình Q-Policy (models/rl_policy.json)"]
+        RL_MODEL["Chính sách RL (rl_policy.json + SQLite rl_model)"]
         ADA_RULES["Quy chuẩn Lâm sàng ADA 2024"]
         USDA_DATA["Dữ liệu Dinh dưỡng USDA FDC"]
     end
@@ -175,7 +175,7 @@ Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử th�
 | **ContextAgent** | Worker | Cắt lát trạng thái và phân bổ ngân sách token tối ưu cho từng tác tử tiếp theo. | Đối tượng `State`, trần ngân sách `num_ctx` | Lát cắt ngữ cảnh chuyên biệt (`ctx` cho Predictor, Advisor, Rules) | `context.build_context`, giải thuật cấp phát ngân sách ưu tiên |
 | **Advisor** | Worker | Tổng hợp toàn bộ lát cắt tri thức, đóng vai trò chuyên viên tư vấn y khoa viết bản nháp câu trả lời. | Lát ngữ cảnh đầy đủ từ ContextAgent | Bản nháp câu trả lời tiếng Việt (`state.draft`), số token sử dụng | Ollama (`qwen2.5:7b` / `qwen2.5:3b`), Streaming Generator |
 | **Orchestrator** | Control | Đạo diễn điều phối đường ống thực thi tuần tự, quản lý trạng thái, phát hiện câu chào, bắt lỗi. | Yêu cầu người dùng, cấu hình hệ thống | Trạng thái hoàn chỉnh của lượt hỏi (`State`) | Bộ điều phối Pipeline hướng sự kiện, Blackboard Pattern |
-| **Monitoring (_Tracer) & RLAgent** | Policy & Telemetry | **_Tracer**: Đo đạc độ trễ từng bước ($ms$), token, ghi log.<br/>**RLAgent**: Chính sách tối ưu hóa trọng tâm can thiệp lâm sàng. | **_Tracer**: Mốc thời gian agent.<br/>**RL**: Trạng thái bệnh nhân tổng hợp $s \in \mathbb{R}^{12}$. | **_Tracer**: Danh sách vết (`state.trace`).<br/>**RL**: Khuyến nghị trọng tâm (`state.rl`: action, Q-value). | **_Tracer**: `time.perf_counter`, SQLite `runs`.<br/>**RL**: Linear Q-learning, ma trận trọng số $W \in \mathbb{R}^{6 \times 12}$. |
+| **Monitoring (_Tracer) & RLAgent** | Policy & Telemetry | **_Tracer**: Đo đạc độ trễ từng bước ($ms$), token, ghi log.<br/>**RLAgent**: Chọn trọng tâm can thiệp và học từ phản hồi người dùng. | **_Tracer**: Mốc thời gian agent.<br/>**RL**: Trạng thái bệnh nhân tổng hợp $\phi(s) \in \{0,1\}^{13}$. | **_Tracer**: Danh sách vết (`state.trace`).<br/>**RL**: Khuyến nghị trọng tâm (`state.rl`: action, điểm, propensity, event_id). | **_Tracer**: `time.perf_counter`, SQLite `runs`.<br/>**RL**: Ridge tuyến tính theo hành động, epsilon-greedy có mặt nạ an toàn, SQLite `rl_events`, `rl_model`. |
 
 ## 3.2. 6 Nguyên lý Thiết kế Cốt lõi của PTIT MAS trong DiaCare-MAS
 
@@ -261,7 +261,7 @@ Khi nhận được câu hỏi từ người dùng cùng hồ sơ lâm sàng, `O
 7. **Bước 7 (Semantic RAG Retrieval)**: `Retriever` tính toán embedding ngữ nghĩa của câu hỏi qua Sentence-BERT đa ngôn ngữ, quét qua kho tài liệu y khoa `kb/` và thu hồi các đoạn văn bản có độ tương đồng cosine $\ge 0.20$.
 8. **Bước 8 (Knowledge Graph Lookup & Cross-verification)**: `GraphAgent` nhận diện các yếu tố nguy cơ trong câu hỏi, truy vấn đồ thị Neo4j qua giao thức Bolt để lấy thông tin định lượng (tỷ số chênh hiệu chỉnh $OR_{\text{adjusted}}$) và đối chiếu với các khẳng định y văn đã được kiểm chứng chéo.
 9. **Bước 9 (Nutrition Quantitative Analysis)**: `NutritionAgent` kiểm tra xem câu hỏi có chứa các món ăn Việt hay không. Nếu đúng, agent phân tích ngữ cảnh, tra cứu cơ sở dữ liệu USDA FDC và lập bảng dinh dưỡng chi tiết (năng lượng, carbohydrate, chất xơ, đường).
-10. **Bước 10 (RL Policy Recommendation - V3)**: `RLAgent` tổng hợp trạng thái bệnh nhân thành vector $\phi(s) \in \mathbb{R}^{12}$, áp dụng chính sách Q-learning xấp xỉ tuyến tính để chọn hành động tư vấn trọng tâm tối ưu $a^* \in \mathcal{A}_{\text{RL}}$ cùng điểm giá trị $Q(s, a^*)$.
+10. **Bước 10 (RL Policy Recommendation)**: `RLAgent` tổng hợp trạng thái bệnh nhân thành vector $\phi(s) \in \{0,1\}^{13}$, áp mặt nạ an toàn, chọn trọng tâm $a \in \mathcal{A}_{\text{RL}}$ bằng epsilon-greedy trên điểm $\hat r_a(s)$, và ghi quyết định cùng propensity để người dùng chấm 👍/👎.
 11. **Bước 11 (Token Budget Dynamic Allocation & Context Slicing)**: `ContextAgent` thu thập kết quả từ tất cả các bước trước, thực hiện lập ngân sách token động dựa trên giới hạn `num_ctx` (4.096 tokens). Lần lượt bố trí: Lời nhắc hệ thống $\to$ Trí nhớ dài hạn $\to$ Kết quả xét nghiệm $\to$ Bảng dinh dưỡng $\to$ Tri thức đồ thị $\to$ Định hướng RL $\to$ Tài liệu RAG $\to$ Lịch sử hội thoại.
 12. **Bước 12 (Draft Advising & Rule Invariant Guard)**:
     - `Advisor` gọi Ollama LLM để sinh bản nháp câu trả lời `state.draft` (hỗ trợ stream an toàn qua `SafeStream`).
@@ -281,7 +281,7 @@ sequenceDiagram
     participant Pred as Predictor (MLP Deep Learning)
     participant Ret as Retriever & Graph (RAG/KG)
     participant Nutr as NutritionAgent (Dinh dưỡng)
-    participant RL as RLAgent (Học tăng cường V3)
+    participant RL as RLAgent (Học tăng cường)
     participant Ctx as ContextAgent (Ngân sách Token)
     participant Adv as Advisor (Ollama LLM)
     participant Rule as Rule-Based Agent (Rào chắn)
@@ -329,9 +329,9 @@ sequenceDiagram
             Nutr-->>Orch: Cập nhật state.nutrition (USDA FDC)
 
             %% Bước 10: RL Agent
-            Orch->>RL: Chọn trọng tâm can thiệp tối ưu (V3)
-            RL->>RL: Q-Learning xấp xỉ tuyến tính (12 đặc trưng)
-            RL-->>Orch: Cập nhật state.rl (Action, Q-value)
+            Orch->>RL: Chọn trọng tâm can thiệp
+            RL->>RL: Mặt nạ an toàn, epsilon-greedy trên 13 đặc trưng
+            RL-->>Orch: Cập nhật state.rl (action, propensity)
 
             %% Bước 11: Context Slicing
             Orch->>Ctx: Lập ngân sách token & Cắt lát ngữ cảnh
@@ -468,7 +468,7 @@ Bảng so sánh hiệu năng trên tập kiểm thử độc lập:
 ## 7.2. Đồ thị Tri thức Knowledge Graph trên Neo4j
 
 ### Cấu trúc Đồ thị Tri thức Phân tầng
-Đồ thị tri thức được định nghĩa tại `DB_diabet.cypher` và triển khai trên máy chủ cơ sở dữ liệu đồ thị Neo4j 5 Community Edition (kết nối cổng Bolt 7688). Đồ thị gồm **108 nút** và **220 cạnh**, được phân chia nghiêm ngặt thành 3 tầng tri thức với 5 loại quan hệ định kiểu mạnh:
+Đồ thị tri thức được định nghĩa tại `DB_diabet.cypher` và triển khai trên máy chủ cơ sở dữ liệu đồ thị Neo4j 5 Community Edition (kết nối cổng Bolt 7688). Đồ thị gồm **108 nút** và **228 cạnh**, được phân chia thành 4 tầng tri thức với 6 loại quan hệ định kiểu:
 
 ```mermaid
 graph LR
@@ -485,6 +485,10 @@ graph LR
     subgraph T3 ["Tầng 3: Tri thức Y văn Lý thuyết (Độ tin cậy: Lời khẳng định cần kiểm chứng)"]
         RiskFactor -->|claims_risk<br/>28 cạnh| Condition
     end
+
+    subgraph T4 ["Tầng 4: Bằng chứng cơ chế từ PrimeKG (số gen chung, không phải mức nguy cơ)"]
+        RiskFactor -->|shares_genes<br/>8 cạnh| Condition
+    end
 ```
 
 Bảng thống kê định lượng các loại quan hệ trong đồ thị:
@@ -496,70 +500,59 @@ Bảng thống kê định lượng các loại quan hệ trong đồ thị:
 | `contains` | `Food` $\to$ `Nutrient` | Bảng USDA FDC trong `vn_foods.json` | Định lượng thành phần thực phẩm | 143 |
 | `associated_with` | `RiskFactor` $\to$ `Condition` | Đo lường dịch tễ từ 253.680 mẫu BRFSS 2015 | Mối liên hệ thống kê (OR biên & OR hiệu chỉnh) | 9 |
 | `claims_risk` | `RiskFactor` $\to$ `Condition` | Trích xuất tự động từ tài liệu MedlinePlus/WHO | Lời khẳng định y văn lý thuyết | 28 |
+| `shares_genes` | `RiskFactor` $\to$ `Condition` | Số gen PrimeKG 2.1 nối với cả yếu tố lẫn T2D | Bằng chứng cơ chế sinh học chung | 8 |
+
+Cạnh `shares_genes` dùng cho cả các yếu tố BRFSS không đo (trầm cảm 12 gen, buồng trứng đa nang 4 gen). Bệnh tim có nhiều gen chung nhất (29), rồi đến béo phì (27). Số gen chung chỉ cho biết hai bệnh có chung cơ chế, không phải mức nguy cơ. Một thử nghiệm RGCN trên đồ thị con PrimeKG (2.818 nút, 28.781 cạnh) đạt MRR 0,407 ± 0,005 so với 0,395 ± 0,001 của DistMult. Embedding học được không ổn định giữa các hạt giống, nên ứng dụng không dùng embedding mà chỉ dùng số gen chung.
 
 ### Kiểm chứng Chéo 28 Khẳng định Y văn (Cross-verification Engine)
 Điểm đột phá của DiaCare-MAS là khả năng thực hiện kiểm chứng chéo giữa **lời khẳng định trong tài liệu y văn (`claims_risk`)** và **số liệu thực tế đo đạc từ dịch tễ học (`associated_with`)**:
-- Cả 9 yếu tố nguy cơ có đo lường trong BRFSS (Tăng huyết áp, Thừa cân béo phì, Tuổi cao, Ít vận động, Rối loạn mỡ máu, Hút thuốc, Bệnh tim, Đột quỵ, Thiếu rau xanh) đều được xác nhận có tương quan dương với T2D cả về Odds Ratio riêng lẻ ($OR_{\text{marginal}}$) và Odds Ratio hiệu chỉnh qua hồi quy đa biến ($OR_{\text{adjusted}}$). Ví dụ: Cao huyết áp có $OR_{\text{adjusted}} = 2.71$, Thừa cân có $OR_{\text{adjusted}} = 2.45$.
+- 9 yếu tố nguy cơ có đo lường trong BRFSS (Tăng huyết áp, Thừa cân béo phì, Tuổi cao, Ít vận động, Rối loạn mỡ máu, Hút thuốc, Bệnh tim, Đột quỵ, Ăn nhiều rau quả) được tính Odds Ratio riêng lẻ ($OR_{\text{marginal}}$) và Odds Ratio hiệu chỉnh qua hồi quy đa biến ($OR_{\text{adjusted}}$). Ví dụ: Tăng huyết áp có $OR_{\text{marginal}} = 5.04$ và $OR_{\text{adjusted}} = 2.13$; Thừa cân có $OR_{\text{adjusted}} = 1.50$ cho mỗi độ lệch chuẩn BMI. Hút thuốc có $OR_{\text{marginal}} = 1.42$ nhưng $OR_{\text{adjusted}} = 0.99$: phần lớn mối liên hệ đến từ các yếu tố đi kèm. BRFSS đo chiều có vận động và ăn rau quả, nên OR nhỏ hơn 1 ở hai cột này là nhất quán với tài liệu.
+- Kết quả đối chiếu 28 khẳng định: 15 nhất quán, 0 mâu thuẫn, 13 không kiểm chứng được.
 - Với các yếu tố nguy cơ được y văn nhắc tới nhưng **không có trường khảo sát trong BRFSS** (như Tiền sử gia đình `FAMILY_HISTORY`, Chủng tộc, Đái tháo đường thai kỳ), đồ thị đánh dấu rõ ràng thuộc tính `measurable: false`. Khi người dùng đặt câu hỏi, `GraphAgent` giải thích minh bạch: *"Tài liệu MedlinePlus khẳng định yếu tố di truyền làm tăng nguy cơ, nhưng bộ dữ liệu khảo sát cộng đồng BRFSS không thu thập chỉ số này nên không thể kiểm chứng định lượng"*. Cơ chế này triệt tiêu hoàn toàn sự suy diễn vô căn cứ.
 
 ---
 
-# 8. Mở rộng Học tăng cường (RL Agent) theo MDP trong `rl.py`
+# 8. Học tăng cường (RL Agent) trong `rl.py`
 
-## 8.1. Mô hình hóa Bài toán Quyết định Markov (MDP)
+## 8.1. Đặt bài toán: contextual bandit
 
-Tại phiên bản V3, DiaCare-MAS chính thức mở rộng thêm tác tử `RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)) nhằm giải quyết bài toán: **Xác định trọng tâm tư vấn tối ưu nhất cho một bệnh nhân có nhiều yếu tố nguy cơ phức tạp đồng thời**.
+`RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)) chọn **trọng tâm tư vấn** cho một bệnh nhân có nhiều yếu tố nguy cơ cùng lúc, rồi học từ phản hồi của chính người dùng. Mỗi lượt hỏi là một vòng tương tác $(s_t, a_t, r_t)$:
 
-Bài toán được hình thức hóa thành một Quá trình Quyết định Markov (Markov Decision Process):
-$$\mathcal{M}_{\text{RL}} = \langle S, A, P, R, \gamma \rangle$$
+- **Trạng thái** $s$: vector 13 đặc trưng nhị phân $\phi(s) \in \{0,1\}^{13}$ gồm hệ số tự do, mức nguy cơ (3), xét nghiệm báo động, tiền tiểu đường, đã chẩn đoán, thừa cân, ít vận động, tim mạch/hút thuốc, chủ đề triệu chứng/xét nghiệm, chủ đề lối sống, và tương tác "nguy cơ cao mà chưa chẩn đoán".
+- **Hành động** $a \in \mathcal{A}$, $|\mathcal{A}| = 6$: `urgent_eval`, `glycemic_followup`, `weight_diet`, `physical_activity`, `cardio_control`, `preventive_habit`.
+- **Phần thưởng** $r \in \{-1, +1\}$: người dùng bấm 👎/👍 cho trọng tâm đã được chọn, hiện ngay dưới câu trả lời.
 
-### 1. Không gian Hành động Can thiệp ($A$)
-Gồm 6 chiến lược can thiệp tư vấn cốt lõi ($|A| = 6$):
-1. `urgent_eval`: Ưu tiên nhấn mạnh bệnh nhân cần đi khám chuyên khoa và xét nghiệm xác nhận sớm, không được tự ý điều trị.
-2. `glycemic_followup`: Nhấn mạnh việc theo dõi đường huyết/HbA1c định kỳ và tuân thủ lịch tái khám của bác sĩ.
-3. `weight_diet`: Tập trung hướng dẫn kiểm soát cân nặng, chia nhỏ khẩu phần, cắt giảm carbohydrate tinh chế và tăng cường chất xơ.
-4. `physical_activity`: Ưu tiên hướng dẫn vận động thể lực (tối thiểu 150 phút/tuần) và giảm thời gian ngồi tĩnh tại.
-5. `cardio_control`: Tập trung nhắc nhở kiểm soát huyết áp, mỡ máu, từ bỏ thuốc lá và hạn chế rượu bia bảo vệ hệ tim mạch.
-6. `preventive_habit`: Khuyến khích duy trì lối sống lành mạnh, ăn nhiều rau quả và tầm soát sức khỏe tổng quát hằng năm.
+Hệ không quan sát được sức khoẻ người dùng sau lời khuyên, nên không có bước chuyển $s \to s'$ đáng tin để bootstrap. Bài toán vì thế được đặt là contextual bandit, tức học tăng cường một bước với $\gamma = 0$ (Sutton và Barto, chương 2; Li và cộng sự, 2010). Bản đầu dùng Q-learning $\gamma = 0{,}8$ trên môi trường mô phỏng tự đặt; bản này được thay vì bước chuyển trạng thái là giả định, và vì thang Q (khoảng 3 đến 5) lệch với thang phản hồi khiến một cú 👍 lại hạ điểm hành động.
 
-### 2. Không gian Trạng thái và Vector Đặc trưng ($\phi(s)$)
-Trạng thái lâm sàng của người dùng được mã hóa thành vector đặc trưng nhị phân 12 chiều $\phi(s) \in \mathbb{R}^{12}$:
-$$\phi(s) = \Big[ 1.0, \mathbb{I}_{\text{risk=thấp}}, \mathbb{I}_{\text{risk=tb}}, \mathbb{I}_{\text{risk=cao}}, \mathbb{I}_{\text{lab=alert}}, \mathbb{I}_{\text{lab=prediab}}, \mathbb{I}_{\text{diagnosed}}, \mathbb{I}_{\text{overweight}}, \mathbb{I}_{\text{inactive}}, \mathbb{I}_{\text{cardio\_smoke}}, \mathbb{I}_{\text{topic=symptom}}, \mathbb{I}_{\text{topic=lifestyle}} \Big]^T$$
+## 8.2. Mô hình, chọn hành động và cập nhật trực tuyến
 
-### 3. Hàm Phần thưởng Lâm sàng Nghiêm ngặt ($R(s, a)$)
-Hàm phần thưởng được thiết kế bởi các chuyên gia y tế nhằm định hướng hành vi can thiệp:
-- Nếu bệnh nhân có xét nghiệm ở ngưỡng ĐTĐ/hạ đường huyết hoặc hỏi triệu chứng cấp cứu $\implies$ Hành động `urgent_eval` nhận thưởng tối đa $+3.2$; các hành động tư vấn dinh dưỡng hay vận động bị phạt từ $-0.8$ đến $-1.0$.
-- Nếu bệnh nhân đã có chẩn đoán ĐTĐ hoặc tiền ĐTĐ $\implies$ Hành động `glycemic_followup` nhận thưởng $+2.8$.
-- Nếu bệnh nhân thừa cân và câu hỏi về ăn uống $\implies$ Hành động `weight_diet` nhận thưởng $+3.2$.
-- Nếu bệnh nhân ít vận động và câu hỏi về thể thao $\implies$ Hành động `physical_activity` nhận thưởng $+3.3$.
-- Nếu có bệnh tim/hút thuốc $\implies$ Hành động `cardio_control` nhận thưởng $+2.1$.
-- Bệnh nhân hoàn toàn khỏe mạnh, nguy cơ thấp $\implies$ Hành động `preventive_habit` nhận thưởng $+2.6$.
-- **Hình phạt lặp lại (Repetition Penalty)**: Nếu hành động hiện tại trùng lặp với hành động ở lượt tư vấn ngay trước đó ($a = a_{t-1}$), hàm thưởng trừ $-0.8$ điểm nhằm buộc hệ thống phải đa dạng hóa lời khuyên, tránh gây nhàm chán cho người dùng.
+Mỗi hành động có một mô hình ridge tuyến tính:
+$$\hat r_a(s) = w_a^\top \phi(s), \quad w_a = A_a^{-1} b_a, \quad A_a = \lambda I + \sum \phi\phi^\top, \quad b_a = \sum r\,\phi$$
 
-## 8.2. Giải thuật Huấn luyện Linear Q-Learning
+Một phản hồi $(s, a, r)$ cập nhật $A_a \leftarrow A_a + \phi(s)\phi(s)^\top$, $b_a \leftarrow b_a + r\,\phi(s)$, có hiệu lực ngay ở lượt sau. Mô hình được lưu vào bảng SQLite `rl_model`.
 
-Hàm giá trị hành động được xấp xỉ tuyến tính thông qua ma trận trọng số $W \in \mathbb{R}^{6 \times 12}$:
-$$Q(s, a; W) = W_a^T \phi(s) = \sum_{j=1}^{12} W_{a, j} \phi_j(s)$$
+Chọn hành động:
 
-Thuật toán Q-Learning với sai số Temporal Difference (TD-error) được cập nhật theo công thức:
-$$\delta_{\text{TD}} = R(s, a) + \gamma \max_{a' \in A} Q(s', a'; W) - Q(s, a; W)$$
-$$W_a \leftarrow W_a + \alpha \cdot \delta_{\text{TD}} \cdot \phi(s)$$
+1. **Mặt nạ an toàn**: xét nghiệm ở ngưỡng tiểu đường/hạ đường huyết hoặc câu hỏi có triệu chứng, cấp cứu $\Rightarrow a = $ `urgent_eval`, xác suất 1, không thăm dò.
+2. **Epsilon-greedy** ($\varepsilon = 0{,}1$) cho các trạng thái còn lại; xác suất chọn (propensity) là $1-\varepsilon+\varepsilon/6$ cho hành động tham lam và $\varepsilon/6$ cho hành động khác. Trọng tâm của lượt trước bị trừ 0,25 điểm.
+3. Agent Rules vẫn chạy sau cùng.
 
-Trong đó:
-- Hệ số chiết khấu: $\gamma = 0.8$
-- Tốc độ học suy giảm: $\alpha_t = \max(0.01, 0.08 \times (1 - 0.7 \times \frac{t}{T}))$
-- Chiến lược khám phá $\epsilon$-greedy suy giảm: $\epsilon_t = \max(0.05, 0.25 \times (1 - \frac{t}{T}))$
+Mỗi quyết định được ghi vào bảng `rl_events` (trạng thái, hành động, propensity, cách chọn, phiên bản chính sách, phần thưởng khi có). Mỗi sự kiện chỉ được học một lần.
 
-## 8.3. Kết quả Thực nghiệm và Đánh giá Chính sách
+## 8.3. Khởi động và đánh giá
 
-Mô hình được huấn luyện qua 3.000 episodes mô phỏng chuyển trạng thái bệnh nhân trong [`tools/train_rl.py`](file:///C:/DATA/diacare-mas/tools/train_rl.py) và lưu bền vững tại `models/rl_policy.json`. Quá trình đánh giá độc lập trên 1.000 kịch bản ngẫu nhiên cho thấy sự vượt trội tuyệt đối của chính sách học tăng cường:
+Trước khi có phản hồi, chính sách học từ điểm ưu tiên lâm sàng tiên nghiệm do nhóm đặt, quy về thang $[-1, 1]$, trên trạng thái lấy mẫu theo **phân bố thật**: 24 tổ hợp hồ sơ của 253.680 người BRFSS 2015 (mức nguy cơ do Predictor tính) và chủ đề của 50 câu hỏi benchmark. Xét nghiệm và chẩn đoán dùng tỉ lệ giả định. Tiên nghiệm nặng bằng 30 lượt phản hồi mỗi hành động.
 
-| Phương pháp Hoạch định Chính sách | Phần thưởng Trung bình mỗi Lượt ($R_{\text{mean}}$) | Mức độ Cải thiện ($\Delta R$) |
-|---|:---:|:---:|
-| Chính sách Chọn Ngẫu nhiên (Random Policy) | $+0.483$ | Gốc đối chứng |
-| **Chính sách Q-learning (DiaCare-MAS V3)** | **+2.459** | **+1.976 (+409%)** |
+Trên 5.000 trạng thái mới:
 
-*Ý nghĩa thực tiễn*: RLAgent luôn chọn đúng hành động trọng tâm: khi bệnh nhân xuất hiện chỉ số đường huyết cao, hệ thống lập tức hướng dẫn đi khám xác nhận thay vì sa đà vào các thực đơn ăn kiêng; ngược lại, khi bệnh nhân có nguy cơ thấp nhưng lười vận động, hệ thống tập trung thúc đẩy thể dục thể thao.
+| Chính sách | Điểm tiên nghiệm TB |
+|---|:---:|
+| Chọn ngẫu nhiên | 0,173 |
+| Luôn khuyên khám | 0,300 |
+| **Chính sách khởi động** | **0,893** |
+| Chọn tối ưu (cận trên) | 0,917 |
+
+Bảng này chỉ cho thấy mô hình học được tiên nghiệm, không chứng minh lời khuyên tốt hơn cho người thật. Chất lượng thật được đo bằng ước lượng ngoài chính sách SNIPS (Swaminathan và Joachims, 2015) trên các lượt có phản hồi, hiện ở trang Thống kê. Một test với người dùng mô phỏng (chỉ thích "vận động") cho thấy sau 200 lượt chính sách chuyển hẳn sang "vận động". Lúc viết báo cáo hệ có **0 phản hồi thật**.
 
 ---
 
@@ -634,8 +627,8 @@ Dự án DiaCare-MAS đã hiện thực hóa toàn diện lộ trình 9 giai đo
 | **4** | **Vietnamese Nutrition Specialization**: Nhận diện món ăn bản địa, tính toán năng lượng và carbohydrate, giải quyết từ đa nghĩa. | Tệp `nutrition.py`, bảng dữ liệu `vn_foods.json` (50 món Việt quy chuẩn USDA FDC). | **Nghiệm thu Đạt** |
 | **5** | **Clinical Labs & ADA 2024 Alignment**: Đọc kết quả cận lâm sàng văn bản, chuyển đổi đơn vị, đối chiếu chuẩn ADA 2024. | Tệp `labs.py`, đối chiếu 4 chỉ số chính (HbA1c, FPG, OGTT, Random Glucose). | **Nghiệm thu Đạt** |
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
-| **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 220 cạnh). | **Nghiệm thu Đạt** |
-| **8** | **Reinforcement Learning Personalization**: Mô hình hóa MDP, huấn luyện chính sách Q-learning chọn trọng tâm can thiệp. | Tệp `rl.py`, `tools/train_rl.py`, lưu trữ mô hình `models/rl_policy.json` (thưởng +2.459). | **Nghiệm thu Đạt** |
+| **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
+| **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
 | **9** | **Continuous Automated Testing & Observability**: Hệ thống 419 unit test tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 22 tệp test trong `tests/`, bộ benchmark 50 ca bệnh lý trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
@@ -676,23 +669,24 @@ Hệ thống đã trải qua quy trình kiểm chuẩn tự động nghiêm ng�
 |---|:---:|:---:|:---:|:---:|:---:|
 | **Phiên bản V1** (Baseline: Predictor + RAG + Rules) | 0.85 | 0.72 | 0.80 [0.72; 0.86] | 658 | 6.4 s |
 | **Phiên bản V2** (+ Dinh dưỡng món Việt + Trí nhớ dài hạn) | 0.93 | 0.76 | 0.86 [0.79; 0.91] | 705 | 6.8 s |
-| **Phiên bản V3** (+ RAG lai, Neo4j Graph, OCR, RLAgent) | **0.93** | **0.83** | **0.88 [0.82; 0.93]** | 729 | 6.8 s |
+| **Cấu hình all** (V2 + truy hồi lai BM25) | **0.93** | **0.83** | **0.88 [0.82; 0.93]** | 729 | 6.8 s |
 
 *Phân tích kết quả*:
-- Tỷ lệ thành công toàn diện đạt **88%** ở phiên bản V3.
-- Khả năng duy trì trí nhớ ngữ cảnh tăng vọt từ 0.25 (V1) lên **1.00 (V3)** nhờ cơ chế hồi tưởng của `MemoryAgent`.
+- Lần chạy này làm trước khi có đồ thị tri thức và RL: cả ba cấu hình đều không có Graph agent, OCR hay RLAgent. Tỷ lệ đạt từng lượt cao nhất là **88%** ở cấu hình all; khoảng tin cậy của ba cấu hình vẫn chồng nhau.
+- Khả năng duy trì trí nhớ ngữ cảnh tăng từ 0.25 (V1) lên **1.00** nhờ `MemoryAgent`.
+- Đồ thị tri thức **chưa được đo trên benchmark hội thoại**. Bước tiếp theo là so sánh `v2` với `v2,kg` bằng kiểm định McNemar.
 - Trong toàn bộ 414 lượt chạy thực tế, **0% câu trả lời vi phạm an toàn y tế** (không có bất kỳ gợi ý tự ý thay đổi thuốc nào vượt qua được rào chắn `SafeStream` và `apply_rules`).
 
 ## 11.2. Năng lực Kiểm thử Đơn vị Toàn diện
 
-Hệ thống sở hữu bộ kiểm thử tự động gồm **463 unit tests** phân bổ trên 28 tệp mã nguồn kiểm thử độc lập trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **473 unit tests** phân bổ trên 28 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
-- Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 34 bài test.
-- Kiểm thử học tăng cường MDP Q-learning ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 8 bài test.
-- Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 21 bài test.
-- Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)): 395 bài test.
+- Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
+- Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
+- Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
+- Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 393 bài test.
 
-Toàn bộ 463 bài kiểm thử hoàn thành trong thời gian khoảng 60 giây trên môi trường CPU tiêu chuẩn, khẳng định tính ổn định và độ tin cậy của phần mềm.
+Toàn bộ 473 bài kiểm thử hoàn thành trong khoảng 80 giây trên CPU, khẳng định tính ổn định và độ tin cậy của phần mềm.
 
 ## 11.3. Khả năng Mở rộng Kiến trúc (Scalability & Extensibility)
 
@@ -702,7 +696,7 @@ Kiến trúc Hybrid Multiagent System của PTIT chứng minh tính linh hoạt 
 
 ## 11.4. Kết luận
 
-Hệ thống **DiaCare-MAS (Phiên bản V3)** là minh chứng thuyết phục cho tính đúng đắn và hiệu quả vượt trội của **Đặc tả Kiến trúc Hybrid Multiagent System do PTIT nghiên cứu**. Bằng việc kết hợp hài hòa giữa Học sâu (MLP), Đồ thị tri thức (Neo4j), Học tăng cường (Linear Q-learning), Trí nhớ dài hạn (SQLite), OCR đa phương thức và Hệ rào chắn an toàn y khoa bất biến (Rule-Based Guards), DiaCare-MAS đã giải quyết triệt để vấn đề ảo giác và rủi ro an toàn của LLM truyền thống, mang lại giải pháp tư vấn sức khỏe số tin cậy, chính xác và nhân văn cho cộng đồng bệnh nhân đái tháo đường tại Việt Nam.
+Hệ thống **DiaCare-MAS (Phiên bản V3)** là minh chứng thuyết phục cho tính đúng đắn và hiệu quả vượt trội của **Đặc tả Kiến trúc Hybrid Multiagent System do PTIT nghiên cứu**. Bằng việc kết hợp hài hòa giữa Học sâu (MLP), Đồ thị tri thức (Neo4j), Học tăng cường (contextual bandit học từ phản hồi), Trí nhớ dài hạn (SQLite), OCR đa phương thức và Hệ rào chắn an toàn y khoa bất biến (Rule-Based Guards), DiaCare-MAS đã giải quyết triệt để vấn đề ảo giác và rủi ro an toàn của LLM truyền thống, mang lại giải pháp tư vấn sức khỏe số tin cậy, chính xác và nhân văn cho cộng đồng bệnh nhân đái tháo đường tại Việt Nam.
 
 ---
 
