@@ -10,6 +10,10 @@ Ba nguồn cạnh có độ tin cậy khác nhau nên không được trộn là
     RiskFactor -[associated_with {or_marginal, or_adjusted, n}]-> Condition   BRFSS 2015 (tools/build_kg_stats.py)
 - Trích từ tài liệu, là lời khẳng định:
     RiskFactor -[claims_risk {direction, source, sentence}]-> Condition       câu trong kb/ (MedlinePlus, WHO)
+- Tra cứu từ đồ thị y sinh ngoài, là bằng chứng cơ chế:
+    RiskFactor -[shares_genes {n_genes, genes, primekg_nodes}]-> Condition   PrimeKG v2.1 (tools/primekg_subgraph.py)
+  Số gen mà PrimeKG nối với cả yếu tố lẫn T2D. Không phải mức nguy cơ; dùng cho các yếu tố BRFSS không đo
+  (trầm cảm, PCOS...) để có thêm một nguồn độc lập ngoài lời tài liệu.
 
 Điểm chính: một cạnh claims_risk có thể đem đối chiếu với cạnh associated_with cùng cặp nút
 (verify_claims). Yếu tố nào không có cột trong BRFSS (tiền sử gia đình, chủng tộc, thai kỳ...) thì không
@@ -30,6 +34,8 @@ from diacare.rules import EMERGENCY_TERMS, SYMPTOM_TERMS
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_STATS = ROOT / "kb" / "graph" / "brfss_associations.json"
+DEFAULT_GENES = ROOT / "kb" / "graph" / "primekg_shared_genes.json"
+GENE_EXAMPLES = 3   # số gen ví dụ đưa vào ngữ cảnh của Advisor
 DEFAULT_CYPHER = ROOT / "DB_diabet.cypher"
 DEFAULT_FOODS = ROOT / "data" / "nutrition" / "vn_foods.json"
 DEFAULT_KB = ROOT / "kb"
@@ -222,8 +228,8 @@ def _food_edges(g, foods):
                 g.add_edge(fid, key, key="usda", rel="contains", g_per_100g=float(v), source="usda_fdc")
 
 
-def build_graph(stats=None, foods=None, docs=None):
-    """Dựng đồ thị từ ba nguồn. Thiếu nguồn nào thì bỏ loại cạnh đó, không báo lỗi."""
+def build_graph(stats=None, foods=None, docs=None, genes=None):
+    """Dựng đồ thị từ các nguồn. Thiếu nguồn nào thì bỏ loại cạnh đó, không báo lỗi."""
     g = nx.MultiDiGraph()
     _lab_edges(g)
     _rule_edges(g)
@@ -245,16 +251,27 @@ def build_graph(stats=None, foods=None, docs=None):
             g.add_edge(c["factor"], TARGET, key="claim:" + c["source"], rel="claims_risk",
                        direction=c["direction"], source=c["source"], sentence=c["sentence"],
                        verdict=c.get("verdict", "chưa đối chiếu"))
+    if genes:
+        for fid, e in genes.get("factors", {}).items():
+            if fid in RISK_FACTORS and e.get("shared_genes", 0) > 0:
+                g.add_edge(fid, TARGET, key="primekg", rel="shares_genes", n_genes=int(e["shared_genes"]),
+                           genes=", ".join(e["genes"]), primekg_nodes=", ".join(e["primekg_nodes"]),
+                           source="primekg_2.1")
     return g
 
 
-def load_default_graph(stats_path=DEFAULT_STATS, foods_path=DEFAULT_FOODS, kb_dir=DEFAULT_KB):
+def _read_json(path):
+    path = Path(path)
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def load_default_graph(stats_path=DEFAULT_STATS, foods_path=DEFAULT_FOODS, kb_dir=DEFAULT_KB,
+                       genes_path=DEFAULT_GENES):
     from diacare.kb import load_kb
-    stats = json.loads(Path(stats_path).read_text(encoding="utf-8")) if Path(stats_path).exists() else None
-    foods = (json.loads(Path(foods_path).read_text(encoding="utf-8"))["foods"]
-             if Path(foods_path).exists() else None)
+    stats = _read_json(stats_path)
+    foods = (_read_json(foods_path) or {}).get("foods")
     docs = load_kb(kb_dir) if Path(kb_dir).is_dir() else None
-    return build_graph(stats, foods, docs)
+    return build_graph(stats, foods, docs, _read_json(genes_path))
 
 
 # ---------- truy vấn ----------
@@ -286,10 +303,12 @@ def factor_facts(g, fid):
     node = g.nodes[fid]
     assoc = edges_of(g, "associated_with", fid, TARGET)
     claims = edges_of(g, "claims_risk", fid, TARGET)
+    genes = edges_of(g, "shares_genes", fid, TARGET)
     return {"factor": fid, "name": node["name"], "measurable": node["measurable"],
             "association": assoc[0][2] if assoc else None,
             "claims": [{"source": d["source"], "direction": d["direction"], "verdict": d["verdict"]}
-                       for _, _, d in claims]}
+                       for _, _, d in claims],
+            "genes": ({k: genes[0][2][k] for k in ("n_genes", "genes", "primekg_nodes")} if genes else None)}
 
 
 def describe_factor(facts):
@@ -312,6 +331,11 @@ def describe_factor(facts):
             parts.append("Liên hệ gần như biến mất sau hiệu chỉnh, nên phần lớn đến từ các yếu tố đi kèm.")
     elif not facts["measurable"]:
         parts.append("dữ liệu khảo sát không đo yếu tố này nên chưa đối chiếu được.")
+    gn = facts.get("genes")
+    if gn:
+        ex = ", ".join([x.strip() for x in gn["genes"].split(",")][:GENE_EXAMPLES])
+        parts.append(f"PrimeKG: chung {gn['n_genes']} gen với ĐTĐ típ 2 ({ex}), "
+                     "là cơ chế chung, không phải mức nguy cơ.")
     verdicts = {c["verdict"] for c in facts["claims"]}
     if "mâu thuẫn" in verdicts:
         parts.append("Lưu ý: dữ liệu cho chiều ngược với tài liệu.")
@@ -377,9 +401,11 @@ def export_cypher_file(g=None, path=DEFAULT_CYPHER):
 FACTOR_CYPHER = """
 MATCH (f:RiskFactor {id: $fid})
 OPTIONAL MATCH (f)-[a:associated_with]->(:Condition {id: 'T2D'})
+OPTIONAL MATCH (f)-[s:shares_genes]->(:Condition {id: 'T2D'})
 OPTIONAL MATCH (f)-[c:claims_risk]->(:Condition {id: 'T2D'})
 RETURN f.name AS name, f.measurable AS measurable,
        a {.or_marginal, .or_adjusted, .unit, .n} AS association,
+       s {.n_genes, .genes, .primekg_nodes} AS genes,
        collect(c {.source, .direction, .verdict}) AS claims
 """
 
@@ -401,7 +427,7 @@ class Neo4jKG:
         if r is None:
             return None
         return {"factor": fid, "name": r["name"], "measurable": r["measurable"],
-                "association": r["association"], "claims": r["claims"]}
+                "association": r["association"], "claims": r["claims"], "genes": r["genes"]}
 
     def close(self):
         self.driver.close()
@@ -435,6 +461,6 @@ def format_kg(kg):
     """Khối ngữ cảnh gửi cho Advisor."""
     if not kg or not kg["lines"]:
         return ""
-    return ("Tri thức từ đồ thị [kg] (tài liệu nói gì và dữ liệu BRFSS đo được gì; "
+    return ("Tri thức từ đồ thị [kg] (tài liệu nói gì, dữ liệu BRFSS đo được gì, gen chung theo PrimeKG; "
             "số liệu là mối liên hệ thống kê, không phải quan hệ nhân quả):\n"
             + "\n".join("- " + line for line in kg["lines"]))

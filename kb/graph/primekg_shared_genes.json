@@ -1,0 +1,203 @@
+{
+  "source": "PrimeKG v2.1 (Chandak, Huang & Zitnik 2023, Scientific Data), Harvard Dataverse doi:10.7910/DVN/IXA7BM, CC0 1.0",
+  "target": "type 2 diabetes mellitus",
+  "target_genes": 221,
+  "relations": [
+    "disease_protein",
+    "phenotype_protein",
+    "exposure_protein"
+  ],
+  "note": "Gen được PrimeKG nối với cả yếu tố lẫn T2D: bằng chứng cơ chế sinh học dùng chung, không phải mức nguy cơ hay quan hệ nhân quả.",
+  "factors": {
+    "OBESITY": {
+      "primekg_nodes": [
+        "obesity disorder",
+        "Overweight"
+      ],
+      "factor_genes": 205,
+      "shared_genes": 27,
+      "genes": [
+        "INS",
+        "LEPR",
+        "FGF21",
+        "ICAM1",
+        "PPARG",
+        "SIRT1",
+        "SOD1",
+        "SOD2",
+        "TNF",
+        "ADIPOQ",
+        "HMOX1",
+        "ENPP1",
+        "FTO",
+        "GCG",
+        "GNB3",
+        "GPX1",
+        "IRS1",
+        "KSR2",
+        "LEP",
+        "MIR130B",
+        "OGG1",
+        "PPARA",
+        "PTPN1",
+        "SLC22A3",
+        "TMEM18",
+        "TNFRSF1B",
+        "UCP2"
+      ]
+    },
+    "HIGH_BP": {
+      "primekg_nodes": [
+        "hypertension"
+      ],
+      "factor_genes": 16,
+      "shared_genes": 4,
+      "genes": [
+        "NOS3",
+        "ECE1",
+        "GNB3",
+        "NOS2"
+      ]
+    },
+    "HIGH_CHOL": {
+      "primekg_nodes": [
+        "hyperlipidemia",
+        "Hypercholesterolemia"
+      ],
+      "factor_genes": 17,
+      "shared_genes": 6,
+      "genes": [
+        "LEPR",
+        "NOS3",
+        "GCG",
+        "IRS1",
+        "LIPC",
+        "PPARA"
+      ]
+    },
+    "HEART_DISEASE": {
+      "primekg_nodes": [
+        "coronary artery disease",
+        "myocardial infarction"
+      ],
+      "factor_genes": 319,
+      "shared_genes": 29,
+      "genes": [
+        "CASP3",
+        "CAT",
+        "HNF1A",
+        "NOS3",
+        "TGFB1",
+        "HP",
+        "ICAM1",
+        "SOD1",
+        "SOD2",
+        "TNF",
+        "ADIPOQ",
+        "HMOX1",
+        "BCL2",
+        "BCL2L1",
+        "CCDC92",
+        "CCND2",
+        "EDN1",
+        "GNB3",
+        "HK1",
+        "ID1",
+        "IRS1",
+        "KL",
+        "MIR17HG",
+        "MIR423",
+        "MRAS",
+        "NOS2",
+        "PPARGC1A",
+        "TCF7L2",
+        "ZC3HC1"
+      ]
+    },
+    "STROKE": {
+      "primekg_nodes": [
+        "stroke disorder"
+      ],
+      "factor_genes": 58,
+      "shared_genes": 8,
+      "genes": [
+        "TGFB1",
+        "ICAM1",
+        "SOD1",
+        "TNF",
+        "EDN1",
+        "EDNRA",
+        "NOS2",
+        "UCP2"
+      ]
+    },
+    "SMOKING": {
+      "primekg_nodes": [
+        "Tobacco Smoke Pollution"
+      ],
+      "factor_genes": 27,
+      "shared_genes": 1,
+      "genes": [
+        "TNF"
+      ]
+    },
+    "PREDIABETES": {
+      "primekg_nodes": [
+        "prediabetes syndrome"
+      ],
+      "factor_genes": 0,
+      "shared_genes": 0,
+      "genes": []
+    },
+    "GESTATIONAL": {
+      "primekg_nodes": [
+        "gestational diabetes"
+      ],
+      "factor_genes": 0,
+      "shared_genes": 0,
+      "genes": []
+    },
+    "PCOS": {
+      "primekg_nodes": [
+        "polycystic ovary syndrome"
+      ],
+      "factor_genes": 144,
+      "shared_genes": 4,
+      "genes": [
+        "INS",
+        "BCL2",
+        "LEP",
+        "MTNR1B"
+      ]
+    },
+    "DEPRESSION": {
+      "primekg_nodes": [
+        "major depressive disorder"
+      ],
+      "factor_genes": 278,
+      "shared_genes": 12,
+      "genes": [
+        "CAT",
+        "HP",
+        "SOD1",
+        "SOD2",
+        "TNF",
+        "ADCY5",
+        "EDN1",
+        "EGFR",
+        "GNB3",
+        "LEP",
+        "PRKCB",
+        "SNAP25"
+      ]
+    },
+    "ACANTHOSIS": {
+      "primekg_nodes": [
+        "acanthosis nigricans (disease)"
+      ],
+      "factor_genes": 0,
+      "shared_genes": 0,
+      "genes": []
+    }
+  }
+}

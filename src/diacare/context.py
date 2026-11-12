@@ -13,7 +13,7 @@ SYSTEM_RESERVE_TOKENS = 250     # system prompt + nhãn tài liệu + dòng mứ
 HISTORY_TOKEN_BUDGET = 800
 MEMORY_TOKEN_BUDGET = 150          # trí nhớ dài hạn về bệnh nhân, tính trước dinh dưỡng và tài liệu
 DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu
-KG_TOKEN_BUDGET = 250           # tri thức từ đồ thị: tối đa 3 yếu tố, mỗi yếu tố một dòng
+KG_TOKEN_BUDGET = 300           # tri thức từ đồ thị: tối đa 3 yếu tố, mỗi yếu tố một dòng (có cả gen chung PrimeKG)
 RL_TOKEN_BUDGET = 120           # định hướng trọng tâm tư vấn từ RLAgent (V3)
 
 

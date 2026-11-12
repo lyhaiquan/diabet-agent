@@ -78,6 +78,27 @@ def test_facts_mark_adjusted_association_and_unmeasurable():
     assert "không đo" in family
 
 
+GENES = {"factors": {
+    "DEPRESSION": {"primekg_nodes": ["major depressive disorder"], "factor_genes": 278, "shared_genes": 12,
+                   "genes": ["CAT", "HP", "SOD1", "SOD2"]},
+    "ACANTHOSIS": {"primekg_nodes": ["acanthosis nigricans (disease)"], "factor_genes": 0, "shared_genes": 0,
+                   "genes": []},
+    "UNKNOWN": {"primekg_nodes": ["x"], "factor_genes": 3, "shared_genes": 2, "genes": ["A", "B"]},
+}}
+
+
+def test_shared_genes_edge_is_separate_and_described():
+    g = build_graph(STATS, docs=[("doc.txt", DOC)], genes=GENES)
+    edges = edges_of(g, "shares_genes")
+    assert [(u, v) for u, v, _ in edges] == [("DEPRESSION", TARGET)]   # 0 gen hoặc yếu tố lạ thì không có cạnh
+    assert edges[0][2]["n_genes"] == 12
+    line = facts_for_question(g, "tôi bị trầm cảm")[0]
+    assert "chung 12 gen" in line and "CAT, HP, SOD1" in line and "SOD2" not in line
+    assert "không phải mức nguy cơ" in line
+    # cạnh gen không thay đổi kết luận kiểm chứng tài liệu
+    assert structure(g)["claim_verdicts"] == structure(build_graph(STATS, docs=[("doc.txt", DOC)]))["claim_verdicts"]
+
+
 def test_to_cypher_is_idempotent_merge():
     g = build_graph(STATS, docs=[("doc.txt", DOC)])
     script = to_cypher(g)
