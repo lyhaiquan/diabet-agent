@@ -48,15 +48,19 @@ def default_min_score(kind=None):
 FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg", "rl")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
-FEATURES_DEFAULT = ("nutrition", "memory", "labs")
+FEATURES_V2 = ("nutrition", "memory", "labs")
+# Khi chạy ứng dụng không đặt DIACARE_FEATURES thì bật luôn đồ thị tri thức (KG). Nhãn 'v2' vẫn giữ
+# nguyên nghĩa cũ (không KG) để các benchmark đã chạy tái lập được; so sánh có/không KG bằng 'v2' và 'v2,kg'.
+FEATURES_DEFAULT = FEATURES_V2 + ("kg",)
 
 
 def parse_features(value=None):
-    """Mặc định / 'v2' = FEATURES_DEFAULT; 'all'/'v3' = mọi tính năng; 'v1'/'none'/'' = tắt hết; hoặc danh sách."""
+    """Mặc định / 'default' = FEATURES_DEFAULT (V2 + KG); 'v2' = FEATURES_V2; 'all'/'v3' = mọi tính năng;
+    'v1'/'none'/'' = tắt hết; hoặc danh sách."""
     if value is None:
         value = os.environ.get("DIACARE_FEATURES")
         if value is None:
-            value = "v2"
+            value = "default"
     value = value.strip().lower()
     if value in ("", "v1", "none"):
         return set()
@@ -65,6 +69,8 @@ def parse_features(value=None):
         if part in ("all", "v3"):
             out |= set(FEATURES_ALL)
         elif part == "v2":
+            out |= set(FEATURES_V2)
+        elif part == "default":
             out |= set(FEATURES_DEFAULT)
         elif part in FEATURES_ALL:
             out.add(part)

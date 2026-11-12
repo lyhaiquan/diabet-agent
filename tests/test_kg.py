@@ -116,3 +116,27 @@ def test_default_graph_on_real_kb():
     assert s["claim_verdicts"]["không kiểm chứng được"] > 0
     assert len(extract_claims(load_kb(DEFAULT_KB))) == s["by_relation"]["claims_risk"]
     json.dumps(s)
+
+
+def test_lookup_returns_subgraph_for_ui():
+    from diacare.kg import GraphAgent, MemoryKG, subgraph_dot, subgraph_edges
+    g = build_graph(STATS, docs=[("doc.txt", DOC)], genes=GENES)
+    kg = GraphAgent(MemoryKG(g)).lookup("tôi béo phì và bị trầm cảm")
+    assert kg["query"] is None                       # chỉ có Cypher khi đọc từ Neo4j
+    assert [f["factor"] for f in kg["facts"]] == kg["factors"]
+    rels = {(r["factor"], r["rel"]) for r in subgraph_edges(kg["facts"])}
+    assert ("Trầm cảm", "shares_genes") in rels
+    assert any(rel == "associated_with" for _, rel in rels)
+    dot = subgraph_dot(kg["facts"])
+    assert dot.startswith("digraph") and dot.count("->") == len(subgraph_edges(kg["facts"]))
+    json.dumps(kg, ensure_ascii=False)
+
+
+def test_lookup_on_neo4j_shows_cypher():
+    from diacare.kg import FACTOR_CYPHER, GraphAgent, MemoryKG
+
+    class FakeNeo4j(MemoryKG):          # cùng dữ liệu, chỉ đổi tên backend
+        name = "neo4j"
+
+    kg = GraphAgent(FakeNeo4j(build_graph(STATS))).lookup("huyết áp cao")
+    assert kg["query"] == FACTOR_CYPHER.strip() and "shares_genes" in kg["query"]

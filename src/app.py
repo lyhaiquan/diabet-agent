@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from diacare.factory import build_orchestrator, open_store  # noqa: E402
 from diacare.flowviz import flow_html  # noqa: E402
+from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
 from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS  # noqa: E402
@@ -237,6 +238,32 @@ def _render_trace(trace):
                   for i, e in enumerate(trace)], hide_index=True, width="stretch")
 
 
+KG_REL_LABEL = {"claims_risk": "tài liệu nói", "associated_with": "dữ liệu BRFSS đo", "shares_genes": "gen chung (PrimeKG)"}
+
+
+def _render_kg(kg):
+    """Đồ thị con mà Graph agent đã đọc cho câu hỏi này: yếu tố -> ĐTĐ típ 2, ba loại cạnh, có nguồn."""
+    if not kg or not kg.get("factors"):
+        return
+    facts = kg.get("facts") or []
+    with st.expander(f"Đồ thị tri thức đã dùng ({len(kg['factors'])} yếu tố, {kg.get('backend', 'kg')})"):
+        if facts:
+            st.graphviz_chart(subgraph_dot(facts), width="stretch")
+            st.caption("Nét đứt cam: tài liệu nêu là yếu tố nguy cơ · nét liền xanh dương: tỉ số chênh BRFSS sau "
+                       "hiệu chỉnh · chấm xanh lá: số gen chung với ĐTĐ típ 2 theo PrimeKG (cơ chế chung, "
+                       "không phải mức nguy cơ).")
+            st.dataframe([{"Yếu tố": r["factor"], "Cạnh": KG_REL_LABEL[r["rel"]], "Nguồn": r["source"],
+                           "Nội dung": r["detail"]} for r in subgraph_edges(facts)],
+                         hide_index=True, width="stretch")
+        st.markdown("**Khối ngữ cảnh gửi cho LLM**")
+        for line in kg.get("lines") or []:
+            st.caption("- " + line)
+        if kg.get("query"):
+            st.markdown("**Truy vấn Cypher đã chạy trên Neo4j** (mỗi yếu tố một lần, `$fid` = " +
+                        ", ".join(f"`{f}`" for f in kg["factors"]) + ")")
+            st.code(kg["query"], language="cypher")
+
+
 def _render_meta(meta):
     flags = meta.get("flags", [])
     if "small_talk" in flags:  # câu chào: không dự đoán, không hiện nguy cơ
@@ -267,16 +294,12 @@ def _render_meta(meta):
         with st.expander(f"Agent đã làm gì ({len(trace)} bước, {sum(e['ms'] for e in trace) / 1000:.1f} s)"):
             for e in trace:
                 st.markdown(_trace_line(e))
+    _render_kg(meta.get("kg"))
     with st.expander("Chi tiết kỹ thuật"):
         if "context_near_limit" in flags:
             st.warning("Ngữ cảnh gần chạm giới hạn num_ctx, câu trả lời có thể bị cắt.")
         st.markdown("**Bản nháp của mô hình**")
         st.write(meta.get("draft") or "(trống)")
-        kg = meta.get("kg")
-        if kg and kg.get("lines"):
-            st.markdown(f"**Đồ thị tri thức ({kg.get('backend', 'kg')})**")
-            for line in kg["lines"]:
-                st.caption("- " + line)
         rl = meta.get("rl")
         if rl and rl.get("action"):
             st.markdown(f"**Chính sách RL (V3):** `{rl['action']}` · {rl['label']} (Q = {rl['q_value']:+.2f})")

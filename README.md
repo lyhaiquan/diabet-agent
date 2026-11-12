@@ -96,7 +96,7 @@ nạp sẵn model vào GPU, đặt các biến môi trường rồi mở giao di
 (vừa GPU 4 GB, mỗi câu khoảng 5–10 giây); muốn dùng 7B thì chạy `chay_local.bat qwen2.5:7b`. Thư mục model lấy từ
 biến môi trường `OLLAMA_MODELS` (ví dụ `D:\ollama\models` để không đầy ổ C).
 
-**Bản V3** (thêm đồ thị tri thức và agent học tăng cường): bấm đúp `chay_v3.bat`. Đồ thị chạy bằng networkx trong bộ
+**Bản V3** (thêm agent học tăng cường): bấm đúp `chay_v3.bat`. Đồ thị tri thức chạy bằng networkx trong bộ
 nhớ nên không cần Docker; bản này bật `DIACARE_FEATURES=v2,kg,rl` (không bật hybrid). Muốn đồ thị đọc từ Neo4j thì
 dùng `chay_kg.bat` (cần Docker Desktop). Trong Git Bash gọi bằng `./chay_v3.bat`, không phải `.\chay_v3.bat`.
 
@@ -150,7 +150,7 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
-| `DIACARE_FEATURES` | `v2` | `v2` = nutrition, memory, labs; `all`/`v3` = thêm hybrid, kg, rl; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
+| `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG); `all`/`v3` = thêm hybrid, kg, rl; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 
 ## Đồ thị tri thức (Knowledge Graph)
@@ -182,8 +182,9 @@ sinh ngẫu nhiên lưu trong `neo4j.local.json` (đã gitignore). Dữ liệu N
 **`neo4j_data/`** ở gốc repo (đã gitignore): tệp lưu nút, cạnh nằm ở `neo4j_data/data/databases/neo4j/`.
 
 **Graph agent** đọc đồ thị khi trả lời, đứng sau Retriever: nối câu hỏi tiếng Việt vào nút yếu tố nguy cơ rồi
-đưa cho LLM một khối "tài liệu nói gì, dữ liệu BRFSS đo được gì" (tối đa 250 token). Bật bằng
-`DIACARE_FEATURES=v2,kg`, mặc định **tắt** và chưa được đo lại trên benchmark. `DIACARE_KG=neo4j` cho agent
+đưa cho LLM một khối "tài liệu nói gì, dữ liệu BRFSS đo được gì, PrimeKG có bao nhiêu gen chung" (tối đa 300 token).
+Graph agent **bật mặc định** (`DIACARE_FEATURES` không đặt = `default`); nhãn `v2` vẫn là bản không KG để so sánh
+`v2` với `v2,kg` trên benchmark. Giao diện có khung "Đồ thị tri thức đã dùng" cho từng câu trả lời. `DIACARE_KG=neo4j` cho agent
 truy vấn Neo4j bằng Cypher; mặc định (`memory`) hoặc khi không kết nối được Neo4j thì dùng networkx trong bộ nhớ,
 nên test, chế độ demo và Kaggle không cần Docker. Một cú bấm: **`chay_kg.bat`** bật Neo4j, nạp đồ thị, mở giao
 diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản đồ code: [`docs/kg_demo.md`](docs/kg_demo.md).

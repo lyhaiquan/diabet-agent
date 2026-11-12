@@ -454,7 +454,67 @@ class GraphAgent:
     def lookup(self, question):
         facts = [f for f in (self.backend.factor_facts(fid) for fid in link_factors(question)[:self.limit]) if f]
         return {"backend": self.backend.name, "factors": [f["factor"] for f in facts],
-                "lines": [describe_factor(f) for f in facts]}
+                "lines": [describe_factor(f) for f in facts], "facts": facts,
+                "query": FACTOR_CYPHER.strip() if self.backend.name == "neo4j" else None}
+
+
+# ---------- đồ thị con đã dùng, để hiện trên giao diện ----------
+
+def _vn(x):
+    return f"{x:g}".replace(".", ",")
+
+
+def subgraph_edges(facts):
+    """Các cạnh yếu tố -> ĐTĐ típ 2 mà Graph agent đã đọc cho một câu hỏi, mỗi cạnh một dòng có nguồn."""
+    rows = []
+    for f in facts or []:
+        for c in f.get("claims") or []:
+            rows.append({"factor": f["name"], "rel": "claims_risk", "source": c["source"],
+                         "detail": ("tài liệu nêu là yếu tố bảo vệ" if c["direction"] < 0
+                                    else "tài liệu nêu là yếu tố nguy cơ") + f"; kiểm chứng BRFSS: {c['verdict']}"})
+        a = f.get("association")
+        if a:
+            rows.append({"factor": f["name"], "rel": "associated_with", "source": f"BRFSS 2015 (n = {a['n']:,})".replace(",", "."),
+                         "detail": f"OR {_vn(a['or_marginal'])} xét riêng, {_vn(a['or_adjusted'])} hiệu chỉnh "
+                                   f"({a['unit']})"})
+        g = f.get("genes")
+        if g:
+            rows.append({"factor": f["name"], "rel": "shares_genes", "source": "PrimeKG 2.1",
+                         "detail": f"chung {g['n_genes']} gen: {g['genes']}"})
+    return rows
+
+
+EDGE_STYLE = {"claims_risk": ("#b45309", "dashed"), "associated_with": ("#1d4ed8", "solid"),
+              "shares_genes": ("#047857", "dotted")}
+
+
+def subgraph_dot(facts):
+    """Đồ thị con dạng Graphviz DOT: nút yếu tố bên trái, nút ĐTĐ típ 2 bên phải, ba kiểu cạnh tô màu riêng."""
+    def q(t):
+        return '"' + str(t).replace("\\", "\\\\").replace('"', '\\"') + '"'
+    out = ["digraph KG {", "  rankdir=LR; bgcolor=transparent;",
+           '  node [shape=box, style="rounded,filled", fillcolor="#f1f5f9", fontname="Arial", fontsize=11];',
+           '  edge [fontname="Arial", fontsize=9];',
+           f'  {q(TARGET)} [label="Đái tháo đường típ 2", fillcolor="#fee2e2"];']
+    for f in facts or []:
+        out.append(f"  {q(f['factor'])} [label={q(f['name'])}];")
+        for c in f.get("claims") or []:
+            color, style = EDGE_STYLE["claims_risk"]
+            out.append(f"  {q(f['factor'])} -> {q(TARGET)} [label={q('claims_risk: ' + c['source'].split('.')[0])}, "
+                       f'color="{color}", fontcolor="{color}", style={style}];')
+        a = f.get("association")
+        if a:
+            color, style = EDGE_STYLE["associated_with"]
+            out.append(f"  {q(f['factor'])} -> {q(TARGET)} [label={q('associated_with: OR ' + _vn(a['or_adjusted']))}, "
+                       f'color="{color}", fontcolor="{color}", style={style}];')
+        g = f.get("genes")
+        if g:
+            color, style = EDGE_STYLE["shares_genes"]
+            label = f"shares_genes: {g['n_genes']} gen"
+            out.append(f"  {q(f['factor'])} -> {q(TARGET)} [label={q(label)}, "
+                       f'color="{color}", fontcolor="{color}", style={style}];')
+    out.append("}")
+    return "\n".join(out)
 
 
 def format_kg(kg):

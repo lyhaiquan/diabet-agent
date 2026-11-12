@@ -145,7 +145,7 @@ Bật, tắt bằng biến môi trường:
 
 | Biến | Giá trị | Ý nghĩa |
 |---|---|---|
-| `DIACARE_FEATURES` | `v2,kg` | thêm Graph agent (mặc định **tắt**) |
+| `DIACARE_FEATURES` | không đặt / `default` / `v2,kg` | có Graph agent (mặc định **bật**); `v2` = bản không KG để so sánh |
 | `DIACARE_KG` | `neo4j` | đọc đồ thị từ Neo4j; không kết nối được thì tự quay về networkx và báo ra màn hình |
 | `DIACARE_KG` | `memory` (mặc định) | dựng đồ thị trong bộ nhớ bằng networkx từ tệp; dùng cho test, demo, Kaggle |
 
@@ -196,7 +196,7 @@ Cùng một kho `kb/` được dùng **hai cách**: Retriever cắt thành đo�
 | Graph agent | `src/diacare/kg.py:412` `GraphAgent` |
 | Chọn Neo4j hay networkx | `src/diacare/factory.py:119` `make_graph_agent` |
 | Orchestrator gọi Graph agent | `src/diacare/orchestrator.py:110` |
-| Ghép tri thức đồ thị vào ngữ cảnh LLM (ngân sách 250 token) | `src/diacare/context.py:56` |
+| Ghép tri thức đồ thị vào ngữ cảnh LLM (ngân sách 300 token) | `src/diacare/context.py:56` |
 | Đưa vào prompt | `src/diacare/advisor.py:25` |
 
 ## 5. Câu hỏi thầy có thể hỏi
