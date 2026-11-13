@@ -83,6 +83,34 @@ CREATE TABLE IF NOT EXISTS rl_model (
     model_json TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS readings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    value REAL NOT NULL,
+    value2 REAL,
+    unit TEXT,
+    context TEXT,
+    measured_at TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_readings_patient ON readings(patient_id, measured_at);
+CREATE TABLE IF NOT EXISTS appointments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    place TEXT,
+    note TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS doctor_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -283,6 +311,59 @@ class Store:
 
     def clear_labs(self, patient_id):
         self.conn.execute("DELETE FROM labs WHERE patient_id = ?", (patient_id,))
+        self.conn.commit()
+
+    # ---------- nhật ký tự theo dõi (đường huyết mg/dL, huyết áp, cân nặng) ----------
+    def add_reading(self, patient_id, kind, value, measured_at, value2=None, unit=None, context=None, note=None):
+        """measured_at: thời điểm đo (người dùng có thể ghi bù), chuỗi ISO có múi giờ."""
+        if hasattr(measured_at, "isoformat"):
+            measured_at = measured_at.isoformat()
+        cur = self.conn.execute(
+            "INSERT INTO readings (patient_id, kind, value, value2, unit, context, measured_at, note, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (patient_id, kind, float(value), None if value2 is None else float(value2), unit, context,
+             measured_at, note, _now()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_readings(self, patient_id, kind=None):
+        sql, args = "SELECT * FROM readings WHERE patient_id = ?", [patient_id]
+        if kind:
+            sql += " AND kind = ?"
+            args.append(kind)
+        rows = self.conn.execute(sql + " ORDER BY measured_at ASC, id ASC", args).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_reading(self, reading_id, patient_id):
+        self.conn.execute("DELETE FROM readings WHERE id = ? AND patient_id = ?", (reading_id, patient_id))
+        self.conn.commit()
+
+    def set_appointment(self, patient_id, date, place=None, note=None):
+        """Lịch tái khám sắp tới; lịch mới thay lịch cũ (giữ lại trong bảng để xem lại)."""
+        cur = self.conn.execute(
+            "INSERT INTO appointments (patient_id, date, place, note, created_at) VALUES (?, ?, ?, ?, ?)",
+            (patient_id, str(date), place, note, _now()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_appointment(self, patient_id):
+        row = self.conn.execute(
+            "SELECT * FROM appointments WHERE patient_id = ? ORDER BY id DESC LIMIT 1", (patient_id,)).fetchone()
+        return dict(row) if row else None
+
+    def add_doctor_question(self, patient_id, text):
+        cur = self.conn.execute(
+            "INSERT INTO doctor_questions (patient_id, text, created_at) VALUES (?, ?, ?)",
+            (patient_id, text.strip(), _now()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_doctor_questions(self, patient_id, include_done=False):
+        sql = "SELECT * FROM doctor_questions WHERE patient_id = ?" + ("" if include_done else " AND done = 0")
+        return [dict(r) for r in self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()]
+
+    def mark_doctor_question(self, question_id, done=True):
+        self.conn.execute("UPDATE doctor_questions SET done = ? WHERE id = ?", (int(done), question_id))
         self.conn.commit()
 
     def save_summary(self, session_id, upto_message_index, content, anchor=None):

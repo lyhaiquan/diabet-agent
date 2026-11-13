@@ -12,13 +12,14 @@ from diacare.flowviz import flow_html  # noqa: E402
 from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
 from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
-from diacare.memory import KIND_LABELS  # noqa: E402
+from diacare.memory import KIND_LABELS, has_diagnosis  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.rl import ACTION_LABELS, off_policy_report  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
 from diacare.typewriter import Typewriter  # noqa: E402
+from journal_ui import render_journal, render_today, render_visit  # noqa: E402
 
 LABELS = {
     "HighBP": "huyết áp cao",
@@ -44,7 +45,17 @@ LABELS = {
     "Income": "thu nhập 1-8",
 }
 FIELDS = tuple(FEATURE_RANGES)
-PAGES = ("Tư vấn", "Hoạt động agent", "Lịch sử", "Thống kê")
+# Người bệnh chỉ thấy 4 trang; ba trang kỹ thuật chỉ hiện ở chế độ nhà phát triển (DIACARE_DEV=1 hoặc nút gạt).
+USER_PAGES = ("Hôm nay", "Nhật ký", "Tư vấn", "Tái khám")
+DEV_PAGES = ("Hoạt động agent", "Lịch sử", "Thống kê")
+
+
+def dev_mode():
+    return bool(st.session_state.get("dev_mode", os.environ.get("DIACARE_DEV") == "1"))
+
+
+def is_diagnosed(store, patient_id):
+    return patient_id is not None and has_diagnosis(store.list_memories(patient_id))
 
 
 @st.cache_resource
@@ -97,7 +108,10 @@ def _save_patient(store):
         return
     st.session_state["form_errors"] = []
     name = (st.session_state.get("f_name") or "").strip() or "Bệnh nhân mới"
-    st.session_state["patient_sel"] = store.save_patient(name, profile)
+    pid = store.save_patient(name, profile)
+    if st.session_state.get("f_diagnosed"):
+        store.add_memory(pid, "diagnosis", "đái tháo đường típ 2", source="form")
+    st.session_state["patient_sel"] = pid
 
 
 def _form_field(f):
@@ -157,30 +171,6 @@ def _import_labs(store, patient_id):
                        "đường huyết 2 giờ (OGTT), đường huyết bất kỳ.")
 
 
-def _render_labs(store, patient_id):
-    st.subheader("Kết quả xét nghiệm")
-    labs = classify([{"test": r["test"], "value": r["value"], "unit": r["unit"]}
-                     for r in store.latest_labs(patient_id)])
-    for r in labs:
-        st.caption(f"{LEVEL_ICON[r['level']]} {r['label']}: {r['value_std']:g} {r['unit_std']} · {r['level_text']}")
-    if not labs:
-        st.caption("Chưa có kết quả. Có thể nhập file hoặc gõ thẳng vào chat, vd \"HbA1c của tôi 6.8%\".")
-    with st.expander("Nhập kết quả xét nghiệm", expanded=not labs):
-        st.file_uploader("File kết quả (.txt, .csv, .json, .pdf có chữ/scan, .png, .jpg)",
-                         type=["txt", "csv", "json", "pdf", "png", "jpg", "jpeg"],
-                         key="lab_file")
-        st.text_area("Hoặc dán nội dung phiếu xét nghiệm", key="lab_text",
-                     placeholder="HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L")
-        st.button("Nhập kết quả", key="lab_import", on_click=_import_labs, args=(store, patient_id))
-        msg = st.session_state.pop("lab_msg", None)
-        if msg:
-            getattr(st, msg[0])(msg[1])
-        st.caption("Chỉ đối chiếu với ngưỡng tham khảo ADA 2024, không phải chẩn đoán.")
-    if labs and st.button("Xoá kết quả xét nghiệm", key="lab_clear"):
-        store.clear_labs(patient_id)
-        st.rerun()
-
-
 def render_sidebar(store):
     for f in FIELDS:
         st.session_state.setdefault(f"f_{f}", _default(f, LOW_RISK))
@@ -200,21 +190,27 @@ def render_sidebar(store):
             "session_id" not in st.session_state or st.session_state.get("session_patient") != patient_id
         ):
             start_new_session(store, patient_id)
-        if patient_id is not None and st.button("Bắt đầu phiên mới"):
+        if patient_id is not None and st.button("Bắt đầu phiên mới", key="new_session"):
             start_new_session(store, patient_id)
         if patient_id is not None:
-            _render_labs(store, patient_id)
             _render_memories(store, patient_id)
+        st.toggle("Chế độ nhà phát triển", key="dev_mode", value=os.environ.get("DIACARE_DEV") == "1",
+                  help="Hiện log agent, đồ thị tri thức, số liệu kỹ thuật và ba trang Hoạt động agent, Lịch sử, "
+                       "Thống kê.")
         st.divider()
-        st.subheader("Tạo hồ sơ mới")
-        c1, c2 = st.columns(2)
-        c1.button("Nạp hồ sơ mẫu thấp", on_click=_load_sample, args=(LOW_RISK,))
-        c2.button("Nạp hồ sơ mẫu cao", on_click=_load_sample, args=(HIGH_RISK,))
-        with st.form("patient_form"):
-            st.text_input("Tên bệnh nhân", key="f_name")
-            for f in FIELDS:
-                _form_field(f)
-            st.form_submit_button("Lưu hồ sơ", on_click=_save_patient, args=(store,))
+        with st.expander("Tạo hồ sơ mới", expanded=not patients):
+            if dev_mode():
+                c1, c2 = st.columns(2)
+                c1.button("Nạp hồ sơ mẫu thấp", on_click=_load_sample, args=(LOW_RISK,))
+                c2.button("Nạp hồ sơ mẫu cao", on_click=_load_sample, args=(HIGH_RISK,))
+            with st.form("patient_form"):
+                st.text_input("Tên", key="f_name")
+                st.checkbox("Đã được bác sĩ chẩn đoán đái tháo đường típ 2", key="f_diagnosed")
+                st.caption("21 câu hỏi lối sống bên dưới dùng để ước tính nguy cơ (bộ câu hỏi BRFSS của CDC). "
+                           "Nếu đã được chẩn đoán, có thể để mặc định.")
+                for f in FIELDS:
+                    _form_field(f)
+                st.form_submit_button("Lưu hồ sơ", on_click=_save_patient, args=(store,))
         for err in st.session_state.get("form_errors", []):
             st.error(err)
     return patient_id
@@ -265,9 +261,17 @@ def _render_kg(kg):
             st.code(kg["query"], language="cypher")
 
 
-def _render_meta(meta):
+def _render_meta(meta, dev=True, diagnosed=False):
     flags = meta.get("flags", [])
     if "small_talk" in flags:  # câu chào: không dự đoán, không hiện nguy cơ
+        return
+    if not dev:  # người bệnh: chỉ cần biết câu trả lời dựa trên tài liệu nào, không cần log agent hay nguy cơ BRFSS
+        lab_level = meta.get("lab_level")
+        if lab_level in ("diabetes", "low") and not diagnosed or lab_level == "low" or "symptom_referral" in flags:
+            st.warning("Có dấu hiệu cần đi khám. Hãy liên hệ bác sĩ, đừng chỉ dựa vào trợ lý này.")
+        sources = meta.get("sources", [])
+        if sources:
+            st.caption("Nguồn: " + ", ".join(sources))
         return
     risk = meta.get("risk")
     parts = []
@@ -358,10 +362,14 @@ def render_chat(store, base, patient_id):
         st.info("Hãy tạo hoặc chọn một bệnh nhân ở thanh bên để bắt đầu tư vấn.")
         return
     patient = store.get_patient(patient_id)
-    band = risk_band(base.predictor.predict(patient["profile"]))
-    st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · hồ sơ nguy cơ {band} · "
-               f"Phiên {st.session_state['session_id']} · Đổi bệnh nhân hoặc lưu hồ sơ mới ở thanh bên")
-    question = st.chat_input("Nhập câu hỏi về phòng ngừa tiểu đường...")
+    if dev_mode():
+        band = risk_band(base.predictor.predict(patient["profile"]))
+        st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · hồ sơ nguy cơ {band} · "
+                   f"Phiên {st.session_state['session_id']} · Đổi bệnh nhân hoặc lưu hồ sơ mới ở thanh bên")
+    else:
+        st.caption("Hỏi về ăn uống, vận động, thuốc, kết quả xét nghiệm. Trợ lý không chẩn đoán và không khuyên "
+                   "đổi thuốc; mọi thay đổi điều trị cần hỏi bác sĩ.")
+    question = st.chat_input("Nhập câu hỏi, vd \"Bữa sáng ăn bánh mì trứng có ổn không?\"")
     _render_messages(store, base)
     if question:
         with st.chat_message("user"):
@@ -398,6 +406,8 @@ def _render_rl_feedback(store, base, event_id):
 
 def _render_messages(store, base=None):
     meta = st.session_state.get("meta", {})
+    dev = dev_mode()
+    diagnosed = is_diagnosed(store, st.session_state.get("session_patient"))
     for i, m in enumerate(store.get_history(st.session_state["session_id"])):
         with st.chat_message(m["role"]):
             info = meta.get(i)
@@ -411,7 +421,7 @@ def _render_messages(store, base=None):
             if m["role"] == "assistant" and m.get("rl_event_id") and base is not None:
                 _render_rl_feedback(store, base, m["rl_event_id"])
             if m["role"] == "assistant" and info:
-                _render_meta(info)
+                _render_meta(info, dev=dev, diagnosed=diagnosed)
 
 
 def render_history(store):
@@ -543,16 +553,25 @@ def _no_auto_translate():
 def main():
     st.set_page_config(page_title="DiaCare-MAS", layout="wide")
     _no_auto_translate()
-    st.title("DiaCare-MAS")
-    st.warning("Công cụ hỗ trợ học tập, không thay thế bác sĩ.")
+    st.title("DiaCare")
+    st.caption("Trợ lý tự theo dõi đái tháo đường típ 2 giữa hai lần khám. Không thay thế bác sĩ.")
     if os.environ.get("DIACARE_LLM") == "demo" or os.environ.get("DIACARE_EMBED") == "hash":
         st.info("Chế độ demo đang bật: mô hình ngôn ngữ giả lập hoặc embedding băm, chỉ dùng để thử giao diện.")
     base, store = load_parts(*_env_key())
     patient_id = render_sidebar(store)
     # Dùng nút chọn trang thay cho st.tabs: st.chat_input chỉ được ghim xuống đáy màn hình
     # (kiểu ChatGPT) khi nằm ở cấp ngoài cùng, không ở trong tab/cột/expander.
-    page = st.radio("Trang", PAGES, horizontal=True, key="page", label_visibility="collapsed")
-    if page == "Tư vấn":
+    pages = USER_PAGES + (DEV_PAGES if dev_mode() else ())
+    if st.session_state.get("page") not in pages:  # vừa tắt chế độ nhà phát triển khi đang ở trang kỹ thuật
+        st.session_state["page"] = pages[0]
+    page = st.radio("Trang", pages, horizontal=True, key="page", label_visibility="collapsed")
+    if page == "Hôm nay":
+        render_today(store, patient_id)
+    elif page == "Nhật ký":
+        render_journal(store, patient_id, _import_labs)
+    elif page == "Tái khám":
+        render_visit(store, patient_id)
+    elif page == "Tư vấn":
         render_chat(store, base, patient_id)
     elif page == "Hoạt động agent":
         render_agents(store)

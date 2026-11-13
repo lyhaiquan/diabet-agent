@@ -11,3 +11,4 @@ streamlit>=1.66
 matplotlib
 nbformat
 networkx
+reportlab
