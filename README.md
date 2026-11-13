@@ -48,6 +48,16 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 
 ## Tính năng
 
+- **Tự theo dõi giữa hai lần tái khám** (cho người đã chẩn đoán ĐTĐ típ 2). Ba trang Hôm nay, Nhật ký, Tái khám:
+  - ghi đường huyết, huyết áp, cân nặng;
+  - so với mục tiêu điều trị ADA 2024 (trước ăn 4,4–7,2 mmol/L, sau ăn < 10,0, huyết áp < 130/80), không so với ngưỡng
+    chẩn đoán;
+  - cảnh báo hạ đường huyết hoặc chỉ số rất cao, nhắc chưa đo hôm nay hay sắp tới lịch khám;
+  - lập bản tóm tắt PDF một trang mang đi khám.
+
+  Giao diện mặc định là chế độ người dùng. Log agent, đồ thị tri thức và thống kê chỉ hiện khi bật **Chế độ nhà phát
+  triển** (nút gạt ở thanh bên, hoặc `DIACARE_DEV=1`).
+- **Dịch vụ API (FastAPI)** để giao diện web hoặc điện thoại gọi vào. Xem mục [Dịch vụ API](#dịch-vụ-api).
 - **Giao diện chat** (Streamlit). Ô chat ghim dưới đáy màn hình. Câu trả lời **hiện dần theo từng câu** khi LLM
   đang viết: mỗi câu phải qua bộ lọc an toàn trước khi hiện, nên lời khuyên đổi thuốc không bao giờ lọt lên màn hình.
 - **Nhập kết quả xét nghiệm (kèm OCR cho PDF scan & ảnh chụp)**: tải `.txt`, `.csv`, `.json`, `.pdf` (có lớp chữ hoặc PDF scan),
@@ -130,6 +140,44 @@ Chế độ demo (LLM giả + embedding băm, không cần Ollama, chỉ để t
 $env:DIACARE_LLM="demo"; $env:DIACARE_EMBED="hash"; streamlit run src/app.py
 ```
 
+### Dịch vụ API
+
+```bash
+uvicorn api.main:app --app-dir src --port 8000
+```
+
+Mở `http://localhost:8000/docs` để xem và thử mọi endpoint. Bấm **Authorize**, nhập email và mật khẩu đã đăng ký.
+
+| Nhóm | Endpoint chính |
+|---|---|
+| Tài khoản | `POST /auth/register`, `POST /auth/token` (OAuth2 password flow, trả JWT), `GET /me` |
+| Hồ sơ | `GET/POST /patients`, `GET/PATCH /patients/{id}`, `GET/DELETE /patients/{id}/memories` |
+| Nhật ký | `POST /patients/{id}/readings/glucose`, `.../bp`, `.../weight`; `GET .../readings`, `DELETE .../readings/{rid}`, `GET .../today`, `GET .../summary?days=14` |
+| Xét nghiệm | `GET/POST /patients/{id}/labs` (gõ chữ), `POST .../labs/file` (ảnh, PDF; tối đa 10 MB) |
+| Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `POST .../questions/{qid}/done`, `GET .../visit-report.pdf` |
+| Tư vấn | `POST /patients/{id}/chat` (JSON, hoặc `"stream": true` để nhận luồng SSE), `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` (👍/👎 cho agent RL) |
+
+Luồng SSE của `/chat` gửi lần lượt các sự kiện:
+
+- `session`: mã phiên.
+- `step`: từng agent vừa chạy xong.
+- `token`: phần chữ mới, đã qua bộ lọc an toàn.
+- `done`: kết quả cuối. Giao diện phải thay phần chữ đang hiện bằng `answer`, vì Rules có thể sửa bản nháp.
+
+Bảo mật:
+
+- Mật khẩu băm bằng scrypt.
+- Token là JWT HS256, hạn 7 ngày. Khoá ký lấy từ `DIACARE_API_SECRET`; nếu không đặt, hệ tự sinh một lần vào
+  `data/api_secret.key` (không lên git).
+- Mỗi tài khoản chỉ thấy hồ sơ của mình. Tài nguyên của người khác trả 404.
+- CORS chỉ mở cho các origin trong `DIACARE_CORS` (mặc định `http://localhost:3000`).
+
+Cách chạy:
+
+- Phần AI nặng (Predictor, Retriever, LLM, KG) dựng một lần khi khởi động.
+- Mỗi request mở một kết nối SQLite riêng, chế độ WAL.
+- Các lượt tư vấn chạy lần lượt từng lượt một, vì Ollama cũng chỉ trả lời từng câu một.
+
 ### Chạy trên Kaggle (GPU miễn phí)
 
 `kaggle/build_app_notebook.py` đóng gói code thành notebook. Notebook cài Ollama, tải `qwen2.5:7b`, chạy Streamlit và
@@ -157,6 +205,9 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
 | `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
+| `DIACARE_DEV` | (tắt) | `1`: giao diện Streamlit mở sẵn chế độ nhà phát triển |
+| `DIACARE_API_SECRET` | tự sinh vào `data/api_secret.key` | khoá ký token của API, ít nhất 32 ký tự |
+| `DIACARE_CORS` | `http://localhost:3000` | các origin được gọi API, cách nhau bằng dấu phẩy |
 
 ## Đồ thị tri thức (Knowledge Graph)
 
@@ -257,6 +308,8 @@ python -m pytest -q
 
 ```
 src/app.py              giao diện Streamlit
+src/journal_ui.py       ba trang Hôm nay, Nhật ký, Tái khám
+src/api/                dịch vụ FastAPI (main.py) và mật khẩu, token (security.py)
 src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
@@ -275,6 +328,9 @@ tests/                  test (pytest)
   riêng bằng cờ). Ba nguồn huấn luyện đều là dữ liệu Mỹ; NHANES thiếu 10/21 chỉ số, BRFSS 2023 thiếu rau quả.
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt.
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
+- Nhắc nhở chỉ hiện khi mở ứng dụng; chưa gửi được thông báo đẩy. Đường huyết gõ trong chat vẫn được lưu vào
+  mục xét nghiệm, chưa vào nhật ký, và trợ lý tư vấn chưa đọc nhật ký.
+- API dùng SQLite; muốn nhiều người dùng cùng lúc ở quy mô lớn cần chuyển sang PostgreSQL.
 - Nhóm câu ngoài chủ đề (`out_of_scope`) mới đạt 0.50: model vẫn làm thơ hoặc chỉ cách nấu ăn thay vì từ chối.
 
 ## Nguồn dữ liệu

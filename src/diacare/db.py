@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS appointments (
     note TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS doctor_questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_id INTEGER NOT NULL,
@@ -127,9 +134,18 @@ def _key(text):
 
 
 class Store:
-    def __init__(self, path=":memory:"):
-        self.conn = sqlite3.connect(str(path), check_same_thread=False)
+    def __init__(self, path=":memory:", init_schema=True, timeout=10.0):
+        """init_schema=False: chỉ mở kết nối (API mở một kết nối cho mỗi request, schema đã tạo lúc khởi động)."""
+        self.conn = sqlite3.connect(str(path), check_same_thread=False, timeout=timeout)
         self.conn.row_factory = sqlite3.Row
+        if init_schema:
+            self._migrate()
+
+    def enable_wal(self):
+        """Cho nhiều kết nối đọc trong lúc một kết nối đang ghi (dịch vụ API)."""
+        return self.conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+
+    def _migrate(self):
         self.conn.executescript(_SCHEMA)
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(runs)")}
         if "trace_json" not in cols:  # DB tạo từ bản cũ
@@ -140,18 +156,63 @@ class Store:
         mcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(messages)")}
         if "rl_event_id" not in mcols:  # trước khi có agent RL học từ phản hồi
             self.conn.execute("ALTER TABLE messages ADD COLUMN rl_event_id INTEGER")
+        pcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(patients)")}
+        if "user_id" not in pcols:  # trước khi có tài khoản (API); NULL = hồ sơ tạo từ Streamlit/CLI
+            self.conn.execute("ALTER TABLE patients ADD COLUMN user_id INTEGER")
         self.conn.commit()
 
     def close(self):
         self.conn.close()
 
-    def save_patient(self, name, profile):
+    def save_patient(self, name, profile, user_id=None):
         cur = self.conn.execute(
-            "INSERT INTO patients (name, profile_json, created_at) VALUES (?, ?, ?)",
-            (name, _dumps(profile), _now()),
+            "INSERT INTO patients (name, profile_json, created_at, user_id) VALUES (?, ?, ?, ?)",
+            (name, _dumps(profile), _now(), user_id),
         )
         self.conn.commit()
         return cur.lastrowid
+
+    def update_patient(self, patient_id, name=None, profile=None):
+        if name is not None:
+            self.conn.execute("UPDATE patients SET name = ? WHERE id = ?", (name, patient_id))
+        if profile is not None:
+            self.conn.execute("UPDATE patients SET profile_json = ? WHERE id = ?", (_dumps(profile), patient_id))
+        self.conn.commit()
+
+    # ---------- tài khoản (dịch vụ API) ----------
+    def create_user(self, email, password_hash, name=None):
+        """Trả về id, hoặc None nếu email đã có."""
+        try:
+            cur = self.conn.execute(
+                "INSERT INTO users (email, password_hash, name, created_at) VALUES (?, ?, ?, ?)",
+                (email.strip().lower(), password_hash, name, _now()))
+        except sqlite3.IntegrityError:
+            return None
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_user(self, user_id):
+        row = self.conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_user_by_email(self, email):
+        row = self.conn.execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),)).fetchone()
+        return dict(row) if row else None
+
+    def patient_owner(self, patient_id):
+        row = self.conn.execute("SELECT user_id FROM patients WHERE id = ?", (patient_id,)).fetchone()
+        return row["user_id"] if row else None
+
+    def get_session(self, session_id):
+        row = self.conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_sessions(self, patient_id):
+        rows = self.conn.execute(
+            "SELECT s.id, s.created_at, COUNT(m.id) AS n_messages FROM sessions s"
+            " LEFT JOIN messages m ON m.session_id = s.id WHERE s.patient_id = ?"
+            " GROUP BY s.id ORDER BY s.id DESC", (patient_id,)).fetchall()
+        return [dict(r) for r in rows]
 
     @staticmethod
     def _patient(row):
@@ -166,8 +227,13 @@ class Store:
         row = self.conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,)).fetchone()
         return self._patient(row) if row else None
 
-    def list_patients(self):
-        rows = self.conn.execute("SELECT * FROM patients ORDER BY id DESC").fetchall()
+    def list_patients(self, user_id=None):
+        """user_id=None: mọi hồ sơ (Streamlit, CLI chạy trên máy); có user_id: chỉ hồ sơ của tài khoản đó."""
+        if user_id is None:
+            rows = self.conn.execute("SELECT * FROM patients ORDER BY id DESC").fetchall()
+        else:
+            rows = self.conn.execute("SELECT * FROM patients WHERE user_id = ? ORDER BY id DESC",
+                                     (user_id,)).fetchall()
         return [self._patient(r) for r in rows]
 
     def start_session(self, patient_id=None):
@@ -361,6 +427,18 @@ class Store:
     def list_doctor_questions(self, patient_id, include_done=False):
         sql = "SELECT * FROM doctor_questions WHERE patient_id = ?" + ("" if include_done else " AND done = 0")
         return [dict(r) for r in self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()]
+
+    def get_doctor_question(self, question_id):
+        row = self.conn.execute("SELECT * FROM doctor_questions WHERE id = ?", (question_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_reading(self, reading_id):
+        row = self.conn.execute("SELECT * FROM readings WHERE id = ?", (reading_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_memory(self, memory_id):
+        row = self.conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
+        return dict(row) if row else None
 
     def mark_doctor_question(self, question_id, done=True):
         self.conn.execute("UPDATE doctor_questions SET done = ? WHERE id = ?", (int(done), question_id))

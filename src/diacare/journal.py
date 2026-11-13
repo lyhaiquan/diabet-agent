@@ -85,6 +85,31 @@ def validate_glucose(value, unit):
     return mgdl, None
 
 
+def validate_bp(systolic, diastolic):
+    """Trả về thông báo lỗi, hoặc None nếu hợp lý."""
+    lo_s, hi_s = PLAUSIBLE["systolic"]
+    lo_d, hi_d = PLAUSIBLE["diastolic"]
+    if systolic is None or diastolic is None or not (lo_s <= systolic <= hi_s and lo_d <= diastolic <= hi_d) \
+            or diastolic >= systolic:
+        return "Số huyết áp chưa hợp lý (vd 125/80: tâm thu lớn hơn tâm trương)."
+    return None
+
+
+def validate_weight(kg):
+    lo, hi = PLAUSIBLE["weight"]
+    return None if kg is not None and lo <= kg <= hi else "Cân nặng chưa hợp lý."
+
+
+def describe_glucose(mgdl, context, unit="mmol/L"):
+    """Kết quả một lần đo như người dùng thấy: mức, câu mô tả, lời khuyên (nếu có)."""
+    status = classify_glucose(mgdl, context)
+    level, advice = ADVICE.get(status, (None, None))
+    return {"status": status, "status_text": STATUS_TEXT[status], "target": target_text(context),
+            "message": f"Đã lưu {fmt_glucose(mgdl, unit)} ({CONTEXTS[context]}): {STATUS_TEXT[status]}, "
+                       f"{target_text(context)}.",
+            "advice": advice, "advice_level": level}
+
+
 def classify_glucose(mgdl, context):
     if mgdl < HYPO_2:
         return "hypo_2"

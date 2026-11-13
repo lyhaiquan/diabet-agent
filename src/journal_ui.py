@@ -87,10 +87,9 @@ def bp_weight_forms(store, patient_id):
         when = _when("bp")
         ok = st.form_submit_button("Lưu huyết áp")
     if ok:
-        lo_s, hi_s = journal.PLAUSIBLE["systolic"]
-        lo_d, hi_d = journal.PLAUSIBLE["diastolic"]
-        if sys_ is None or dia is None or not (lo_s <= sys_ <= hi_s and lo_d <= dia <= hi_d) or dia >= sys_:
-            c1.error("Số huyết áp chưa hợp lý (vd 125/80: tâm thu lớn hơn tâm trương).")
+        err = journal.validate_bp(sys_, dia)
+        if err:
+            c1.error(err)
         else:
             store.add_reading(patient_id, "bp", sys_, when, value2=dia, unit="mmHg")
             status = journal.classify_bp(sys_, dia)
@@ -104,9 +103,9 @@ def bp_weight_forms(store, patient_id):
         when = _when("w")
         ok = st.form_submit_button("Lưu cân nặng")
     if ok:
-        lo, hi = journal.PLAUSIBLE["weight"]
-        if kg is None or not lo <= kg <= hi:
-            c2.error("Cân nặng chưa hợp lý.")
+        err = journal.validate_weight(kg)
+        if err:
+            c2.error(err)
         else:
             store.add_reading(patient_id, "weight", kg, when, unit="kg")
             c2.success(f"Đã lưu {kg:.1f} kg.")

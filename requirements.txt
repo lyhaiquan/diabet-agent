@@ -12,3 +12,7 @@ matplotlib
 nbformat
 networkx
 reportlab
+fastapi
+uvicorn
+python-multipart
+httpx
