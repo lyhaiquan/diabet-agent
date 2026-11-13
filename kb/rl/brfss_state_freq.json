@@ -3,172 +3,158 @@
  "n": 253680,
  "profiles": [
   {
-   "band": "cao",
+   "band": "thấp",
    "overweight": true,
    "inactive": false,
    "cardio_smoke": true,
-   "n": 53621
+   "n": 51866
   },
   {
    "band": "trung bình",
    "overweight": true,
    "inactive": false,
    "cardio_smoke": true,
-   "n": 34624
+   "n": 41160
+  },
+  {
+   "band": "thấp",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 31867
+  },
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": true,
+   "n": 24390
   },
   {
    "band": "cao",
    "overweight": true,
    "inactive": true,
    "cardio_smoke": true,
-   "n": 31784
-  },
-  {
-   "band": "thấp",
-   "overweight": true,
-   "inactive": false,
-   "cardio_smoke": true,
-   "n": 29171
-  },
-  {
-   "band": "thấp",
-   "overweight": true,
-   "inactive": false,
-   "cardio_smoke": false,
-   "n": 26343
+   "n": 19401
   },
   {
    "band": "thấp",
    "overweight": false,
    "inactive": false,
    "cardio_smoke": true,
-   "n": 13927
+   "n": 19043
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 16509
   },
   {
    "band": "thấp",
    "overweight": false,
    "inactive": false,
    "cardio_smoke": false,
-   "n": 13615
+   "n": 14542
   },
   {
-   "band": "trung bình",
+   "band": "thấp",
    "overweight": true,
    "inactive": true,
    "cardio_smoke": true,
-   "n": 10792
+   "n": 12117
   },
   {
-   "band": "trung bình",
+   "band": "thấp",
    "overweight": true,
-   "inactive": false,
+   "inactive": true,
    "cardio_smoke": false,
-   "n": 7324
+   "n": 6090
   },
   {
    "band": "trung bình",
    "overweight": false,
    "inactive": false,
    "cardio_smoke": true,
-   "n": 7223
+   "n": 5228
+  },
+  {
+   "band": "trung bình",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 3165
   },
   {
    "band": "thấp",
-   "overweight": true,
+   "overweight": false,
    "inactive": true,
    "cardio_smoke": true,
-   "n": 5451
+   "n": 2384
   },
   {
-   "band": "thấp",
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": true,
+   "n": 1796
+  },
+  {
+   "band": "trung bình",
    "overweight": true,
    "inactive": true,
    "cardio_smoke": false,
-   "n": 4261
+   "n": 1647
+  },
+  {
+   "band": "thấp",
+   "overweight": false,
+   "inactive": true,
+   "cardio_smoke": false,
+   "n": 1303
   },
   {
    "band": "cao",
    "overweight": false,
    "inactive": false,
    "cardio_smoke": true,
-   "n": 3517
-  },
-  {
-   "band": "trung bình",
-   "overweight": true,
-   "inactive": true,
-   "cardio_smoke": false,
-   "n": 2625
+   "n": 396
   },
   {
    "band": "cao",
    "overweight": false,
    "inactive": true,
    "cardio_smoke": true,
-   "n": 1572
-  },
-  {
-   "band": "trung bình",
-   "overweight": false,
-   "inactive": true,
-   "cardio_smoke": true,
-   "n": 1564
-  },
-  {
-   "band": "cao",
-   "overweight": true,
-   "inactive": false,
-   "cardio_smoke": false,
-   "n": 1480
-  },
-  {
-   "band": "thấp",
-   "overweight": false,
-   "inactive": true,
-   "cardio_smoke": true,
-   "n": 1322
-  },
-  {
-   "band": "thấp",
-   "overweight": false,
-   "inactive": true,
-   "cardio_smoke": false,
-   "n": 1045
-  },
-  {
-   "band": "trung bình",
-   "overweight": false,
-   "inactive": false,
-   "cardio_smoke": false,
-   "n": 1035
+   "n": 278
   },
   {
    "band": "cao",
    "overweight": true,
    "inactive": true,
    "cardio_smoke": false,
-   "n": 1021
+   "n": 170
+  },
+  {
+   "band": "trung bình",
+   "overweight": false,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 148
+  },
+  {
+   "band": "cao",
+   "overweight": true,
+   "inactive": false,
+   "cardio_smoke": false,
+   "n": 115
   },
   {
    "band": "trung bình",
    "overweight": false,
    "inactive": true,
    "cardio_smoke": false,
-   "n": 306
-  },
-  {
-   "band": "cao",
-   "overweight": false,
-   "inactive": false,
-   "cardio_smoke": false,
-   "n": 40
-  },
-  {
-   "band": "cao",
-   "overweight": false,
-   "inactive": true,
-   "cardio_smoke": false,
-   "n": 17
+   "n": 65
   }
  ],
  "topics": {

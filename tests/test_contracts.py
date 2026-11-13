@@ -43,12 +43,12 @@ def test_agent_message_structure_matches_ptit_section_6():
 
 
 def test_pre_rules_detects_uncertain_and_conflicting_results():
-    # Vùng không chắc chắn quanh ngưỡng 0.50 (0.45 - 0.55)
-    u = evaluate_pre_rules(0.48, LOW_RISK, "Tôi nên ăn gì?")
+    # Vùng không chắc chắn quanh ngưỡng nguy cơ cao 0,30 (0,25 - 0,35)
+    u = evaluate_pre_rules(0.28, LOW_RISK, "Tôi nên ăn gì?")
     assert "uncertain_prediction_review" in u["review_flags"]
     assert u["needs_human_review"] is True
 
-    # Mâu thuẫn: risk < 0.20 (thấp) nhưng xét nghiệm HbA1c mức diabetes
+    # Mâu thuẫn: risk < 0.10 (thấp) nhưng xét nghiệm HbA1c mức diabetes
     c1 = evaluate_pre_rules(
         0.08,
         LOW_RISK,
@@ -57,8 +57,8 @@ def test_pre_rules_detects_uncertain_and_conflicting_results():
     )
     assert "conflicting_results_review" in c1["review_flags"]
 
-    # Mâu thuẫn: risk < 0.20 nhưng có triệu chứng lâm sàng rõ rệt
-    c2 = evaluate_pre_rules(0.10, LOW_RISK, "Tôi khát nước nhiều và tiểu nhiều")
+    # Mâu thuẫn: risk < 0.10 nhưng có triệu chứng lâm sàng rõ rệt
+    c2 = evaluate_pre_rules(0.05, LOW_RISK, "Tôi khát nước nhiều và tiểu nhiều")
     assert "conflicting_results_review" in c2["review_flags"]
 
     # Bình thường: risk thấp, không có xét nghiệm bất thường hay triệu chứng
@@ -69,7 +69,7 @@ def test_pre_rules_detects_uncertain_and_conflicting_results():
 def test_orchestrator_populates_messages_and_decision_report(tmp_path):
     class P:
         def predict(self, profile):
-            return 0.49  # vùng không chắc chắn
+            return 0.29  # vùng không chắc chắn
 
     class R:
         def search(self, q, k=4):
@@ -94,7 +94,7 @@ def test_orchestrator_populates_messages_and_decision_report(tmp_path):
     assert rep["request_id"] == state.request_id
     assert rep["model_version"] == MODEL_VERSION
     assert rep["system_version"] == SYSTEM_VERSION
-    assert rep["prediction"]["score"] == 0.49
+    assert rep["prediction"]["score"] == 0.29
     assert "uncertain_prediction_review" in rep["rules"]["flags"]
     assert rep["rules"]["needs_human_review"] is True
     assert rep["evidence"]["sources"] == ["ada.txt"]

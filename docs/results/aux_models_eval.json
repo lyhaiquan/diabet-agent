@@ -1,0 +1,34 @@
+{
+ "pima_external": {
+  "n": 768,
+  "pos": 0.349,
+  "features_mapped": [
+   "BMI",
+   "Age",
+   "Sex",
+   "HighBP"
+  ],
+  "auc_multisource_predictor": 0.7236,
+  "auc_old_brfss2015_mlp": 0.7386,
+  "note": "Chỉ 4/21 chỉ số; nhãn theo nghiệm pháp glucose, khác nhãn tự khai của BRFSS."
+ },
+ "uci529_symptom_model": {
+  "rows_raw": 520,
+  "duplicates_removed": 269,
+  "rows_used": 251,
+  "pos": 0.689,
+  "cv5_auc": 0.9483,
+  "cv5_brier": 0.0878,
+  "top_coefficients": {
+   "Polydipsia": 2.344,
+   "Polyuria": 2.259,
+   "Male": -1.674,
+   "Genital thrush": 1.208,
+   "Irritability": 1.057,
+   "Itching": -0.927,
+   "sudden weight loss": 0.702,
+   "Polyphagia": 0.698
+  },
+  "note": "Mẫu bệnh viện, phần lớn là người có bệnh: không đại diện cho cộng đồng; chỉ dùng tham khảo."
+ }
+}

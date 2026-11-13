@@ -23,7 +23,8 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14. Giao diện Streamlit, mô hình ngôn ngữ qua Ollama, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
-- Quy mô lúc viết báo cáo: 61 commit, 28 tệp test với 488 test tự động, bộ benchmark 50 ca.
+- Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng ADA và đồ thị tri thức PrimeKG.
+- Quy mô lúc viết báo cáo: 62 commit, 28 tệp test với 491 test tự động, bộ benchmark 50 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -40,12 +41,13 @@ Dự án được xây theo từng phiên bản:
 | V3 | Đồ thị tri thức và Graph agent (networkx hoặc Neo4j), agent học tăng cường (Q-learning tuyến tính), OCR cho PDF dạng ảnh, hợp đồng dữ liệu giữa các agent |
 | V3.1 | Đồ thị tri thức bật mặc định, ghép bằng chứng gen chung từ PrimeKG, thử nghiệm RGCN trên Kaggle, khung "Đồ thị tri thức đã dùng" trên giao diện |
 | V3.2 | Agent RL viết lại thành contextual bandit học từ 👍/👎 của người dùng, bật mặc định, khởi động trên phân bố BRFSS thật, có mặt nạ an toàn, ghi propensity và đánh giá SNIPS |
+| V3.3 | Predictor học từ nhiều nguồn (BRFSS 2015, BRFSS 2023, NHANES), hiệu chỉnh xác suất, ngưỡng nguy cơ mới, kiểm tra ngoài trên Pima, mô hình triệu chứng từ UCI 529 |
 
 ## 1.3. Mục tiêu và phạm vi
 
 Mục tiêu chức năng:
 
-1. Ước lượng nguy cơ tiểu đường từ hồ sơ lối sống.
+1. Ước lượng nguy cơ tiểu đường từ hồ sơ lối sống, với xác suất đã hiệu chỉnh, học từ nhiều nguồn dữ liệu.
 2. Trả lời câu hỏi về ăn uống, vận động, triệu chứng, xét nghiệm, có trích nguồn tài liệu y khoa.
 3. Nhớ những gì người dùng đã khai (chẩn đoán, thuốc đang dùng, dị ứng) qua nhiều phiên.
 4. Đọc kết quả xét nghiệm từ tệp hoặc văn bản và đối chiếu với ngưỡng tham khảo.
@@ -91,7 +93,7 @@ Lấy ví dụ người dùng có hồ sơ nguy cơ cao, đã nhập phiếu xé
 1. **Orchestrator** kiểm tra hồ sơ hợp lệ, kiểm tra đây không phải câu chào.
 2. **Memory** trích sự kiện mới từ câu hỏi (không có), nhớ lại các sự kiện cũ của bệnh nhân.
 3. **Lab** lấy kết quả mới nhất đã lưu (HbA1c 8,5%, đường huyết lúc đói 180 mg/dL, OGTT 182 mg/dL) và xếp mức: hai chỉ số ở ngưỡng tiểu đường, một chỉ số ở mức tiền tiểu đường.
-4. **Predictor** chạy MLP trên 21 chỉ số hồ sơ: 92,1%, mức cao.
+4. **Predictor** chạy mô hình đa nguồn trên 21 chỉ số hồ sơ: 66,7%, mức cao.
 5. **Retriever** tìm được 4 đoạn tài liệu từ MedlinePlus và WHO.
 6. **Graph** không thấy yếu tố nguy cơ nào trong câu hỏi (câu này nói về triệu chứng), nên không thêm gì.
 7. **Nutrition** nhận ra đây không phải câu hỏi dinh dưỡng, bỏ qua.
@@ -166,22 +168,72 @@ Tệp `labs.py`. Agent đọc bốn chỉ số: HbA1c, đường huyết lúc đ
 
 Đường huyết dưới 70 mg/dL được xếp là hạ đường huyết, kèm lời dặn gọi 115 nếu lú lẫn hoặc ngất.
 
-## 3.5. Predictor: dự đoán nguy cơ
+## 3.5. Predictor: dự đoán nguy cơ từ năm nguồn dữ liệu
 
-Tệp `predictor.py`, `model.py`, huấn luyện bằng `train_predictor.py`.
+Tệp `predictor.py`; dữ liệu và huấn luyện: `tools/build_multisource.py`, `tools/train_multisource.py`, `tools/train_aux_models.py`. Bản đầu (V1) chỉ học trên một bộ BRFSS 2015; bản hiện tại học và được kiểm tra trên năm bộ dữ liệu tiểu đường từ bốn đơn vị nguồn.
 
-- **Dữ liệu**: CDC Diabetes Health Indicators (BRFSS 2015), 253.680 mẫu, 21 chỉ số, tỉ lệ dương 13,9%. Script tải trực tiếp từ UCI (id 891).
-- **Mô hình**: MLP 21 → 64 → 32 → 1, ReLU, dropout 0,2. Hàm mất mát `BCEWithLogitsLoss` có trọng số lớp dương để bù lệch lớp, tối ưu Adam tốc độ học 0,001, 15 epoch. Đầu vào được chuẩn hoá bằng `StandardScaler` lưu kèm mô hình.
-- **Chia tập**: 80/20 phân tầng, hạt giống 42.
+### Năm bộ dữ liệu
 
-| Mô hình | AUC | F1 | Recall |
+| Bộ | Đơn vị | Loại dữ liệu | Quy mô dùng được | Vai trò |
+|---|---|---|---|---|
+| BRFSS 2015 (UCI 891) | CDC | khảo sát qua điện thoại, tự khai | 253.680 | huấn luyện, kiểm tra |
+| BRFSS 2023 | CDC | khảo sát qua điện thoại, tự khai | 261.589 (từ 433.323) | huấn luyện, kiểm tra |
+| NHANES 2013–2020 | CDC | khảo sát có khám và **xét nghiệm máu** | 20.068 người lớn | huấn luyện, kiểm tra, nhãn xét nghiệm |
+| Pima Indians (OpenML 37) | NIDDK | khám lâm sàng, nghiệm pháp glucose | 768 | kiểm tra ngoài |
+| Early Stage Diabetes (UCI 529) | bệnh viện Sylhet, Bangladesh | 16 triệu chứng | 251 sau khi bỏ trùng | mô hình triệu chứng riêng |
+
+Đường dẫn, mã md5 và quy mô từng tệp ghi trong `diacare_datasets/LINK_DATASET.md`.
+
+### Gộp về một lược đồ
+
+Ba bộ đầu được ánh xạ về đúng 21 chỉ số của BRFSS 2015, để Predictor vẫn nhận cùng một hồ sơ như giao diện đang dùng. Mỗi biến có một quy tắc mã hoá lại riêng: BMI của BRFSS 2023 lưu kèm hai chữ số thập phân ẩn nên phải chia 100; số ngày sức khoẻ kém mã 88 nghĩa là 0 ngày; thu nhập năm 2023 có 11 mức, gộp các mức từ 75 nghìn USD trở lên về mức 8 như năm 2015; tuổi thật của NHANES đổi sang nhóm 5 năm của BRFSS. Chỉ số nào nguồn không có thì để trống: BRFSS 2023 không hỏi rau quả, NHANES (với 9 tệp đã tải) không có 10 trong 21 chỉ số.
+
+**Nhãn chung** là "được bác sĩ chẩn đoán đái tháo đường" (tự khai); tiền tiểu đường và tiểu đường chỉ khi mang thai tính là 0, đúng như bản UCI 2015. Tỉ lệ dương ra 13,9% / 14,6% / 13,8% ở ba nguồn. Sau khi gộp, trung bình từng chỉ số được in cạnh nhau để bắt lỗi mã hoá (`docs/results/multisource_marginals.json`); các chỉ số trùng định nghĩa khớp nhau sát, ví dụ tăng huyết áp 0,43 / 0,43 / 0,36 và BMI 28,4 / 28,8 / 29,5. Hai chỉ số lệch rõ ở NHANES (kiểm tra mỡ máu 0,73 so với 0,96; vận động 0,49 so với 0,76) vì câu hỏi gốc khác nghĩa.
+
+NHANES có thêm **nhãn xét nghiệm**: tự khai, hoặc HbA1c ≥ 6,5%, hoặc đường huyết đói ≥ 126 mg/dL. Nhãn này chỉ dùng để đánh giá, không bao giờ là đặc trưng: một mô hình dùng HbA1c để đoán nhãn định nghĩa bằng HbA1c sẽ đúng gần tuyệt đối mà không có nghĩa gì. Theo nhãn này, 18,7% người lớn NHANES có tiểu đường, và **23% trong số đó chưa từng được chẩn đoán**.
+
+### Huấn luyện và đánh giá
+
+Mỗi nguồn chia phân tầng 70% huấn luyện / 10% hiệu chỉnh / 20% kiểm tra (hạt giống 42). Giá trị điền thiếu và bộ chuẩn hoá chỉ học trên phần huấn luyện. Bốn mô hình được so trên cùng các tập kiểm tra:
+
+| Mô hình | BRFSS 2015 | BRFSS 2023 | NHANES | NHANES, nhãn xét nghiệm | NHANES, người chưa chẩn đoán |
+|---|---|---|---|---|---|
+| MLP cũ (chỉ BRFSS 2015) | 0,831* | 0,817 | 0,824 | 0,806 | 0,716 |
+| Hồi quy logistic, 3 nguồn | 0,821 | 0,811 | 0,819 | 0,803 | 0,717 |
+| MLP, 3 nguồn | 0,829 | 0,818 | 0,825 | 0,807 | 0,720 |
+| **HistGradientBoosting, 3 nguồn, đã hiệu chỉnh** | 0,829 | 0,818 | **0,830** | **0,812** | **0,723** |
+
+Bảng trên là AUC. *Mô hình cũ học trên một cách chia khác nên có thể đã thấy một phần tập kiểm tra BRFSS 2015; con số đó lạc quan. Cột cuối đo khả năng phát hiện người có tiểu đường theo xét nghiệm nhưng chưa được chẩn đoán, chỉ từ câu hỏi lối sống.
+
+**Về độ phân biệt (AUC), mô hình mới chỉ nhỉnh hơn một chút**, rõ nhất ở NHANES. Cải thiện lớn nằm ở **độ tin cậy của xác suất**. Mô hình cũ dùng trọng số lớp dương nên xác suất bị đẩy lên cao; mô hình mới được hiệu chỉnh isotonic trên phần hiệu chỉnh riêng:
+
+| Tập kiểm tra | Brier cũ | Brier mới | ECE cũ | ECE mới |
+|---|---|---|---|---|
+| BRFSS 2015 | 0,174 | 0,097 | 0,234 | 0,004 |
+| BRFSS 2023 | 0,173 | 0,102 | 0,224 | 0,004 |
+| NHANES | 0,114 | 0,096 | 0,092 | 0,009 |
+
+ECE là sai lệch trung bình giữa xác suất dự đoán và tỉ lệ thật trong từng khoảng. Với mô hình mới, "nguy cơ 30%" nghĩa là khoảng 30 trong 100 người như vậy có tiểu đường; với mô hình cũ thì không.
+
+**Bỏ-một-nguồn**: huấn luyện trên hai nguồn và kiểm tra trên nguồn thứ ba, AUC vẫn đạt 0,826 (BRFSS 2015), 0,815 (BRFSS 2023), 0,821 (NHANES), tức mô hình không chỉ "thuộc lòng" một bộ dữ liệu.
+
+**Pima** (kiểm tra ngoài, chỉ ánh xạ được BMI, tuổi, giới, huyết áp): AUC 0,724 với mô hình mới và 0,739 với mô hình cũ. Đây là phép thử khó (4/21 chỉ số, nhãn theo nghiệm pháp glucose, một nhóm dân cư riêng) và mô hình mới không hơn ở đây.
+
+**Mô hình triệu chứng** (UCI 529): bộ này có 269 dòng trùng hệt nhau trên 520; sau khi bỏ trùng còn 251 người, hồi quy logistic đạt AUC 0,948 (kiểm định chéo 5 phần). Hai triệu chứng mạnh nhất là khát nhiều và tiểu nhiều, đúng với hai từ khoá mà agent Rules đã dùng để chuyển khám. Đây là mẫu bệnh viện, phần lớn là người có bệnh, nên mô hình chỉ để tham khảo, không thay luật triệu chứng.
+
+### Mức nguy cơ
+
+Vì xác suất đã được hiệu chỉnh, ngưỡng cũ (0,2 / 0,5, chọn cho mô hình chưa hiệu chỉnh) không còn hợp: gần như không ai đạt 0,5. Ngưỡng mới chọn theo tỉ lệ nền khoảng 14%:
+
+| Mức | Xác suất | Tỉ lệ người BRFSS 2015 | Tỉ lệ thật có ĐTĐ trong nhóm |
 |---|---|---|---|
-| Logistic Regression (cân bằng lớp) | 0,820 | 0,441 | 0,761 |
-| MLP | 0,827 | 0,443 | 0,803 |
+| thấp | < 0,10 | 54,9% | 3,1% |
+| trung bình | 0,10–0,30 | 27,5% | |
+| cao | ≥ 0,30 (gấp đôi tỉ lệ nền) | 17,6% | 42,4% |
 
-Mức nguy cơ được chia ba: thấp dưới 0,2, trung bình đến dưới 0,5, cao từ 0,5. Xác suất chưa được hiệu chỉnh, nên lời dặn hệ thống cấm mô hình ngôn ngữ nêu con số phần trăm cho người dùng; chỉ giao diện kỹ thuật hiển thị số.
+Với mô hình cũ, 37% người bị xếp "nguy cơ cao"; nay còn 17,6% và gần một nửa trong số đó có bệnh thật. Hồ sơ mẫu nguy cơ cao ra 66,7%, hồ sơ mẫu nguy cơ thấp ra 0,1%. Lời dặn hệ thống vẫn cấm mô hình ngôn ngữ nêu con số phần trăm cho người dùng; chỉ giao diện kỹ thuật hiển thị số.
 
-Hồ sơ không hợp lệ (thiếu trường, ngoài khoảng, không phải số nguyên) bị chặn trước khi tới Predictor, trả về cờ `invalid_input`.
+Mô hình V1 vẫn giữ để so sánh, chọn bằng `DIACARE_PREDICTOR=v1`. Hồ sơ không hợp lệ (thiếu trường, ngoài khoảng, không phải số nguyên) bị chặn trước khi tới Predictor, trả về cờ `invalid_input`.
 
 ## 3.6. Retriever: tìm tài liệu
 
@@ -337,7 +389,7 @@ Mỗi quyết định được ghi vào bảng `rl_events` cùng trạng thái, 
 
 Lúc chưa có người dùng nào chấm, chính sách xuất phát từ một **tiên nghiệm**: điểm ưu tiên lâm sàng do nhóm đặt (ví dụ "khám sớm" được +1 khi xét nghiệm ở ngưỡng tiểu đường, "vận động" được điểm cao khi người ít vận động hỏi về tập luyện), quy về thang $[-1, 1]$ giống 👍/👎. Trạng thái để khởi động lấy theo dữ liệu thật thay vì sinh ngẫu nhiên:
 
-- **Hồ sơ** lấy theo tần suất thật của 253.680 người BRFSS 2015: 24 tổ hợp (mức nguy cơ do chính Predictor tính, thừa cân, ít vận động, tim mạch). Tệp nhỏ `kb/rl/brfss_state_freq.json` do `tools/build_rl_states.py` sinh ra.
+- **Hồ sơ** lấy theo tần suất thật của 253.680 người BRFSS 2015: 22 tổ hợp (mức nguy cơ do chính Predictor đa nguồn tính, thừa cân, ít vận động, tim mạch). Tệp nhỏ `kb/rl/brfss_state_freq.json` do `tools/build_rl_states.py` sinh ra.
 - **Chủ đề câu hỏi** lấy theo 50 câu hỏi của bộ benchmark: chung 38%, dinh dưỡng 32%, triệu chứng 18%, xét nghiệm 8%, vận động 4%.
 - **Xét nghiệm và chẩn đoán** BRFSS không có, nên dùng tỉ lệ giả định và ghi rõ trong tệp.
 
@@ -346,11 +398,11 @@ Lúc chưa có người dùng nào chấm, chính sách xuất phát từ một 
 | Chính sách | Điểm TB |
 |---|---|
 | chọn ngẫu nhiên | 0,173 |
-| luôn khuyên khám | 0,300 |
-| **chính sách khởi động** | **0,893** |
-| chọn tối ưu (cận trên) | 0,917 |
+| luôn khuyên khám | 0,201 |
+| **chính sách khởi động** | **0,850** |
+| chọn tối ưu (cận trên) | 0,902 |
 
-Bảng này chỉ cho thấy mô hình tuyến tính học được tiên nghiệm (đạt 97% cận trên); nó **không** chứng minh lời khuyên tốt hơn cho người thật, vì tiên nghiệm do nhóm đặt. Bản đầu thiếu đặc trưng "nguy cơ cao mà chưa chẩn đoán" và chỉ đạt 0,834: mô hình tuyến tính xếp "huyết áp" trên "khám sớm" cho người nguy cơ cao chưa chẩn đoán, nên đặc trưng tương tác này được thêm vào.
+Bảng này chỉ cho thấy mô hình tuyến tính học được tiên nghiệm (đạt 94% cận trên); nó **không** chứng minh lời khuyên tốt hơn cho người thật, vì tiên nghiệm do nhóm đặt. Bản đầu thiếu đặc trưng "nguy cơ cao mà chưa chẩn đoán" và kém hơn rõ (0,834 so với 0,893 khi còn dùng Predictor cũ): mô hình tuyến tính xếp "huyết áp" trên "khám sớm" cho người nguy cơ cao chưa chẩn đoán, nên đặc trưng tương tác này được thêm vào.
 
 ### Đánh giá từ phản hồi thật
 
@@ -492,13 +544,14 @@ Lịch sử liệt kê mọi lượt chạy: thời gian, câu hỏi, mức nguy
 ```bash
 pip install -r requirements.txt
 ollama pull qwen2.5:3b
-python src/train_predictor.py
 streamlit run src/app.py
 ```
 
+Mô hình đã huấn luyện có sẵn trong `models/`. Muốn huấn luyện lại Predictor: tải dữ liệu theo `diacare_datasets/LINK_DATASET.md`, rồi chạy `python tools/build_multisource.py`, `python tools/train_multisource.py`, `python tools/train_aux_models.py` (khoảng 2 phút trên CPU).
+
 Với GPU 4 GB (RTX 3050 Ti), mô hình 3B nằm gọn trong bộ nhớ GPU; mô hình 7B phải chạy một phần trên CPU nên chậm. Chế độ demo (`DIACARE_LLM=demo`, `DIACARE_EMBED=hash`) chạy được không cần Ollama.
 
-Các biến môi trường chính: `DIACARE_LLM`, `DIACARE_MODEL`, `DIACARE_NUM_CTX`, `DIACARE_EMBED`, `DIACARE_MIN_SCORE`, `DIACARE_KB`, `DIACARE_DB`, `DIACARE_LOG`, `DIACARE_KG` (`memory` hoặc `neo4j`), `DIACARE_RL_EPSILON` (tỉ lệ thăm dò, mặc định 0,1), và `DIACARE_FEATURES`:
+Các biến môi trường chính: `DIACARE_LLM`, `DIACARE_MODEL`, `DIACARE_NUM_CTX`, `DIACARE_EMBED`, `DIACARE_MIN_SCORE`, `DIACARE_KB`, `DIACARE_DB`, `DIACARE_LOG`, `DIACARE_KG` (`memory` hoặc `neo4j`), `DIACARE_RL_EPSILON` (tỉ lệ thăm dò, mặc định 0,1), `DIACARE_PREDICTOR` (`multisource` mặc định hoặc `v1`), và `DIACARE_FEATURES`:
 
 | Giá trị | Agent được bật |
 |---|---|
@@ -525,7 +578,7 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 
 ## 7.1. Unit test
 
-488 test chạy bằng `pytest` trong khoảng một phút rưỡi, không cần GPU hay mạng. Phân bố theo tệp test (đã tính tham số hoá): memory 86, rules 86, nutrition 67, labs 31, orchestrator 27, bench 24, retriever 17, eval 17, kg 16, rl 14, app 11, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, predictor 2, model 1.
+491 test chạy bằng `pytest` trong khoảng một phút rưỡi, không cần GPU hay mạng. Phân bố theo tệp test (đã tính tham số hoá): memory 86, rules 86, nutrition 67, labs 31, orchestrator 27, bench 24, retriever 17, eval 17, kg 16, rl 14, app 11, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, benchmark CLI 4, kb 4, predictor 5, advisor 3, flowviz 3, retrieval eval 3, model 1.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -595,10 +648,13 @@ Sau mỗi lần đổi model nên chạy lại bộ benchmark và đọc các ca
 | Người nguy cơ cao chưa chẩn đoán được khuyên "huyết áp" trước "khám sớm" | RL | so điểm từng hành động | thêm đặc trưng tương tác `high_undiagnosed` |
 | Hội thoại dài bị tóm tắt lại từ đầu ở mọi lượt | Memory | đọc lại mã: bảng `summaries` có nhưng không ai ghi | lưu bản tóm tắt kèm dấu nhận dạng, dùng lại hoặc tóm tắt tăng dần |
 | Người dùng nói đã ngừng thuốc nhưng hệ vẫn nhớ là đang dùng | Memory | rà soát luồng bộ nhớ | nhận câu "đã ngừng/bỏ/không dùng ... nữa", tắt mềm mục thuốc |
+| 37% người bị xếp "nguy cơ cao" | Predictor | đếm mức nguy cơ trên BRFSS khi khởi động RL | xác suất chưa hiệu chỉnh do trọng số lớp; hiệu chỉnh isotonic, chọn lại ngưỡng |
+| UCI 529 có 269/520 dòng trùng hệt nhau | dữ liệu | đếm dòng trùng trước khi chia tập | bỏ trùng trước khi kiểm định chéo, nếu không AUC bị thổi phồng |
+| Tệp BRFSS 2023 trong zip có dấu cách cuối tên | dữ liệu | Python báo không thấy tệp | đổi tên, ghi chú trong LINK_DATASET.md |
 
 Ba bài học rút ra:
 
-1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong hai mươi lỗi ở bảng, chỉ một lỗi (viết mãi) liên quan trực tiếp tới hành vi của mô hình, và cách sửa vẫn nằm ở harness.
+1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong hai mươi ba lỗi ở bảng, chỉ một lỗi (viết mãi) liên quan trực tiếp tới hành vi của mô hình, và cách sửa vẫn nằm ở harness.
 2. **Bộ chấm cũng là code và cũng sai.** Mỗi lần số liệu thay đổi, phải đọc bản nháp thật trước khi kết luận.
 3. **Phải hiểu nghĩa của cạnh trước khi dùng.** Một cạnh "bệnh A – bệnh B" trong đồ thị lớn có thể là quan hệ phân loại chứ không phải quan hệ nguy cơ. Một con số mô hình học ra mà đổi theo hạt giống thì chưa đủ tin để đưa cho người dùng.
 
@@ -607,11 +663,11 @@ Ba bài học rút ra:
 **Hạn chế hiện tại**
 
 - Mức nguy cơ chỉ phản ánh 21 câu hỏi lối sống; xét nghiệm và triệu chứng được xét riêng bằng luật, chưa gộp thành một điểm chung.
-- Xác suất của MLP chưa được hiệu chỉnh.
 - Luật tiếng Việt hoạt động tốt nhất với chữ có dấu.
 - Benchmark không chấm độ đúng y khoa của phần giải thích.
 - Nhóm câu ngoài chủ đề chỉ đạt khoảng một nửa với mô hình 7B.
 - Bộ ca 50 ca còn nhỏ, khoảng tin cậy rộng.
+- Gộp nhiều nguồn làm xác suất đáng tin hơn hẳn nhưng AUC chỉ nhích nhẹ; trên Pima mô hình mới còn thua mô hình cũ một chút. NHANES thiếu 10/21 chỉ số và BRFSS 2023 thiếu rau quả. Cả ba nguồn chính đều là dữ liệu Mỹ; chưa có dữ liệu người Việt.
 - Đồ thị tri thức và agent RL chưa được đo trên benchmark hội thoại; chưa biết chúng làm câu trả lời tốt hơn bao nhiêu.
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
@@ -625,7 +681,7 @@ Ba bài học rút ra:
 2. Cho Rules, Lab và Nutrition đọc ngưỡng, triệu chứng và bảng dinh dưỡng từ đồ thị thay vì từ hằng số trong code, để đồ thị là nguồn sự thật duy nhất.
 3. Mở rộng đồ thị: biến chứng, thuốc, quan hệ giữa các yếu tố; trích khẳng định từ tài liệu tiếng Việt bằng mô hình ngôn ngữ, có người duyệt.
 4. Một bộ lọc chủ đề đặt trước Advisor, để từ chối câu ngoài phạm vi mà không phụ thuộc vào mô hình.
-5. Hiệu chỉnh xác suất của MLP (Platt hoặc isotonic) và một mô hình kết hợp hồ sơ với xét nghiệm.
+5. Tải thêm các tệp NHANES còn thiếu (sức khoẻ tổng quát, rượu bia, bảo hiểm, thu nhập) để lấp 10 chỉ số trống; tìm dữ liệu sàng lọc tiểu đường của Việt Nam để kiểm tra ngoài.
 6. Mở rộng bộ ca và mời người có chuyên môn y khoa chấm một mẫu câu trả lời.
 7. Thu phản hồi thật cho agent RL, đánh giá bằng SNIPS sau khi có đủ vài trăm lượt; thử thăm dò theo cận tin cậy trên (LinUCB) thay cho epsilon-greedy.
 
@@ -653,3 +709,9 @@ Ba bài học rút ra:
 20. R. S. Sutton, A. G. Barto, *Reinforcement Learning: An Introduction*, ấn bản 2, MIT Press, 2018.
 21. L. Li, W. Chu, J. Langford, R. E. Schapire, "A Contextual-Bandit Approach to Personalized News Article Recommendation", *WWW*, 2010.
 22. A. Swaminathan, T. Joachims, "The Self-Normalized Estimator for Counterfactual Learning", *NeurIPS*, 2015.
+23. CDC, Behavioral Risk Factor Surveillance System, 2023 Annual Survey Data.
+24. CDC/NCHS, National Health and Nutrition Examination Survey, các kỳ 2013–2014, 2015–2016, 2017–3/2020.
+25. J. W. Smith và cộng sự, "Using the ADAP Learning Algorithm to Forecast the Onset of Diabetes Mellitus", *Proc. Symposium on Computer Applications in Medical Care*, 1988 (bộ Pima Indians).
+26. M. M. F. Islam và cộng sự, "Likelihood Prediction of Diabetes at Early Stage Using Data Mining Techniques", *Computer Vision and Machine Intelligence in Medical Image Analysis*, Springer, 2020 (UCI 529).
+27. B. Zadrozny, C. Elkan, "Transforming Classifier Scores into Accurate Multiclass Probability Estimates", *KDD*, 2002.
+28. F. Pedregosa và cộng sự, "Scikit-learn: Machine Learning in Python", *JMLR*, 12, 2011.

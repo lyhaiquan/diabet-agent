@@ -4,7 +4,7 @@ Ghi ra kb/rl/brfss_state_freq.json (vài KB, nằm trong repo) để huấn luy�
 mà không cần tệp CSV 13,5 MB, kể cả khi chạy test hay trên Kaggle.
 
 - Phần hồ sơ (mức nguy cơ, thừa cân, ít vận động, tim mạch/hút thuốc) đếm trên 253.680 người BRFSS;
-  mức nguy cơ lấy từ chính Predictor (MLP) của hệ, giống lúc chạy thật.
+  mức nguy cơ lấy từ chính Predictor của hệ (bản đa nguồn đã hiệu chỉnh), giống lúc chạy thật.
 - Chủ đề câu hỏi đếm trên các câu hỏi trong eval/cases.json, phân loại bằng rl.detect_topic.
 - Mức xét nghiệm và "đã chẩn đoán" BRFSS không có, nên giữ là tỉ lệ giả định, ghi rõ trong tệp.
 
@@ -19,7 +19,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -35,11 +34,7 @@ DIAGNOSED_PRIOR = 0.25
 
 
 def risk_bands(pred, df):
-    x = df[pred.features].to_numpy(dtype="float32")
-    x = pred.scaler.transform(x).astype("float32")
-    with torch.no_grad():
-        p = torch.sigmoid(pred.model(torch.from_numpy(x))).numpy().ravel()
-    return [risk_band(float(v)) for v in p]
+    return [risk_band(float(v)) for v in pred.predict_many(df)]
 
 
 def main():

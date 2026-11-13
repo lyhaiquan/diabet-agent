@@ -2,8 +2,11 @@ import math
 import re
 import unicodedata
 
-HIGH_RISK_THRESHOLD = 0.5
-LOW_RISK_THRESHOLD = 0.2
+# Ngưỡng cho xác suất ĐÃ HIỆU CHỈNH của Predictor đa nguồn (tỉ lệ nền khoảng 14%):
+# cao >= 0,30 (gấp đôi tỉ lệ nền; trên BRFSS 2015 nhóm này gồm 17,6% người, 42% trong số đó có ĐTĐ),
+# thấp < 0,10 (54,9% người, chỉ 3,1% có ĐTĐ). Mô hình cũ chưa hiệu chỉnh dùng 0,5 / 0,2.
+HIGH_RISK_THRESHOLD = 0.3
+LOW_RISK_THRESHOLD = 0.1
 DISCLAIMER = "Đây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ."
 SAFE_REPLACEMENT = (
     "Mình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. "

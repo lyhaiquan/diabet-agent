@@ -5,7 +5,7 @@ kết quả xét nghiệm chỉ được *đối chiếu ngưỡng*, không ph�
 
 Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
-1. **Học sâu dự đoán nguy cơ**: MLP (PyTorch) huấn luyện trên CDC BRFSS 2015 (253.680 mẫu, 21 chỉ số).
+1. **Dự đoán nguy cơ từ nhiều nguồn**: mô hình học trên CDC BRFSS 2015, BRFSS 2023 và NHANES 2013–2020 (khoảng 535 nghìn người, 21 chỉ số), xác suất đã hiệu chỉnh; kiểm tra ngoài trên Pima (NIDDK); mô hình triệu chứng từ UCI 529.
 2. **Tri thức + RAG + Đồ thị tri thức (KG) + LLM**: truy xuất tài liệu (MedlinePlus, WHO) và đồ thị tri thức 5 loại cạnh rồi để LLM chạy cục bộ qua Ollama viết câu trả lời.
 3. **Học tăng cường (RL)**: contextual bandit chọn trọng tâm can thiệp cá nhân hoá và học từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn.
 4. **Luật an toàn**: chặn lời khuyên đổi thuốc, chuyển khám khi có triệu chứng, cấp cứu, xét nghiệm vượt ngưỡng.
@@ -17,7 +17,7 @@ flowchart LR
     Q[Câu hỏi + hồ sơ] --> O{Orchestrator}
     O --> M[Memory<br/>nhớ thông tin bệnh nhân]
     O --> L[Lab + OCR<br/>đối chiếu ngưỡng ADA 2024]
-    O --> P[Predictor<br/>MLP · BRFSS]
+    O --> P[Predictor<br/>đa nguồn · đã hiệu chỉnh]
     O --> R[Retriever<br/>RAG · sbert]
     O --> G[Graph<br/>Neo4j / NetworkX KG]
     O --> N[Nutrition<br/>bảng USDA]
@@ -38,7 +38,7 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 | Orchestrator | `src/diacare/orchestrator.py` | Điều phối, bắt câu chào hỏi, ghi trace từng bước |
 | Memory | `src/diacare/memory.py` | Trích và nhớ thông tin bệnh nhân (dị ứng, thuốc, chẩn đoán), tóm tắt lịch sử dài |
 | Lab + OCR | `src/diacare/labs.py`, `ocr.py` | Đọc HbA1c, đường huyết lúc đói, OGTT 2 giờ, đường huyết bất kỳ (từ chữ, PDF scan, ảnh chụp); đổi đơn vị; xếp mức |
-| Predictor | `src/diacare/predictor.py` | MLP dự đoán xác suất tiểu đường từ 21 chỉ số hồ sơ |
+| Predictor | `src/diacare/predictor.py` | Dự đoán xác suất tiểu đường (đã hiệu chỉnh) từ 21 chỉ số hồ sơ; học trên 3 nguồn CDC |
 | Retriever | `src/diacare/retriever.py` | Truy xuất dense (sbert), tuỳ chọn lai BM25 + RRF |
 | Graph (KG) | `src/diacare/kg.py` | Đồ thị tri thức 5 loại cạnh (ADA 2024, luật, USDA, thống kê BRFSS, khẳng định KB đã kiểm chứng) trên Neo4j hoặc NetworkX |
 | Nutrition | `src/diacare/nutrition.py` | Nhận món ăn Việt, tra USDA FoodData Central, xử lý từ đa nghĩa |
@@ -83,11 +83,16 @@ ollama pull qwen2.5:7b
 
 Model 3B (`qwen2.5:3b`) nhẹ hơn, đủ để thử luồng. Lần chạy đầu sẽ tự tải model embedding (khoảng 470 MB).
 
-**Huấn luyện Predictor** (file model không nằm trong repo). Script tự tải dữ liệu BRFSS từ UCI (id 891) và ghi vào `models/`:
+**Huấn luyện lại Predictor** (mô hình đã có sẵn trong `models/`). Tải dữ liệu theo `../diacare_datasets/LINK_DATASET.md`
+(BRFSS 2015, BRFSS 2023, NHANES, Pima, UCI 529), rồi:
 
 ```bash
-python src/train_predictor.py
+python tools/build_multisource.py   # gộp về 21 chỉ số -> data/multisource/*.parquet
+python tools/train_multisource.py   # huấn luyện, so với mô hình cũ, hiệu chỉnh -> models/predictor_ms.joblib
+python tools/train_aux_models.py    # kiểm tra ngoài trên Pima, mô hình triệu chứng UCI 529
 ```
+
+Bản cũ chỉ học BRFSS 2015 (`python src/train_predictor.py`) vẫn dùng được bằng `DIACARE_PREDICTOR=v1`.
 
 ## Chạy
 
@@ -203,8 +208,8 @@ diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản
 - Lưu trữ: mỗi quyết định và xác suất chọn vào bảng SQLite `rl_events`; mô hình đã học vào `rl_model`.
   Trang Thống kê hiện số phản hồi và ước lượng ngoài chính sách SNIPS.
 - Khởi động: tiên nghiệm lâm sàng thang $[-1, 1]$ trên trạng thái lấy theo phân bố thật của 253.680 người BRFSS
-  (`kb/rl/brfss_state_freq.json`). Điểm tiên nghiệm trên 5.000 trạng thái mới: chính sách 0,893, ngẫu nhiên 0,173,
-  cận trên 0,917. Đây chỉ là điểm xuất phát; chưa có phản hồi của người dùng thật.
+  (`kb/rl/brfss_state_freq.json`). Điểm tiên nghiệm trên 5.000 trạng thái mới: chính sách 0,850, ngẫu nhiên 0,173,
+  cận trên 0,902. Đây chỉ là điểm xuất phát; chưa có phản hồi của người dùng thật.
 
 ```bash
 python tools/build_rl_states.py    # phân bố trạng thái từ BRFSS (cần tệp CSV) -> kb/rl/brfss_state_freq.json
@@ -213,12 +218,17 @@ python tools/train_rl.py           # chính sách khởi động -> models/rl_po
 
 ## Đánh giá
 
-**Predictor** (tập kiểm tra 20%, khoảng 50.736 mẫu, xem `models/metrics.json`):
+**Predictor** (tập kiểm tra 20% của từng nguồn; chi tiết ở `docs/results/multisource_eval.json`):
 
-| Mô hình | AUC | F1 | Recall |
-|---|---|---|---|
-| Logistic Regression | 0.820 | 0.441 | 0.761 |
-| MLP | 0.827 | 0.443 | 0.803 |
+| Tập kiểm tra | AUC cũ (chỉ BRFSS 2015) | AUC mới | Brier cũ | Brier mới | ECE cũ | ECE mới |
+|---|---|---|---|---|---|---|
+| BRFSS 2015 | 0,831 | 0,829 | 0,174 | 0,097 | 0,234 | 0,004 |
+| BRFSS 2023 | 0,817 | 0,818 | 0,173 | 0,102 | 0,224 | 0,004 |
+| NHANES | 0,824 | 0,830 | 0,114 | 0,096 | 0,092 | 0,009 |
+| NHANES, ĐTĐ chưa chẩn đoán theo xét nghiệm | 0,716 | 0,723 | | | | |
+
+AUC gần như giữ nguyên; xác suất đáng tin hơn hẳn. Ngưỡng mức nguy cơ: thấp < 0,10, cao ≥ 0,30.
+Pima (kiểm tra ngoài, 4/21 chỉ số): AUC 0,724 mới, 0,739 cũ. Mô hình triệu chứng UCI 529 (251 người sau khi bỏ 269 dòng trùng): AUC 0,948.
 
 **Benchmark hội thoại** (`eval/cases.json`, hiện có 50 ca thuộc 11 nhóm). Mỗi ca chạy k lần và chấm trên bản nháp thật
 của LLM: có trích nguồn đã truy xuất, không khuyên đổi thuốc, nhắc bác sĩ, đúng các cờ.
@@ -248,7 +258,7 @@ python -m pytest -q
 ```
 src/app.py              giao diện Streamlit
 src/cli.py              giao diện dòng lệnh
-src/train_predictor.py  huấn luyện MLP trên BRFSS
+src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
 kb/                     tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
 data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC)
@@ -262,14 +272,16 @@ tests/                  test (pytest)
 ## Hạn chế đã biết
 
 - Mức nguy cơ chỉ tính từ 21 câu hỏi lối sống trong hồ sơ, không dùng xét nghiệm hay triệu chứng (hai thứ này được xét
-  riêng bằng cờ). Xác suất của MLP chưa được hiệu chỉnh.
+  riêng bằng cờ). Ba nguồn huấn luyện đều là dữ liệu Mỹ; NHANES thiếu 10/21 chỉ số, BRFSS 2023 thiếu rau quả.
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt.
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
 - Nhóm câu ngoài chủ đề (`out_of_scope`) mới đạt 0.50: model vẫn làm thơ hoặc chỉ cách nấu ăn thay vì từ chối.
 
 ## Nguồn dữ liệu
 
-- CDC BRFSS 2015 Diabetes Health Indicators (UCI Machine Learning Repository, id 891).
+- CDC BRFSS 2015 Diabetes Health Indicators (UCI Machine Learning Repository, id 891); CDC BRFSS 2023.
+- CDC NHANES 2013–2014, 2015–2016, 2017–3/2020.
+- Pima Indians Diabetes (NIDDK, OpenML id 37); Early Stage Diabetes Risk Prediction (UCI id 529).
 - MedlinePlus (U.S. National Library of Medicine), WHO Diabetes fact sheet: trích để học tập, giữ ghi nguồn.
 - USDA FoodData Central.
 - Ngưỡng xét nghiệm: American Diabetes Association, Standards of Care in Diabetes 2024.

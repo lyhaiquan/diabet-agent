@@ -465,6 +465,21 @@ Bảng so sánh hiệu năng trên tập kiểm thử độc lập:
 - Nguy cơ Trung bình: $0.20 \le P < 0.50$
 - Nguy cơ Cao: $P \ge 0.50$
 
+(Đây là ngưỡng của bản V1; bản hiện tại dùng 0,10 / 0,30 cho xác suất đã hiệu chỉnh, xem mục dưới.)
+
+### Nâng cấp: học từ nhiều nguồn và hiệu chỉnh xác suất (V3.3)
+
+Mô hình MLP ở trên là bản V1. Bản đang chạy học trên **BRFSS 2015, BRFSS 2023 (CDC) và NHANES 2013–2020 (CDC, có xét nghiệm)**, kiểm tra ngoài trên **Pima Indians (NIDDK)**, và có mô hình triệu chứng riêng từ **UCI 529 (bệnh viện Sylhet)**: năm bộ dữ liệu, bốn đơn vị nguồn. Ba bộ đầu được ánh xạ về cùng 21 chỉ số (chỉ số thiếu để trống); nhãn chung là tự khai đã được chẩn đoán.
+
+| Tập kiểm tra | AUC cũ | AUC mới | Brier cũ | Brier mới | ECE cũ | ECE mới |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| BRFSS 2015 | 0,831 | 0,829 | 0,174 | 0,097 | 0,234 | 0,004 |
+| BRFSS 2023 | 0,817 | 0,818 | 0,173 | 0,102 | 0,224 | 0,004 |
+| NHANES | 0,824 | 0,830 | 0,114 | 0,096 | 0,092 | 0,009 |
+| NHANES, ĐTĐ chưa chẩn đoán theo xét nghiệm | 0,716 | 0,723 | | | | |
+
+Mô hình mới là HistGradientBoosting hiệu chỉnh isotonic. AUC gần như giữ nguyên; cải thiện chính là xác suất đáng tin (Brier giảm 44%, ECE từ 0,23 xuống 0,004). Ngưỡng mức nguy cơ đổi thành **thấp < 0,10, cao ≥ 0,30**: nhóm "cao" giảm từ 37% xuống 17,6% dân số BRFSS, và 42% trong nhóm này có bệnh thật. Chi tiết trong báo cáo chi tiết, mục 3.5.
+
 ## 7.2. Đồ thị Tri thức Knowledge Graph trên Neo4j
 
 ### Cấu trúc Đồ thị Tri thức Phân tầng
@@ -541,16 +556,16 @@ Mỗi quyết định được ghi vào bảng `rl_events` (trạng thái, hành
 
 ## 8.3. Khởi động và đánh giá
 
-Trước khi có phản hồi, chính sách học từ điểm ưu tiên lâm sàng tiên nghiệm do nhóm đặt, quy về thang $[-1, 1]$, trên trạng thái lấy mẫu theo **phân bố thật**: 24 tổ hợp hồ sơ của 253.680 người BRFSS 2015 (mức nguy cơ do Predictor tính) và chủ đề của 50 câu hỏi benchmark. Xét nghiệm và chẩn đoán dùng tỉ lệ giả định. Tiên nghiệm nặng bằng 30 lượt phản hồi mỗi hành động.
+Trước khi có phản hồi, chính sách học từ điểm ưu tiên lâm sàng tiên nghiệm do nhóm đặt, quy về thang $[-1, 1]$, trên trạng thái lấy mẫu theo **phân bố thật**: 22 tổ hợp hồ sơ của 253.680 người BRFSS 2015 (mức nguy cơ do Predictor đa nguồn tính) và chủ đề của 50 câu hỏi benchmark. Xét nghiệm và chẩn đoán dùng tỉ lệ giả định. Tiên nghiệm nặng bằng 30 lượt phản hồi mỗi hành động.
 
 Trên 5.000 trạng thái mới:
 
 | Chính sách | Điểm tiên nghiệm TB |
 |---|:---:|
 | Chọn ngẫu nhiên | 0,173 |
-| Luôn khuyên khám | 0,300 |
-| **Chính sách khởi động** | **0,893** |
-| Chọn tối ưu (cận trên) | 0,917 |
+| Luôn khuyên khám | 0,201 |
+| **Chính sách khởi động** | **0,850** |
+| Chọn tối ưu (cận trên) | 0,902 |
 
 Bảng này chỉ cho thấy mô hình học được tiên nghiệm, không chứng minh lời khuyên tốt hơn cho người thật. Chất lượng thật được đo bằng ước lượng ngoài chính sách SNIPS (Swaminathan và Joachims, 2015) trên các lượt có phản hồi, hiện ở trang Thống kê. Một test với người dùng mô phỏng (chỉ thích "vận động") cho thấy sau 200 lượt chính sách chuyển hẳn sang "vận động". Lúc viết báo cáo hệ có **0 phản hồi thật**.
 
@@ -679,14 +694,14 @@ Hệ thống đã trải qua quy trình kiểm chuẩn tự động nghiêm ng�
 
 ## 11.2. Năng lực Kiểm thử Đơn vị Toàn diện
 
-Hệ thống có bộ kiểm thử tự động gồm **488 unit tests** phân bổ trên 28 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **491 unit tests** phân bổ trên 28 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Toàn bộ 488 bài kiểm thử hoàn thành trong khoảng 80 giây trên CPU, khẳng định tính ổn định và độ tin cậy của phần mềm.
+Toàn bộ 491 bài kiểm thử hoàn thành trong khoảng 80 giây trên CPU, khẳng định tính ổn định và độ tin cậy của phần mềm.
 
 ## 11.3. Khả năng Mở rộng Kiến trúc (Scalability & Extensibility)
 

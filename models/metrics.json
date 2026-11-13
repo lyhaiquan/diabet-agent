@@ -1,10 +1,117 @@
 {
+ "current": "multisource",
+ "multisource": {
+  "source": "tools/train_multisource.py, chạy ngày 2026-11-13",
+  "model": "HistGradientBoosting + hiệu chỉnh isotonic",
+  "train_rows": {
+   "brfss2015": 177576,
+   "brfss2023": 183112,
+   "nhanes": 14047
+  },
+  "test": {
+   "brfss2015": {
+    "n": 50736,
+    "pos": 0.1393,
+    "auc": 0.8288,
+    "brier": 0.0971,
+    "ece": 0.0039
+   },
+   "brfss2023": {
+    "n": 52318,
+    "pos": 0.1462,
+    "auc": 0.8177,
+    "brier": 0.1022,
+    "ece": 0.0044
+   },
+   "nhanes": {
+    "n": 4014,
+    "pos": 0.1378,
+    "auc": 0.8297,
+    "brier": 0.0961,
+    "ece": 0.009
+   },
+   "nhanes_lab_label": {
+    "n": 3839,
+    "pos": 0.1836,
+    "auc": 0.8117,
+    "brier": 0.1231,
+    "ece": 0.0484
+   },
+   "nhanes_undiagnosed": {
+    "n": 3286,
+    "pos": 0.0463,
+    "auc": 0.7234,
+    "brier": 0.0555,
+    "ece": 0.0625
+   }
+  },
+  "old_model_same_tests": {
+   "brfss2015": {
+    "n": 50736,
+    "pos": 0.1393,
+    "auc": 0.8306,
+    "brier": 0.1742,
+    "ece": 0.2339
+   },
+   "brfss2023": {
+    "n": 52318,
+    "pos": 0.1462,
+    "auc": 0.8166,
+    "brier": 0.1734,
+    "ece": 0.2237
+   },
+   "nhanes": {
+    "n": 4014,
+    "pos": 0.1378,
+    "auc": 0.824,
+    "brier": 0.1138,
+    "ece": 0.0916
+   },
+   "nhanes_lab_label": {
+    "n": 3839,
+    "pos": 0.1836,
+    "auc": 0.8061,
+    "brier": 0.1278,
+    "ece": 0.0566
+   },
+   "nhanes_undiagnosed": {
+    "n": 3286,
+    "pos": 0.0463,
+    "auc": 0.7163,
+    "brier": 0.0949,
+    "ece": 0.146
+   }
+  },
+  "leave_one_source_out_auc": {
+   "brfss2015": 0.8259,
+   "brfss2023": 0.8151,
+   "nhanes": 0.8207
+  },
+  "pima_external_auc": {
+   "multisource": 0.7236,
+   "old": 0.7386
+  },
+  "risk_bands": {
+   "thap": "< 0.10",
+   "cao": ">= 0.30"
+  }
+ },
+ "v1": {
   "source": "train_predictor.py, chạy ngày 2026-11-04 trên CDC BRFSS 2015 (UCI id 891)",
   "n_samples": 253680,
   "positive_rate": 0.139,
   "split": "80/20 phân tầng, seed 42 (tập kiểm tra ≈ 50.736 mẫu)",
   "models": {
-    "LogisticRegression": {"auc": 0.820, "f1": 0.441, "recall": 0.761},
-    "MLP": {"auc": 0.827, "f1": 0.443, "recall": 0.803}
+   "LogisticRegression": {
+    "auc": 0.82,
+    "f1": 0.441,
+    "recall": 0.761
+   },
+   "MLP": {
+    "auc": 0.827,
+    "f1": 0.443,
+    "recall": 0.803
+   }
   }
+ }
 }

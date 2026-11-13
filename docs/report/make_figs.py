@@ -56,7 +56,7 @@ def architecture():
     q = box(ax, 0.2, 4.15, 1.9, 1.0, "Người dùng", "câu hỏi + hồ sơ", "io")
     o = box(ax, 5.85, 4.1, 2.9, 1.1, "Orchestrator", "điều phối tuần tự, ghi trace", "hub", 12)
     top = [("Memory", "trích & nhớ thông tin"), ("Lab", "ngưỡng ADA · OCR"),
-           ("Predictor", "MLP · BRFSS"), ("Retriever", "RAG · sbert"), ("Graph", "đồ thị tri thức")]
+           ("Predictor", "3 nguồn · hiệu chỉnh"), ("Retriever", "RAG · sbert"), ("Graph", "đồ thị tri thức")]
     bot = [("Nutrition", "bảng USDA"), ("RL", "học từ phản hồi"), ("Context", "cắt ngữ cảnh"),
            ("Advisor", "LLM qua Ollama"), ("Rules", "lọc an toàn, gắn cờ")]
     xs = [2.8, 4.65, 6.5, 8.35, 10.2]
@@ -70,7 +70,7 @@ def architecture():
 
     # tai nguyen (ngoai harness): dat ngay tren / duoi agent dung no
     db = box(ax, 2.8, 8.2, 3.5, 0.85, "SQLite", "bệnh nhân · bộ nhớ · xét nghiệm · log", "data", 10)
-    mdl = box(ax, 6.5, 8.2, 1.65, 0.85, "predictor.pt", "MLP đã huấn luyện", "data", 10)
+    mdl = box(ax, 6.5, 8.2, 1.65, 0.85, "predictor_ms", "BRFSS · NHANES", "data", 10)
     kb = box(ax, 8.35, 8.2, 1.65, 0.85, "Kho tài liệu", "MedlinePlus · WHO", "data", 10)
     kg = box(ax, 10.2, 8.2, 1.65, 0.85, "Neo4j / networkx", "108 nút · PrimeKG", "data", 10)
     usda = box(ax, 2.8, 0.25, 1.65, 0.85, "USDA FDC", "bảng dinh dưỡng", "data", 10)

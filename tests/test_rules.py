@@ -91,7 +91,7 @@ def test_validate_profile_nan():
 
 
 @pytest.mark.parametrize("risk,band", [
-    (0.1, "thấp"), (0.3, "trung bình"), (0.5, "cao"), (0.9, "cao"),
+    (0.05, "thấp"), (0.1, "trung bình"), (0.2, "trung bình"), (0.3, "cao"), (0.9, "cao"),
 ])
 def test_risk_band(risk, band):
     assert risk_band(risk) == band

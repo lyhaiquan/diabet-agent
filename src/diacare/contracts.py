@@ -113,8 +113,8 @@ def evaluate_pre_rules(
 ) -> dict:
     """Thực thi suy diễn luật TRƯỚC khi gọi Explanation Agent (Mục 5.3 Bước 7).
 
-    - Cờ `uncertain_prediction_review`: dự đoán rơi vào vùng không chắc chắn quanh 0.5 (0.45 - 0.55).
-    - Cờ `conflicting_results_review`: risk < 0.2 (thấp) nhưng có xét nghiệm đái tháo đường / hạ đường huyết,
+    - Cờ `uncertain_prediction_review`: dự đoán rơi vào vùng không chắc chắn quanh ngưỡng nguy cơ cao (± UNCERTAIN_MARGIN).
+    - Cờ `conflicting_results_review`: risk < LOW_RISK_THRESHOLD (thấp) nhưng có xét nghiệm đái tháo đường / hạ đường huyết,
       hoặc câu hỏi chứa triệu chứng / dấu hiệu cấp cứu.
     """
     flags: list[str] = []

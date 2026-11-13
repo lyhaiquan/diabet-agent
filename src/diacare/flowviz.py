@@ -9,7 +9,7 @@ import uuid
 NODES = [
     ("Memory", "Memory", "Nhớ thông tin bệnh nhân", "🧠", "SQLite", (215, 40)),
     ("Lab", "Lab", "Đối chiếu ngưỡng xét nghiệm", "🧪", "ADA 2024 · OCR", (415, 40)),
-    ("Predictor", "Predictor", "Dự đoán nguy cơ (MLP)", "📈", "BRFSS · 21 chỉ số", (615, 40)),
+    ("Predictor", "Predictor", "Dự đoán nguy cơ", "📈", "5 bộ dữ liệu · đã hiệu chỉnh", (615, 40)),
     ("Retriever", "Retriever", "Tìm tài liệu (RAG)", "🔎", "KB · sbert", (815, 40)),
     ("Graph", "Graph", "Tra đồ thị tri thức", "🕸️", "Neo4j · KG", (1015, 40)),
     ("Nutrition", "Nutrition", "Tra dinh dưỡng món ăn", "🥗", "USDA FDC", (215, 470)),

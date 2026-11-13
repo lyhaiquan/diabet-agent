@@ -126,7 +126,8 @@ class Orchestrator:
                 step("Lab", _short(f"{r['label']} {r['value_std']:g} {r['unit_std']} → {r['level']}"
                                    for r in state.labs) if state.labs else "không có kết quả xét nghiệm")
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
-            step("Predictor", f"MLP trên 21 chỉ số hồ sơ BRFSS: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}")
+            kind = "mô hình đa nguồn" if getattr(self.predictor, "kind", "") == "multisource" else "MLP"
+            step("Predictor", f"{kind} trên 21 chỉ số hồ sơ: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}")
             state.messages.append(make_message(
                 req_id, "DiabetesPredictionAgent", "ok",
                 {"prediction": int(state.risk >= HIGH_RISK_THRESHOLD), "score": round(float(state.risk), 4),

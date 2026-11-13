@@ -16,8 +16,10 @@ OUT = Path(__file__).resolve().parent / "diacare_kaggle.ipynb"
 INCLUDE = [
     ("src", ["*.py", "diacare/*.py"]),
     ("eval", ["*.py", "*.json"]),
-    ("models", ["predictor.pt", "scaler.joblib", "metrics.json"]),
+    ("models", ["predictor.pt", "scaler.joblib", "metrics.json", "predictor_ms.joblib", "rl_policy.json"]),
     ("kb", ["*.txt", "*.md", "*.pdf"]),
+    ("kb/graph", ["*.json"]),
+    ("kb/rl", ["*.json"]),
     ("data/nutrition", ["*.json"]),
 ]
 

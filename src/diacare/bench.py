@@ -292,7 +292,17 @@ def build_report(results_by_model, meta):
 
     out += ["## 7. Predictor", ""]
     pm = meta.get("predictor_metrics")
-    if pm:
+    ms = (pm or {}).get("multisource") if (pm or {}).get("current") == "multisource" else None
+    if ms:
+        out.append(f"- Nguồn: {ms.get('source', 'n/a')}; mô hình: {ms.get('model', 'n/a')}")
+        out.append("- Dữ liệu huấn luyện: " + ", ".join(f"{k} {v}" for k, v in ms.get("train_rows", {}).items()))
+        out += ["", "| Tập kiểm tra | AUC | Brier | ECE | AUC mô hình cũ |", "|---|---|---|---|---|"]
+        old = ms.get("old_model_same_tests", {})
+        for name, v in ms.get("test", {}).items():
+            out.append(f"| {_cell(name)} | {_f(v.get('auc'), 3)} | {_f(v.get('brier'), 3)} | {_f(v.get('ece'), 3)} "
+                       f"| {_f(old.get(name, {}).get('auc'), 3)} |")
+        out.append("")
+    elif pm:
         if pm.get("source"):
             out.append(f"- Nguồn: {pm['source']}")
         if pm.get("n_samples") is not None:
