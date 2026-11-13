@@ -178,6 +178,29 @@ Cách chạy:
 - Mỗi request mở một kết nối SQLite riêng, chế độ WAL.
 - Các lượt tư vấn chạy lần lượt từng lượt một, vì Ollama cũng chỉ trả lời từng câu một.
 
+### Giao diện web (Next.js)
+
+Trong `web/` có giao diện cho người bệnh, ưu tiên màn hình điện thoại, gọi vào dịch vụ API ở trên. Gồm các trang:
+
+- Đăng nhập, đăng ký.
+- Tạo hồ sơ theo dõi. Một tài khoản theo dõi được cho nhiều người thân.
+- **Hôm nay**: cảnh báo, ghi đường huyết, số liệu và biểu đồ 14 ngày.
+- **Nhật ký**: đường huyết; huyết áp và cân nặng; xét nghiệm, có chụp ảnh phiếu.
+- **Tư vấn**: chữ hiện dần qua SSE, có nút 👍/👎 cho agent RL.
+- **Tái khám**: lịch hẹn, câu hỏi cho bác sĩ, tải PDF.
+
+```bash
+uvicorn api.main:app --app-dir src --port 8000   # cửa sổ 1: API (mất khoảng 30 giây để nạp mô hình)
+cd web
+npm install                                       # lần đầu, khoảng 370 MB
+npm run dev                                       # cửa sổ 2: http://localhost:3000
+```
+
+API đặt ở cổng khác thì chép `web/.env.example` thành `web/.env.local` và sửa `NEXT_PUBLIC_API_URL`. Phiên bản dùng:
+Next.js 16.4, React 19.3, TypeScript 5.9. Ngoài các gói đó không cài thêm thư viện nào; biểu đồ tự vẽ bằng SVG.
+Token đăng nhập lưu trong `localStorage` của trình duyệt. Cách này đủ cho đồ án; bản chạy thật nên chuyển sang
+cookie `HttpOnly`.
+
 ### Chạy trên Kaggle (GPU miễn phí)
 
 `kaggle/build_app_notebook.py` đóng gói code thành notebook. Notebook cài Ollama, tải `qwen2.5:7b`, chạy Streamlit và
@@ -310,6 +333,7 @@ python -m pytest -q
 src/app.py              giao diện Streamlit
 src/journal_ui.py       ba trang Hôm nay, Nhật ký, Tái khám
 src/api/                dịch vụ FastAPI (main.py) và mật khẩu, token (security.py)
+web/                    giao diện Next.js (app/: các trang, lib/api.ts: gọi API và đọc luồng SSE)
 src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
