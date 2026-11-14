@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GlucoseChart } from "@/components/GlucoseChart";
 import { GlucoseForm } from "@/components/GlucoseForm";
+import { VoiceReading } from "@/components/VoiceReading";
 import { ErrorText, Notices } from "@/components/Notice";
 import { api, fmtDate, fmtMmol, fmtTime, type Summary, type Today } from "@/lib/api";
 import { usePatient } from "@/lib/session";
@@ -38,6 +39,8 @@ export default function TodayPage() {
 
       <section className="card">
         <h2>Ghi đường huyết</h2>
+        <VoiceReading patientId={patient.id} onSaved={load} />
+        <div style={{ height: 14 }} />
         <GlucoseForm patientId={patient.id} onSaved={load} showAdvice={false} />
       </section>
 

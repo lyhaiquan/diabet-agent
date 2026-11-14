@@ -197,3 +197,13 @@ th { color: var(--muted); font-weight: 500; border-top: 0; }
 .auth { max-width: 420px; margin: 0 auto; padding: 48px 16px; }
 .auth .brand { font-size: 1.8rem; display: block; margin-bottom: 4px; }
 .center { display: grid; place-items: center; min-height: 60vh; color: var(--muted); }
+
+/* ---- giọng nói ---- */
+.mic { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; }
+.mic-on { background: var(--err); border-color: var(--err); color: #fff; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--err) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .mic-on { animation: none; } }
+.composer form { flex-wrap: wrap; }
+.composer textarea { flex: 1 1 200px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 1 auto; }
+.toolbar > * { flex: 0 0 auto; }

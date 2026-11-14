@@ -313,3 +313,51 @@ def test_cors_only_allows_configured_origin(client):
     assert ok.headers.get("access-control-allow-origin") == "http://localhost:3000"
     bad = client.options("/health", headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "GET"})
     assert "access-control-allow-origin" not in bad.headers
+
+
+# ---- giọng nói ----
+
+def _wav(seconds=1.0):
+    import wave as _wave
+    import numpy as _np
+    n = int(seconds * 16000)
+    pcm = (0.3 * _np.sin(2 * _np.pi * 220 * _np.arange(n) / 16000) * 32767).astype("<i2")
+    buf = io.BytesIO()
+    with _wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+@pytest.fixture
+def voice_client(tmp_path, parts):
+    from diacare.speech import DemoTranscriber
+    app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: NOW,
+                     transcriber=DemoTranscriber("Đường huyết sáng nay lúc đói sáu phẩy tám"))
+    with TestClient(app) as c:
+        yield c
+
+
+def test_transcribe_returns_text_and_reading_without_saving(voice_client):
+    auth = register(voice_client)
+    pid = new_patient(voice_client, auth)
+    r = voice_client.post("/transcribe", files={"audio": ("noi.wav", _wav(), "audio/wav")}, headers=auth)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["text"] == "Đường huyết sáng nay lúc đói sáu phẩy tám"
+    assert body["reading"]["value"] == 6.8 and body["reading"]["context"] == "fasting"
+    assert body["audio_seconds"] == 1.0
+    # chỉ là đề xuất: chưa có số đo nào được lưu khi người dùng chưa xác nhận
+    assert voice_client.get(f"/patients/{pid}/readings", headers=auth).json() == []
+
+
+def test_transcribe_rejects_bad_audio_and_requires_login(voice_client):
+    auth = register(voice_client)
+    assert voice_client.post("/transcribe", files={"audio": ("a.wav", _wav(), "audio/wav")}).status_code == 401
+    bad = voice_client.post("/transcribe", files={"audio": ("a.wav", b"rac", "audio/wav")}, headers=auth)
+    assert bad.status_code == 422 and "WAV" in bad.json()["detail"]
+    big = voice_client.post("/transcribe", files={"audio": ("a.wav", b"0" * (4 * 1024 * 1024 + 10), "audio/wav")},
+                            headers=auth)
+    assert big.status_code == 413

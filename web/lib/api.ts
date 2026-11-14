@@ -225,7 +225,20 @@ export const api = {
   sessions: (pid: number) => json<{ id: number; created_at: string; n_messages: number }[]>(`/patients/${pid}/sessions`),
   messages: (pid: number, sid: number) => json<ChatMessage[]>(`/patients/${pid}/sessions/${sid}/messages`),
   feedback: (eventId: number, value: "up" | "down") => post<unknown>(`/feedback/${eventId}`, { value }),
+
+  transcribe: (wav: Blob) => {
+    const fd = new FormData();
+    fd.append("audio", wav, "noi.wav");
+    return json<Transcript>("/transcribe", { method: "POST", body: fd });
+  },
 };
+
+export type SpokenReading =
+  | { kind: "glucose"; value: number; unit: "mmol/L" | "mg/dL"; context: Context | null; summary: string;
+      alternative?: { value: number; unit: "mmol/L"; summary: string } }
+  | { kind: "bp"; systolic: number; diastolic: number; summary: string }
+  | { kind: "weight"; kg: number; summary: string };
+export type Transcript = { text: string; reading: SpokenReading | null; seconds: number; audio_seconds: number };
 
 // ---- tư vấn qua luồng SSE ----------------------------------------------------
 

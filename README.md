@@ -201,6 +201,39 @@ Next.js 16.4, React 19.3, TypeScript 5.9. Ngoài các gói đó không cài thê
 Token đăng nhập lưu trong `localStorage` của trình duyệt. Cách này đủ cho đồ án; bản chạy thật nên chuyển sang
 cookie `HttpOnly`.
 
+### Giọng nói
+
+Người dùng nói thay vì gõ. Có hai chỗ dùng:
+
+- **Trang Hôm nay, nút "Nói số đo".** Ví dụ nói "đường huyết lúc đói sáu phẩy tám" hoặc "huyết áp một trăm hai mươi lăm
+  trên tám mươi". App hiện chữ nghe được kèm số đo đề xuất, người dùng bấm xác nhận mới lưu. Câu không nói đơn vị như
+  "sáu tám" có thể là 68 mg/dL (đang hạ đường huyết) hoặc 6,8 mmol/L, nên app đưa cả hai lựa chọn và không tự đoán.
+- **Trang Tư vấn, nút micro.** Chữ nghe được hiện vào ô nhập để sửa trước khi gửi. Nút "Đọc to" đọc câu trả lời bằng
+  giọng tiếng Việt có sẵn của máy, và chỉ đọc câu trả lời cuối đã qua Rules, không đọc bản nháp.
+
+Cách làm:
+
+- Trình duyệt tự ghi âm thành WAV 16 kHz, nên máy chủ không cần ffmpeg.
+- API nhận dạng bằng [PhoWhisper-small](https://huggingface.co/vinai/PhoWhisper-small) của VinAI (BSD-3), chạy CPU:
+  khoảng 2–3 giây cho một câu ngắn, lần đầu mất khoảng 30 giây để nạp mô hình.
+- Âm thanh không được lưu; endpoint là `POST /transcribe`.
+- Đọc số tiếng Việt nằm trong `src/diacare/speech.py`: "một trăm linh năm", "bảy rưỡi", "sáu phẩy tám".
+
+```bash
+# tải mô hình một lần (khoảng 970 MB); đặt HF_HOME để chọn thư mục lưu
+HF_HOME=D:/hf_cache python -c "from huggingface_hub import snapshot_download; snapshot_download('vinai/PhoWhisper-small')"
+HF_HOME=D:/hf_cache uvicorn api.main:app --app-dir src --port 8000
+```
+
+`DIACARE_ASR=demo` thay mô hình bằng bộ nhận dạng giả lập để test.
+
+Lưu ý khi dùng:
+
+- Micro chỉ dùng được trên `localhost` hoặc HTTPS.
+- Giọng đọc phụ thuộc máy. Windows cần thêm giọng Tiếng Việt trong phần Cài đặt; app sẽ báo nếu máy chưa có.
+- Gặp tiếng ồn không phải lời nói, Whisper có thể "bịa" ra một câu. Vì vậy mọi số đo nghe được đều phải được xác nhận
+  trước khi lưu.
+
 ### Chạy trên Kaggle (GPU miễn phí)
 
 `kaggle/build_app_notebook.py` đóng gói code thành notebook. Notebook cài Ollama, tải `qwen2.5:7b`, chạy Streamlit và
@@ -231,6 +264,8 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_DEV` | (tắt) | `1`: giao diện Streamlit mở sẵn chế độ nhà phát triển |
 | `DIACARE_API_SECRET` | tự sinh vào `data/api_secret.key` | khoá ký token của API, ít nhất 32 ký tự |
 | `DIACARE_CORS` | `http://localhost:3000` | các origin được gọi API, cách nhau bằng dấu phẩy |
+| `DIACARE_ASR` | `phowhisper` | `demo`: nhận dạng giọng giả lập (test) |
+| `DIACARE_ASR_MODEL` | `vinai/PhoWhisper-small` | mô hình nhận dạng giọng (Hugging Face) |
 
 ## Đồ thị tri thức (Knowledge Graph)
 

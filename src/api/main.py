@@ -12,6 +12,7 @@ import json
 import os
 import queue
 import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -32,18 +33,20 @@ from diacare.memory import KIND_LABELS, has_diagnosis
 from diacare.rl import ACTION_LABELS, RLAgent
 from diacare.rules import FEATURE_RANGES, SafeStream, risk_band, validate_profile
 from diacare.samples import LOW_RISK
+from diacare.speech import AudioError, decode_wav, make_transcriber, parse_spoken_reading
 from diacare.state import State
 from diacare.visit_report import build_visit_pdf
 
 API_VERSION = "0.1.0"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_AUDIO_BYTES = 4 * 1024 * 1024  # 60 giây WAV 16 kHz 16 bit khoảng 1,9 MB
 DIAGNOSIS_T2D = "đái tháo đường típ 2"
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 # ---- dựng ứng dụng ------------------------------------------------------------
 
-def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=None):
+def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=None, transcriber=None):
     """Tham số để test: db_path (tệp SQLite tạm), parts (LLM giả lập), secret, clock (giờ cố định)."""
     db_path = str(db_path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
 
@@ -65,6 +68,7 @@ def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=N
     app.state.secret = secret
     app.state.clock = clock or journal.now_vn
     app.state.chat_lock = threading.Lock()
+    app.state.transcriber = transcriber  # None: nạp PhoWhisper ở lần nói đầu tiên
     origins = cors_origins if cors_origins is not None else [
         o.strip() for o in os.environ.get("DIACARE_CORS", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True,
@@ -593,6 +597,27 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
 
         return StreamingResponse(gen(), media_type="text/event-stream",
                                  headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.post("/transcribe", tags=["giọng nói"])
+    def transcribe(request: Request, audio: UploadFile = File(..., description="WAV PCM 16 bit, tối đa 60 giây"),
+                   user=Depends(current_user)):
+        """Chuyển lời nói tiếng Việt thành chữ. Âm thanh không được lưu lại.
+        `reading` là số đo nghe được trong câu (nếu có), chỉ để giao diện hỏi lại người dùng trước khi lưu."""
+        data = audio.file.read(MAX_AUDIO_BYTES + 1)
+        if len(data) > MAX_AUDIO_BYTES:
+            raise HTTPException(413, "Đoạn ghi âm quá dài.")
+        try:
+            samples = decode_wav(data)
+        except AudioError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        finally:
+            del data
+        if request.app.state.transcriber is None:
+            request.app.state.transcriber = make_transcriber()
+        t0 = time.perf_counter()
+        text = request.app.state.transcriber(samples)
+        return {"text": text, "reading": parse_spoken_reading(text) if text else None,
+                "seconds": round(time.perf_counter() - t0, 2), "audio_seconds": round(len(samples) / 16000, 1)}
 
     @app.post("/feedback/{event_id}", tags=["tư vấn"])
     def feedback(event_id: int, body: FeedbackIn, request: Request, user=Depends(current_user),
