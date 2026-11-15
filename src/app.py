@@ -73,7 +73,8 @@ def new_orchestrator(base, store, session_id):
                         summarizer_llm=getattr(base, "summarizer_llm", None),
                         lab_agent=getattr(base, "lab_agent", None),
                         graph_agent=getattr(base, "graph_agent", None),
-                        rl_agent=getattr(base, "rl_agent", None))
+                        rl_agent=getattr(base, "rl_agent", None),
+                        journal_agent=getattr(base, "journal_agent", None))
 
 
 def _env_key():

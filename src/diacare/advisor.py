@@ -10,6 +10,10 @@ SYSTEM_PROMPT = (
     " Khi dùng số liệu dinh dưỡng, trích nguồn [usda_fdc] và nói rõ khẩu phần là ước lượng."
     " Khi có kết quả xét nghiệm, giải thích chỉ số so với ngưỡng tham khảo, trích nguồn [ada_2024],"
     " nói rõ đây không phải chẩn đoán và cần bác sĩ xác nhận."
+    " Khi có nhật ký tự theo dõi, dựa vào số liệu trong đó để trả lời sát với người dùng (nêu con số cụ thể),"
+    " giữ nguyên nhận định có sẵn trong nhật ký (cao hơn, thấp hơn hay trong mục tiêu), không tự so sánh lại,"
+    " nhắc rằng bác sĩ có thể đặt mục tiêu riêng; không suy ra hay đề xuất liều thuốc từ nhật ký."
+    " Nếu nhật ký có hạ đường huyết hoặc chỉ số rất cao, khuyên người dùng báo bác sĩ."
 )
 
 
@@ -22,6 +26,8 @@ def build_messages(ctx):
     memory_block = f"{memory}\n\n" if memory else ""
     labs = ctx.get("lab_text") or ""
     lab_block = f"{labs}\n\n" if labs else ""
+    journal = ctx.get("journal_text") or ""
+    journal_block = f"{journal}\n\n" if journal else ""
     kg = ctx.get("kg_text") or ""
     kg_block = f"{kg}\n\n" if kg else ""
     rl = ctx.get("rl_text") or ""
@@ -29,6 +35,7 @@ def build_messages(ctx):
     user = (
         f"{memory_block}"
         f"{lab_block}"
+        f"{journal_block}"
         f"Mức nguy cơ tiểu đường ước tính của người dùng: {band}\n\n"
         f"{nutrition_block}"
         f"{kg_block}"

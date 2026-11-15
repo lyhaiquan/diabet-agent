@@ -53,7 +53,9 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
   - so với mục tiêu điều trị ADA 2024 (trước ăn 4,4–7,2 mmol/L, sau ăn < 10,0, huyết áp < 130/80), không so với ngưỡng
     chẩn đoán;
   - cảnh báo hạ đường huyết hoặc chỉ số rất cao, nhắc chưa đo hôm nay hay sắp tới lịch khám;
-  - lập bản tóm tắt PDF một trang mang đi khám.
+  - lập bản tóm tắt PDF một trang mang đi khám;
+  - trang Tư vấn đọc nhật ký 14 ngày gần nhất (JournalAgent): trợ lý trả lời theo số đo của chính người dùng.
+    Nhật ký được tóm tắt sẵn kèm nhận định cao hơn, thấp hơn hay trong mục tiêu, vì mô hình 3B hay tự so sai.
 
   Giao diện mặc định là chế độ người dùng. Log agent, đồ thị tri thức và thống kê chỉ hiện khi bật **Chế độ nhà phát
   triển** (nút gạt ở thanh bên, hoặc `DIACARE_DEV=1`).
@@ -111,7 +113,7 @@ nạp sẵn model vào GPU, đặt các biến môi trường rồi mở giao di
 (vừa GPU 4 GB, mỗi câu khoảng 5–10 giây); muốn dùng 7B thì chạy `chay_local.bat qwen2.5:7b`. Thư mục model lấy từ
 biến môi trường `OLLAMA_MODELS` (ví dụ `D:\ollama\models` để không đầy ổ C).
 
-`chay_local.bat` bật đủ đồ thị tri thức và agent học tăng cường (`DIACARE_FEATURES=v2,kg,rl`, không bật hybrid);
+`chay_local.bat` bật đủ đồ thị tri thức, agent học tăng cường và đọc nhật ký (`DIACARE_FEATURES=v2,kg,rl,journal`, không bật hybrid);
 đồ thị chạy bằng networkx trong bộ nhớ nên không cần Docker. `chay_v3.bat` giữ lại cho quen tay, giờ giống hệt.
 Muốn đồ thị đọc từ Neo4j thì dùng `chay_kg.bat` (cần Docker Desktop). Trong Git Bash gọi bằng `./chay_kg.bat`.
 
@@ -259,7 +261,7 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
 | `DIACARE_DB` | `data/diacare.db` | file SQLite |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
-| `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl` |
+| `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl, journal; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl,journal` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 | `DIACARE_DEV` | (tắt) | `1`: giao diện Streamlit mở sẵn chế độ nhà phát triển |
 | `DIACARE_API_SECRET` | tự sinh vào `data/api_secret.key` | khoá ký token của API, ít nhất 32 ký tự |

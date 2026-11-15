@@ -295,3 +295,85 @@ def daily_series(readings, days=14, now=None):
     start = now.date() - timedelta(days=days - 1)
     return sorted(((to_vn(r["measured_at"]), r["value"], r["context"]) for r in glucose_rows(readings)
                    if start <= _day(r) <= now.date()), key=lambda t: t[0])
+
+
+# ---- cho trợ lý Tư vấn đọc nhật ký ------------------------------------------
+
+def _mmol(mgdl):
+    return f"{to_mmol(mgdl):.1f}".replace(".", ",")
+
+
+def journal_digest(readings, appointment=None, days=14, now=None):
+    """Tóm tắt nhật ký thành vài dòng để đưa vào ngữ cảnh của trợ lý. None nếu chưa ghi gì.
+    Chỉ có số liệu đã tính sẵn (trung bình, số lần ngoài mục tiêu), không đưa từng lần đo để tiết kiệm ngữ cảnh."""
+    now = to_vn(now or now_vn())
+    if not readings and not appointment:
+        return None
+    g = summarize_glucose(readings, days, now)
+    lines = []
+    if g["n"]:
+        lines.append(f"- Đường huyết {days} ngày qua: {g['n']} lần đo trong {g['days_measured']} ngày; "
+                     f"{g['in_target_pct']}% số lần trong mục tiêu, {100 - g['in_target_pct']}% ngoài mục tiêu.")
+        for ctx, s in g["by_context"].items():
+            # Ghi sẵn nhận định (cao/thấp hơn mục tiêu): mô hình nhỏ hay so sánh số sai nếu để nó tự so
+            target = "4,4–7,2" if ctx in PRE_MEAL else ("dưới 10,0" if ctx == "after_meal" else None)
+            verdict = (f", {STATUS_TEXT[classify_glucose(s['mean_mgdl'], ctx)]} ({target} mmol/L)" if target else "")
+            n_ok = round(s["in_target_pct"] * s["n"] / 100)
+            lines.append(f"  + {CONTEXTS[ctx]}: trung bình {_mmol(s['mean_mgdl'])} mmol/L{verdict}; "
+                         f"{n_ok}/{s['n']} lần trong mục tiêu (thấp nhất {_mmol(s['min_mgdl'])}, "
+                         f"cao nhất {_mmol(s['max_mgdl'])})")
+        if g["hypo"]:
+            lines.append(f"  + Có {g['hypo']} lần dưới 3,9 mmol/L (hạ đường huyết).")
+        if g["very_high"]:
+            lines.append(f"  + Có {g['very_high']} lần rất cao (từ 13,9 mmol/L trở lên).")
+        trend = compare_periods(readings, days, now)
+        if trend:
+            d = trend["delta_mgdl"]
+            word = "tăng" if d > 5 else ("giảm" if d < -5 else "gần như không đổi")
+            lines.append(f"  + Lúc đói/trước ăn: {word} so với {days} ngày trước đó "
+                         f"({_mmol(trend['previous_mgdl'])} → {_mmol(trend['current_mgdl'])} mmol/L).")
+        if high_streak(readings, now):
+            lines.append("  + Lúc đói/trước ăn cao hơn mục tiêu 3 ngày liền.")
+        last = max(glucose_rows(readings), key=lambda r: r["measured_at"])
+        st = STATUS_TEXT[classify_glucose(last["value"], last["context"])]
+        lines.append(f"  + Lần gần nhất: {_mmol(last['value'])} mmol/L, {CONTEXTS[last['context']]}, "
+                     f"{to_vn(last['measured_at']):%H:%M %d/%m} ({st}).")
+    elif any(r["kind"] == "glucose" for r in readings):
+        lines.append(f"- Không có lần đo đường huyết nào trong {days} ngày qua.")
+    bp = summarize_bp(readings, days, now)
+    if bp:
+        lines.append(f"- Huyết áp {days} ngày qua: trung bình {bp['systolic']:.0f}/{bp['diastolic']:.0f} mmHg "
+                     f"({bp['n']} lần, {bp['above_target']} lần từ 130/80 trở lên; mục tiêu < 130/80).")
+    w = weight_change(readings, 30, now)
+    if w:
+        change = (f", thay đổi {w['delta']:+.1f} kg trong 30 ngày".replace(".", ",") if w["n"] > 1 else "")
+        lines.append(f"- Cân nặng gần nhất: {w['last']:.1f} kg".replace(".", ",") + change + ".")
+    if appointment:
+        left = (date.fromisoformat(appointment["date"]) - now.date()).days
+        if left >= 0:
+            lines.append(f"- Lịch tái khám: {date.fromisoformat(appointment['date']):%d/%m/%Y}"
+                         + (f" (còn {left} ngày)" if left else " (hôm nay)") + ".")
+    if not lines:
+        return None
+    return {"lines": lines, "n_glucose": g["n"], "hypo": g["hypo"], "very_high": g["very_high"]}
+
+
+def format_journal(digest):
+    if not digest:
+        return ""
+    return ("Nhật ký tự theo dõi của người dùng (họ tự đo tại nhà; so với mục tiêu chung ADA 2024 cho người lớn, "
+            "bác sĩ có thể đặt mục tiêu riêng):\n" + "\n".join(digest["lines"]))
+
+
+class JournalAgent:
+    """Đọc nhật ký đã ghi (đường huyết, huyết áp, cân nặng, lịch tái khám) để trợ lý tư vấn sát với người dùng."""
+
+    def __init__(self, store=None, now=None):
+        self.store = store
+        self.now = now  # để test; None = giờ hiện tại
+
+    def collect(self, patient_id, days=14):
+        if self.store is None or patient_id is None:
+            return None
+        return journal_digest(self.store.list_readings(patient_id), self.store.get_appointment(patient_id),
+                              days=days, now=self.now)

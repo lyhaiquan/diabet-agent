@@ -361,3 +361,13 @@ def test_transcribe_rejects_bad_audio_and_requires_login(voice_client):
     big = voice_client.post("/transcribe", files={"audio": ("a.wav", b"0" * (4 * 1024 * 1024 + 10), "audio/wav")},
                             headers=auth)
     assert big.status_code == 413
+
+
+def test_chat_reads_journal(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    client.post(f"/patients/{pid}/readings/glucose", json={"value": 9.5, "context": "fasting"}, headers=auth)
+    out = client.post(f"/patients/{pid}/chat", json={"question": "Đường huyết của tôi thế nào?"},
+                      headers=auth).json()
+    step = next(s for s in out["steps"] if s["agent"] == "Journal")
+    assert "1 lần đo đường huyết" in step["detail"]

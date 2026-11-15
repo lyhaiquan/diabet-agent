@@ -60,7 +60,7 @@ if ($KG) {
 }
 
 # Không dùng "v3" vì "v3" bật cả hybrid, mà hybrid lọc câu ngoài chủ đề kém hơn dense (xem factory.py).
-$features = @("v2", "kg", "rl")
+$features = @("v2", "kg", "rl", "journal")
 $env:DIACARE_FEATURES = $features -join ","
 Write-Host "Tính năng bật: $env:DIACARE_FEATURES"
 

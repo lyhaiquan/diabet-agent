@@ -178,3 +178,46 @@ def test_visit_pdf_empty_patient():
     pid = s.save_patient("Trống", {})
     text = PdfReader(io.BytesIO(build_visit_pdf(s, pid, now=NOW))).pages[0].extract_text()
     assert "Chưa có lần đo nào" in text and "(chưa có)" in text
+
+
+# ---- trợ lý Tư vấn đọc nhật ký ----
+
+def test_journal_digest_summarises_for_advisor():
+    rows = [reading(mmol(8.0), at=NOW - timedelta(days=d)) for d in range(3)]  # 3 ngày liền lúc đói cao
+    rows += [reading(mmol(3.5), "after_meal", at=NOW - timedelta(hours=3)),
+             reading(140, "bp", kind="bp", value2=85, at=NOW - timedelta(days=1)),
+             reading(70.0, kind="weight", at=NOW - timedelta(days=20)), reading(68.5, kind="weight", at=NOW)]
+    for r in rows:
+        if r["kind"] == "bp":
+            r["context"] = None
+    d = journal.journal_digest(rows, {"date": "2026-11-20", "place": "BV Bạch Mai"}, now=NOW)
+    text = journal.format_journal(d)
+    assert d["n_glucose"] == 4 and d["hypo"] == 1
+    assert "lúc đói (sáng, chưa ăn): trung bình 8,0 mmol/L, cao hơn mục tiêu (4,4–7,2 mmol/L); 0/3" in text
+    assert "sau ăn: trung bình 3,5 mmol/L, hạ đường huyết" in text
+    assert "1 lần dưới 3,9" in text and "3 ngày liền" in text
+    assert "140/85" in text and "68,5 kg" in text and "-1,5 kg" in text
+    assert "20/11/2026 (còn 7 ngày)" in text
+    assert journal.journal_digest([], None, now=NOW) is None
+    old = [reading(mmol(6), at=NOW - timedelta(days=40))]
+    assert "Không có lần đo" in journal.format_journal(journal.journal_digest(old, now=NOW))
+
+
+def test_journal_reaches_advisor_prompt(tmp_path):
+    from diacare.advisor import build_messages
+    from diacare.context import JOURNAL_TOKEN_BUDGET, build_context, estimate_tokens
+    from diacare.state import State
+
+    store = Store(tmp_path / "j.db")
+    pid = store.save_patient("Cô Lan", {})
+    store.add_reading(pid, "glucose", mmol(7.0), NOW - timedelta(hours=2), unit="mmol/L", context="fasting")
+    agent = journal.JournalAgent(store, now=NOW)
+    state = State(question="Đường huyết của tôi dạo này thế nào?", profile={}, patient_id=pid)
+    state.journal = agent.collect(pid)
+    ctx = build_context("advisor", state)
+    assert "Nhật ký tự theo dõi" in ctx["journal_text"]
+    assert "7,0 mmol/L" in build_messages(ctx)[-1]["content"]
+    assert journal.JournalAgent(store, now=NOW).collect(None) is None
+    # nhật ký quá dài: cắt bớt dòng cuối cho vừa ngân sách
+    state.journal = {**state.journal, "lines": state.journal["lines"] + ["- " + "x" * 300] * 5}
+    assert estimate_tokens(build_context("advisor", state)["journal_text"]) <= JOURNAL_TOKEN_BUDGET

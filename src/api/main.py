@@ -259,6 +259,8 @@ def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
             if emit:
                 emit("session", {"session_id": session_id})
             orch = orchestrator_from_parts(app.state.parts, store, session_id)
+            if orch.journal_agent is not None:  # nhật ký tính theo cùng đồng hồ với các endpoint khác
+                orch.journal_agent.now = journal.to_vn(app.state.clock())
             history = store.get_history(session_id)
             sent = {"n": 0}
 

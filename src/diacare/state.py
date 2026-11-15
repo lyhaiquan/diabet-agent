@@ -16,6 +16,7 @@ class State:
     patient_id: int | None = None
     memory: list = field(default_factory=list)
     labs: list = field(default_factory=list)
+    journal: dict | None = None  # tóm tắt nhật ký tự theo dõi: {lines, n_glucose, hypo, very_high}
     kg: dict | None = None  # kết quả GraphAgent: {backend, factors, lines}
     rl: dict | None = None  # kết quả RLAgent: {action, label, guidance, q_value, ranking, state_key}
     request_id: str = ""  # mã định danh yêu cầu chuẩn Mục 5.3 & 6.1 (vd: req_a1b2c3d4)

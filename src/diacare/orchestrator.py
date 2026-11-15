@@ -45,7 +45,7 @@ def _short(items, n=3):
 class Orchestrator:
     def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
                  nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None,
-                 graph_agent=None, rl_agent=None, data_agent=None):
+                 graph_agent=None, rl_agent=None, data_agent=None, journal_agent=None):
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
@@ -55,6 +55,7 @@ class Orchestrator:
         self.nutrition_agent = nutrition_agent
         self.memory_agent = memory_agent
         self.lab_agent = lab_agent
+        self.journal_agent = journal_agent
         self.graph_agent = graph_agent
         self.rl_agent = rl_agent
         self.data_agent = data_agent or PatientDataAgent()
@@ -125,6 +126,13 @@ class Orchestrator:
                 state.labs = self.lab_agent.collect(state.patient_id, state.question)
                 step("Lab", _short(f"{r['label']} {r['value_std']:g} {r['unit_std']} → {r['level']}"
                                    for r in state.labs) if state.labs else "không có kết quả xét nghiệm")
+            if self.journal_agent is not None:
+                state.journal = self.journal_agent.collect(state.patient_id)
+                j = state.journal
+                step("Journal", (f"nhật ký 14 ngày: {j['n_glucose']} lần đo đường huyết"
+                                 + (f", {j['hypo']} lần hạ" if j["hypo"] else "")
+                                 + (f", {j['very_high']} lần rất cao" if j["very_high"] else ""))
+                     if j else "chưa có nhật ký tự theo dõi")
             state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
             kind = "mô hình đa nguồn" if getattr(self.predictor, "kind", "") == "multisource" else "MLP"
             step("Predictor", f"{kind} trên 21 chỉ số hồ sơ: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}")

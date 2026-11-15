@@ -2,6 +2,7 @@ import math
 
 from diacare.llm import DEFAULT_NUM_CTX, DEFAULT_NUM_PREDICT
 from diacare.kg import format_kg
+from diacare.journal import format_journal
 from diacare.labs import format_labs
 from diacare.memory import format_memory, has_diagnosis
 from diacare.nutrition import format_table
@@ -14,6 +15,7 @@ HISTORY_TOKEN_BUDGET = 800
 MEMORY_TOKEN_BUDGET = 150          # trí nhớ dài hạn về bệnh nhân, tính trước dinh dưỡng và tài liệu
 DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu
 KG_TOKEN_BUDGET = 300           # tri thức từ đồ thị: tối đa 3 yếu tố, mỗi yếu tố một dòng (có cả gen chung PrimeKG)
+JOURNAL_TOKEN_BUDGET = 260      # nhật ký tự theo dõi đã tóm tắt sẵn (V4), ngay sau xét nghiệm
 RL_TOKEN_BUDGET = 120           # định hướng trọng tâm tư vấn từ RLAgent (V3)
 
 
@@ -50,6 +52,15 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             lab_text = format_labs(state.labs)
             lab_tokens = estimate_tokens(lab_text)
             remaining -= lab_tokens
+        journal_text, journal_tokens = "", 0
+        if state.journal:  # bỏ dòng cuối (ít quan trọng nhất) nếu vượt ngân sách
+            lines = list(state.journal["lines"])
+            while lines and estimate_tokens(format_journal({**state.journal, "lines": lines})) > JOURNAL_TOKEN_BUDGET:
+                lines.pop()
+            if lines:
+                journal_text = format_journal({**state.journal, "lines": lines})
+                journal_tokens = estimate_tokens(journal_text)
+                remaining -= journal_tokens
         nutrition_text, nutrition_tokens = "", 0
         if state.nutrition:  # ưu tiên cao hơn tài liệu truy xuất
             nutrition_text = format_table(state.nutrition)
@@ -88,10 +99,11 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             "memory_text": memory_text,
             "nutrition_text": nutrition_text,
             "lab_text": lab_text,
+            "journal_text": journal_text,
             "kg_text": kg_text,
             "rl_text": rl_text,
             "est_tokens": (SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + memory_tokens
-                           + lab_tokens + nutrition_tokens + kg_tokens + rl_tokens + docs_tokens),
+                           + lab_tokens + journal_tokens + nutrition_tokens + kg_tokens + rl_tokens + docs_tokens),
         }
     if agent == "rule":
         return {"risk": state.risk, "draft": state.draft, "profile": state.profile, "question": state.question,

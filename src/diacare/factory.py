@@ -5,6 +5,7 @@ from pathlib import Path
 from diacare.db import Store
 from diacare.kb import load_kb
 from diacare.kg import GraphAgent, MemoryKG, Neo4jKG
+from diacare.journal import JournalAgent
 from diacare.labs import LabAgent
 from diacare.llm import DEFAULT_NUM_CTX, DemoLLM, OllamaLLM, hash_embed_fn, sbert_embed_fn
 from diacare.memory import MemoryAgent
@@ -45,13 +46,14 @@ def default_min_score(kind=None):
     return 0.0 if kind == "hash" else DEFAULT_MIN_SCORE
 
 
-FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg", "rl")
+FEATURES_ALL = ("nutrition", "memory", "labs", "hybrid", "kg", "rl", "journal")
 # Mặc định V2 KHÔNG bật hybrid: đo trong docs/results/2026-11-05_retrieval_eval.md, hybrid chỉ tăng MRR
 # rất ít nhưng lọc câu ngoài chủ đề kém hơn dense (0.25 so với 0.50). Bật bằng "all" hoặc "hybrid".
 FEATURES_V2 = ("nutrition", "memory", "labs")
 # Khi chạy ứng dụng không đặt DIACARE_FEATURES thì bật đồ thị tri thức (KG) và agent học tăng cường (RL).
 # Nhãn 'v2' vẫn giữ nguyên nghĩa cũ (không KG, không RL) để các benchmark đã chạy tái lập được.
-FEATURES_DEFAULT = FEATURES_V2 + ("kg", "rl")
+# "journal": trợ lý đọc nhật ký tự theo dõi (không ảnh hưởng benchmark vì dữ liệu benchmark không có nhật ký).
+FEATURES_DEFAULT = FEATURES_V2 + ("kg", "rl", "journal")
 
 
 def parse_features(value=None):
@@ -133,6 +135,7 @@ def orchestrator_from_parts(parts, store, session_id=None, rl_epsilon_value=None
         nutrition_agent=parts.nutrition_agent,
         memory_agent=MemoryAgent(store) if "memory" in f else None,
         lab_agent=LabAgent(store) if "labs" in f else None,
+        journal_agent=JournalAgent(store) if "journal" in f else None,
         graph_agent=parts.graph_agent,
         rl_agent=RLAgent(prior=parts.rl_prior, store=store, epsilon=rl_epsilon(rl_epsilon_value)) if "rl" in f
         else None,
@@ -143,7 +146,7 @@ def build_orchestrator(kb_dir=None, model_dir=None, log_path=None, llm=None, sto
                        session_id=None, embed_fn=None, min_score=None, features=None, rl_epsilon_value=None):
     parts = build_parts(kb_dir, model_dir, log_path, llm, embed_fn, min_score, features)
     # Không truyền store: Memory/Lab/RL vẫn cần nơi lưu trong lượt, dùng SQLite trong bộ nhớ
-    shared = store or (Store(":memory:") if {"memory", "labs", "rl"} & parts.features else None)
+    shared = store or (Store(":memory:") if {"memory", "labs", "rl", "journal"} & parts.features else None)
     orch = orchestrator_from_parts(parts, shared, session_id, rl_epsilon_value)
     orch.store = store
     return orch
