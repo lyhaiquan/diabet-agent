@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ErrorText, Notice } from "@/components/Notice";
+import { TargetsCard } from "@/components/TargetsCard";
 import { api, fmtDate, nowLocalVN, type Appointment, type Question } from "@/lib/api";
 import { usePatient } from "@/lib/session";
 
@@ -109,6 +110,8 @@ export default function VisitPage() {
         <button className="btn-primary" disabled={!date}>Lưu lịch</button>
         {saved && <Notice level="success">Đã lưu lịch tái khám.</Notice>}
       </form>
+
+      <TargetsCard patientId={patient.id} />
 
       <section className="card">
         <h2>Câu hỏi muốn hỏi bác sĩ</h2>

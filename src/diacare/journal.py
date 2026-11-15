@@ -34,6 +34,9 @@ POST_MEAL_MAX = 180
 VERY_HIGH = 250
 BP_TARGET = (130, 80)
 BP_CRISIS = (180, 120)
+# Giới hạn cho mục tiêu riêng do bác sĩ đặt (mg/dL). Ngưỡng hạ đường huyết (70, 54) và "rất cao" (250) là ngưỡng
+# an toàn, không đổi theo mục tiêu riêng: cận dưới không thấp hơn 70, cận trên sau ăn không tới 250.
+TARGET_LIMITS = {"pre_lo": (70, 130), "pre_hi": (90, 180), "post_max": (140, 240)}
 PLAUSIBLE = {"glucose": (20, 600), "systolic": (60, 260), "diastolic": (30, 160), "weight": (20, 300)}
 
 STATUS_TEXT = {
@@ -100,17 +103,43 @@ def validate_weight(kg):
     return None if kg is not None and lo <= kg <= hi else "Cân nặng chưa hợp lý."
 
 
-def describe_glucose(mgdl, context, unit="mmol/L"):
+def validate_targets(pre_lo, pre_hi, post_max):
+    """Mục tiêu riêng (mg/dL). Trả thông báo lỗi, hoặc None nếu hợp lý."""
+    vals = {"pre_lo": pre_lo, "pre_hi": pre_hi, "post_max": post_max}
+    names = {"pre_lo": "cận dưới trước ăn", "pre_hi": "cận trên trước ăn", "post_max": "mức sau ăn"}
+    for key, (lo, hi) in TARGET_LIMITS.items():
+        v = vals[key]
+        if v is None or not lo <= v <= hi:
+            return (f"Mục tiêu {names[key]} phải trong khoảng {_mmol(lo)}–{_mmol(hi)} mmol/L "
+                    f"({lo}–{hi} mg/dL). Hãy xem lại con số bác sĩ dặn.")
+    if pre_hi - pre_lo < 18:
+        return "Cận trên trước ăn phải cao hơn cận dưới ít nhất 1,0 mmol/L."
+    if post_max < pre_hi:
+        return "Mức sau ăn không được thấp hơn cận trên trước ăn."
+    return None
+
+
+def resolve_targets(row=None):
+    """Mục tiêu đang áp dụng: {"pre": (lo, hi), "post": max, "custom": bool}, mg/dL.
+    row: dòng bảng targets (pre_lo, pre_hi, post_max) hoặc None = mục tiêu chung ADA."""
+    if not row:
+        return {"pre": PRE_MEAL_TARGET, "post": POST_MEAL_MAX, "custom": False}
+    return {"pre": (row["pre_lo"], row["pre_hi"]), "post": row["post_max"], "custom": True}
+
+
+def describe_glucose(mgdl, context, unit="mmol/L", targets=None):
     """Kết quả một lần đo như người dùng thấy: mức, câu mô tả, lời khuyên (nếu có)."""
-    status = classify_glucose(mgdl, context)
+    status = classify_glucose(mgdl, context, targets)
     level, advice = ADVICE.get(status, (None, None))
-    return {"status": status, "status_text": STATUS_TEXT[status], "target": target_text(context),
+    return {"status": status, "status_text": STATUS_TEXT[status], "target": target_text(context, targets),
             "message": f"Đã lưu {fmt_glucose(mgdl, unit)} ({CONTEXTS[context]}): {STATUS_TEXT[status]}, "
-                       f"{target_text(context)}.",
+                       f"{target_text(context, targets)}.",
             "advice": advice, "advice_level": level}
 
 
-def classify_glucose(mgdl, context):
+def classify_glucose(mgdl, context, targets=None):
+    """targets: kết quả resolve_targets (None = mục tiêu chung). Hạ đường huyết và "rất cao" không phụ thuộc mục tiêu."""
+    t = targets or resolve_targets()
     if mgdl < HYPO_2:
         return "hypo_2"
     if mgdl < HYPO_1:
@@ -118,18 +147,20 @@ def classify_glucose(mgdl, context):
     if mgdl >= VERY_HIGH:
         return "very_high"
     if context in PRE_MEAL:
-        lo, hi = PRE_MEAL_TARGET
+        lo, hi = t["pre"]
         if mgdl < lo:
             return "below_target"
         return "in_target" if mgdl <= hi else "above_target"
-    return "in_target" if mgdl < POST_MEAL_MAX else "above_target"
+    return "in_target" if mgdl < t["post"] else "above_target"
 
 
-def target_text(context):
+def target_text(context, targets=None):
+    t = targets or resolve_targets()
+    who = "mục tiêu bác sĩ đặt" if t["custom"] else "mục tiêu"
     if context in PRE_MEAL:
-        lo, hi = PRE_MEAL_TARGET
-        return f"mục tiêu {fmt_glucose(lo)}–{fmt_glucose(hi)}"
-    return f"mục tiêu dưới {fmt_glucose(POST_MEAL_MAX)}"
+        lo, hi = t["pre"]
+        return f"{who} {fmt_glucose(lo)}–{fmt_glucose(hi)}"
+    return f"{who} dưới {fmt_glucose(t['post'])}"
 
 
 def classify_bp(systolic, diastolic):
@@ -164,7 +195,7 @@ def glucose_rows(readings):
     return [r for r in readings if r["kind"] == "glucose"]
 
 
-def summarize_glucose(readings, days=14, now=None):
+def summarize_glucose(readings, days=14, now=None, targets=None):
     """Thống kê đường huyết trong `days` ngày gần nhất, theo từng thời điểm đo."""
     now = to_vn(now or now_vn())
     start = now.date() - timedelta(days=days - 1)
@@ -173,7 +204,7 @@ def summarize_glucose(readings, days=14, now=None):
            "mean_mgdl": None, "days_measured": len({_day(r) for r in rows})}
     if not rows:
         return out
-    statuses = [classify_glucose(r["value"], r["context"]) for r in rows]
+    statuses = [classify_glucose(r["value"], r["context"], targets) for r in rows]
     out["hypo"] = sum(s in ("hypo_1", "hypo_2") for s in statuses)
     out["very_high"] = statuses.count("very_high")
     out["in_target_pct"] = round(100 * statuses.count("in_target") / len(rows))
@@ -181,7 +212,7 @@ def summarize_glucose(readings, days=14, now=None):
     for ctx in CONTEXTS:
         vals = [r["value"] for r in rows if r["context"] == ctx]
         if vals:
-            st = [classify_glucose(v, ctx) for v in vals]
+            st = [classify_glucose(v, ctx, targets) for v in vals]
             out["by_context"][ctx] = {"n": len(vals), "mean_mgdl": sum(vals) / len(vals),
                                       "min_mgdl": min(vals), "max_mgdl": max(vals),
                                       "in_target_pct": round(100 * st.count("in_target") / len(vals))}
@@ -253,25 +284,25 @@ def alerts(readings, now=None, hours=24):
     return out
 
 
-def high_streak(readings, now=None, days=3):
+def high_streak(readings, now=None, days=3, targets=None):
     """True nếu lúc đói/trước ăn vượt mục tiêu ở MỌI ngày có đo trong `days` ngày qua (ít nhất `days` ngày đo)."""
     now = to_vn(now or now_vn())
     by_day = {}
     for r in glucose_rows(readings):
         d = _day(r)
         if r["context"] in PRE_MEAL and now.date() - timedelta(days=days - 1) <= d <= now.date():
-            by_day.setdefault(d, []).append(classify_glucose(r["value"], r["context"]))
+            by_day.setdefault(d, []).append(classify_glucose(r["value"], r["context"], targets))
     return len(by_day) >= days and all(
         any(s in ("above_target", "very_high") for s in v) for v in by_day.values())
 
 
-def reminders(readings, appointment=None, now=None):
+def reminders(readings, appointment=None, now=None, targets=None):
     """Nhắc nhở hiện trong ứng dụng khi người dùng mở ra (Streamlit không gửi được thông báo khi đóng tab)."""
     now = to_vn(now or now_vn())
     out = []
     if not any(_day(r) == now.date() for r in glucose_rows(readings)):
         out.append(("info", "Hôm nay bạn chưa ghi đường huyết."))
-    if high_streak(readings, now):
+    if high_streak(readings, now, targets=targets):
         out.append(("warning", "Đường huyết lúc đói hoặc trước ăn cao hơn mục tiêu 3 ngày liền. Nên hẹn bác sĩ "
                                "sớm hơn lịch, mang theo nhật ký này."))
     if appointment:
@@ -303,22 +334,24 @@ def _mmol(mgdl):
     return f"{to_mmol(mgdl):.1f}".replace(".", ",")
 
 
-def journal_digest(readings, appointment=None, days=14, now=None):
+def journal_digest(readings, appointment=None, days=14, now=None, targets=None):
     """Tóm tắt nhật ký thành vài dòng để đưa vào ngữ cảnh của trợ lý. None nếu chưa ghi gì.
     Chỉ có số liệu đã tính sẵn (trung bình, số lần ngoài mục tiêu), không đưa từng lần đo để tiết kiệm ngữ cảnh."""
     now = to_vn(now or now_vn())
     if not readings and not appointment:
         return None
-    g = summarize_glucose(readings, days, now)
+    t = targets or resolve_targets()
+    g = summarize_glucose(readings, days, now, t)
     lines = []
     if g["n"]:
         lines.append(f"- Đường huyết {days} ngày qua: {g['n']} lần đo trong {g['days_measured']} ngày; "
                      f"{g['in_target_pct']}% số lần trong mục tiêu, {100 - g['in_target_pct']}% ngoài mục tiêu.")
         for ctx, s in g["by_context"].items():
             # Ghi sẵn nhận định (cao/thấp hơn mục tiêu): mô hình nhỏ hay so sánh số sai nếu để nó tự so
-            target = "4,4–7,2" if ctx in PRE_MEAL else ("dưới 10,0" if ctx == "after_meal" else None)
+            target = (f"{_mmol(t['pre'][0])}–{_mmol(t['pre'][1])}" if ctx in PRE_MEAL
+                      else (f"dưới {_mmol(t['post'])}" if ctx == "after_meal" else None))
             # trước ngủ / bất kỳ: ADA không có mục tiêu riêng nhưng vẫn phải nói rõ hạ đường huyết hay rất cao
-            verdict = f", {STATUS_TEXT[classify_glucose(s['mean_mgdl'], ctx)]}" + (
+            verdict = f", {STATUS_TEXT[classify_glucose(s['mean_mgdl'], ctx, t)]}" + (
                 f" ({target} mmol/L)" if target else "")
             n_ok = round(s["in_target_pct"] * s["n"] / 100)
             lines.append(f"  + {CONTEXTS[ctx]}: trung bình {_mmol(s['mean_mgdl'])} mmol/L{verdict}; "
@@ -334,10 +367,10 @@ def journal_digest(readings, appointment=None, days=14, now=None):
             word = "tăng" if d > 5 else ("giảm" if d < -5 else "gần như không đổi")
             lines.append(f"  + Lúc đói/trước ăn: {word} so với {days} ngày trước đó "
                          f"({_mmol(trend['previous_mgdl'])} → {_mmol(trend['current_mgdl'])} mmol/L).")
-        if high_streak(readings, now):
+        if high_streak(readings, now, targets=t):
             lines.append("  + Lúc đói/trước ăn cao hơn mục tiêu 3 ngày liền.")
         last = max(glucose_rows(readings), key=lambda r: r["measured_at"])
-        st = STATUS_TEXT[classify_glucose(last["value"], last["context"])]
+        st = STATUS_TEXT[classify_glucose(last["value"], last["context"], t)]
         lines.append(f"  + Lần gần nhất: {_mmol(last['value'])} mmol/L, {CONTEXTS[last['context']]}, "
                      f"{to_vn(last['measured_at']):%H:%M %d/%m} ({st}).")
     elif any(r["kind"] == "glucose" for r in readings):
@@ -357,14 +390,16 @@ def journal_digest(readings, appointment=None, days=14, now=None):
                          + (f" (còn {left} ngày)" if left else " (hôm nay)") + ".")
     if not lines:
         return None
-    return {"lines": lines, "n_glucose": g["n"], "hypo": g["hypo"], "very_high": g["very_high"]}
+    return {"lines": lines, "n_glucose": g["n"], "hypo": g["hypo"], "very_high": g["very_high"],
+            "custom_targets": t["custom"]}
 
 
 def format_journal(digest):
     if not digest:
         return ""
-    return ("Nhật ký tự theo dõi của người dùng (họ tự đo tại nhà; so với mục tiêu chung ADA 2024 cho người lớn, "
-            "bác sĩ có thể đặt mục tiêu riêng):\n" + "\n".join(digest["lines"]))
+    basis = ("so với mục tiêu riêng mà bác sĩ đã đặt cho người dùng" if digest.get("custom_targets")
+             else "so với mục tiêu chung ADA 2024 cho người lớn, bác sĩ có thể đặt mục tiêu riêng")
+    return f"Nhật ký tự theo dõi của người dùng (họ tự đo tại nhà; {basis}):\n" + "\n".join(digest["lines"])
 
 
 class JournalAgent:
@@ -378,4 +413,4 @@ class JournalAgent:
         if self.store is None or patient_id is None:
             return None
         return journal_digest(self.store.list_readings(patient_id), self.store.get_appointment(patient_id),
-                              days=days, now=self.now)
+                              days=days, now=self.now, targets=resolve_targets(self.store.get_targets(patient_id)))

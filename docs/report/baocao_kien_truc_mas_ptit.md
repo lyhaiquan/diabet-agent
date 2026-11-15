@@ -172,6 +172,7 @@ Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử th�
 | **Retriever (RAG)** | Worker | Truy xuất các đoạn thông tin y khoa có độ tương đồng ngữ nghĩa cao từ kho y văn. | `question` | Danh sách văn bản kèm nguồn trích dẫn (`state.docs`) | Sentence-BERT MiniLM-L12-v2, Cosine Similarity, BM25 RRF |
 | **GraphAgent (KG)** | Worker | Định vị các thực thể nguy cơ trong câu hỏi, tra cứu tri thức quan hệ và đối chiếu bằng chứng y khoa. | `question` | Danh sách thực thể, tỷ số chênh OR, khẳng định đối chiếu (`state.kg`) | Neo4j 5 Community, Cypher queries, NetworkX, `DB_diabet.cypher` |
 | **NutritionAgent** | Worker | Nhận diện món ăn Việt, ước lượng khẩu phần, tra cứu năng lượng, carbohydrate, chất xơ. | `question` | Bảng dinh dưỡng phân tích (`state.nutrition`) | `vn_foods.json` (50 món Việt quy đổi từ USDA FDC) |
+| **JournalAgent** (bổ sung ở V4.4, ngoài đặc tả 8+2) | Worker | Đọc nhật ký tự theo dõi 14 ngày của người đã chẩn đoán (đường huyết, huyết áp, cân nặng, lịch tái khám), tổng hợp thành vài dòng đã ghi sẵn nhận định so với mục tiêu (mục tiêu chung ADA 2024 hoặc mục tiêu riêng do bác sĩ đặt). | `patient_id` | Bản tóm tắt nhật ký (`state.journal`) | `journal.py`, SQLite (`readings`, `appointments`, `targets`) |
 | **ContextAgent** | Worker | Cắt lát trạng thái và phân bổ ngân sách token tối ưu cho từng tác tử tiếp theo. | Đối tượng `State`, trần ngân sách `num_ctx` | Lát cắt ngữ cảnh chuyên biệt (`ctx` cho Predictor, Advisor, Rules) | `context.build_context`, giải thuật cấp phát ngân sách ưu tiên |
 | **Advisor** | Worker | Tổng hợp toàn bộ lát cắt tri thức, đóng vai trò chuyên viên tư vấn y khoa viết bản nháp câu trả lời. | Lát ngữ cảnh đầy đủ từ ContextAgent | Bản nháp câu trả lời tiếng Việt (`state.draft`), số token sử dụng | Ollama (`qwen2.5:7b` / `qwen2.5:3b`), Streaming Generator |
 | **Orchestrator** | Control | Đạo diễn điều phối đường ống thực thi tuần tự, quản lý trạng thái, phát hiện câu chào, bắt lỗi. | Yêu cầu người dùng, cấu hình hệ thống | Trạng thái hoàn chỉnh của lượt hỏi (`State`) | Bộ điều phối Pipeline hướng sự kiện, Blackboard Pattern |
@@ -256,7 +257,7 @@ Khi nhận được câu hỏi từ người dùng cùng hồ sơ lâm sàng, `O
 2. **Bước 2 (Small-talk Interception)**: `Orchestrator` chạy hàm `is_small_talk(state.question)`. Nếu câu hỏi thuần túy là câu chào hỏi hoặc cảm ơn (như *"xin chào"*, *"cảm ơn bot nhé"*), hệ thống phản hồi ngay bằng câu chào định sẵn kèm lời nhắc tham khảo ý kiến bác sĩ, không tính toán nguy cơ, không gọi LLM, tiết kiệm tối đa tài nguyên GPU.
 3. **Bước 3 (Memory Recall & Observation)**: Nếu có mã định danh bệnh nhân (`patient_id`), `MemoryAgent` quan sát câu hỏi để bóc tách các sự kiện dài hạn mới (như tiền sử được chẩn đoán, thuốc mới uống, tình trạng dị ứng) lưu vào SQLite; đồng thời hồi tưởng (`recall`) toàn bộ các sự kiện trước đây của bệnh nhân đưa vào `state.memory`.
 4. **Bước 4 (Adaptive History Compression)**: `MemoryAgent` kiểm tra dung lượng token của lịch sử hội thoại. Nếu vượt quá ngân sách (`HISTORY_TOKEN_BUDGET = 800` tokens), mô hình tóm tắt sẽ kích hoạt để nén các lượt trò chuyện cũ thành một đoạn tóm tắt súc tích, gắn cờ `history_summarized`.
-5. **Bước 5 (Lab Extraction & Evaluation)**: `LabAgent` bóc tách kết quả xét nghiệm từ câu hỏi hoặc gọi module `ocr.py` nếu có ảnh/file PDF phiếu xét nghiệm tải lên. Các chỉ số được chuẩn hóa về đơn vị tiêu chuẩn ($mg/dL$, $\%$) và xếp mức lâm sàng theo chuẩn ADA 2024: bình thường, tiền tiểu đường, tiểu đường hoặc hạ đường huyết ($< 70\ mg/dL$).
+5. **Bước 5 (Lab Extraction & Evaluation)**: `LabAgent` bóc tách kết quả xét nghiệm từ câu hỏi hoặc gọi module `ocr.py` nếu có ảnh/file PDF phiếu xét nghiệm tải lên. Các chỉ số được chuẩn hóa về đơn vị tiêu chuẩn ($mg/dL$, $\%$) và xếp mức lâm sàng theo chuẩn ADA 2024: bình thường, tiền tiểu đường, tiểu đường hoặc hạ đường huyết ($< 70\ mg/dL$). Ngay sau đó, `JournalAgent` (V4.4) đọc nhật ký tự theo dõi 14 ngày của hồ sơ và ghi bản tóm tắt vào `state.journal`; người chưa ghi nhật ký thì bước này không thêm gì.
 6. **Bước 6 (Deep Learning Risk Prediction)**: `Predictor` nhận vector 21 thuộc tính từ hồ sơ, thực hiện biến đổi chuẩn hóa qua `StandardScaler` và đưa qua mạng PyTorch MLP để tính xác suất nguy cơ mắc T2D ($state.risk$).
 7. **Bước 7 (Semantic RAG Retrieval)**: `Retriever` tính toán embedding ngữ nghĩa của câu hỏi qua Sentence-BERT đa ngôn ngữ, quét qua kho tài liệu y khoa `kb/` và thu hồi các đoạn văn bản có độ tương đồng cosine $\ge 0.20$.
 8. **Bước 8 (Knowledge Graph Lookup & Cross-verification)**: `GraphAgent` nhận diện các yếu tố nguy cơ trong câu hỏi, truy vấn đồ thị Neo4j qua giao thức Bolt để lấy thông tin định lượng (tỷ số chênh hiệu chỉnh $OR_{\text{adjusted}}$) và đối chiếu với các khẳng định y văn đã được kiểm chứng chéo.
@@ -265,7 +266,7 @@ Khi nhận được câu hỏi từ người dùng cùng hồ sơ lâm sàng, `O
 11. **Bước 11 (Token Budget Dynamic Allocation & Context Slicing)**: `ContextAgent` thu thập kết quả từ tất cả các bước trước, thực hiện lập ngân sách token động dựa trên giới hạn `num_ctx` (4.096 tokens). Lần lượt bố trí: Lời nhắc hệ thống $\to$ Trí nhớ dài hạn $\to$ Kết quả xét nghiệm $\to$ Bảng dinh dưỡng $\to$ Tri thức đồ thị $\to$ Định hướng RL $\to$ Tài liệu RAG $\to$ Lịch sử hội thoại.
 12. **Bước 12 (Draft Advising & Rule Invariant Guard)**:
     - `Advisor` gọi Ollama LLM để sinh bản nháp câu trả lời `state.draft` (hỗ trợ stream an toàn qua `SafeStream`).
-    - `Rule-Based Agent` tiếp quản bản nháp, rà soát các mẫu câu nguy hiểm về thuốc qua regex. Nếu phát hiện vi phạm, toàn bộ bản nháp bị hủy và thay bằng văn bản an toàn định sẵn (`unsafe_advice_blocked`).
+    - `Rule-Based Agent` tiếp quản bản nháp, rà soát các mẫu câu nguy hiểm về thuốc qua regex. Nếu phát hiện vi phạm, các câu vi phạm bị loại bỏ, phần còn lại được giữ và kèm câu từ chối định sẵn (`unsafe_advice_blocked`); chỉ khi phần còn lại quá ngắn thì toàn bộ bản nháp mới bị thay. Câu nhắc tới điều chỉnh liều mà không nhắc bác sĩ được kèm lời nhắc hỏi bác sĩ (`dose_adjust_note`).
     - Bổ sung các ghi chú chuyển viện theo cờ lâm sàng (`high_risk_referral`, `symptom_referral`, `emergency_referral`, `lab_diabetes_range`, `lab_low_glucose`), thêm câu miễn trừ trách nhiệm y tế (`DISCLAIMER`) và kết thúc lượt chạy.
 
 ## 5.2. Biểu đồ Tuần tự Chi tiết (Mermaid Sequence Diagram)
@@ -652,7 +653,7 @@ Hệ thống DiaCare-MAS thiết lập 7 nguyên tắc an toàn nghiêm ngặt �
 
 1. **Nguyên tắc Cấm Can thiệp Trị liệu (Therapeutic Non-intervention)**:
    - *Cơ chế*: Hệ thống cấm tuyệt đối mọi hành vi khuyên bệnh nhân tự ý bắt đầu, ngừng, tăng liều hoặc giảm liều thuốc điều trị (insulin, metformin, sulfonylurea...).
-   - *Cờ an toàn*: `unsafe_advice_blocked`. Khi kích hoạt, câu trả lời của LLM bị ghi đè hoàn toàn bằng văn bản chuẩn: *"Mình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. Vui lòng hỏi bác sĩ điều trị của bạn."*
+   - *Cờ an toàn*: `unsafe_advice_blocked`. Khi kích hoạt, các câu vi phạm bị loại khỏi câu trả lời (từ V4.5 phần còn lại được giữ; trước đó toàn bộ câu trả lời bị ghi đè) và hệ thống thêm văn bản chuẩn: *"Mình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. Vui lòng hỏi bác sĩ điều trị của bạn."*
 2. **Nguyên tắc Phân luồng Cấp cứu Khẩn cấp (Emergency Triage)**:
    - *Cơ chế*: Nhận diện tức thì các từ khóa chỉ triệu chứng nguy hiểm đến tính mạng (hôn mê, khó thở, đau thắt ngực, lú lẫn, co giật, hạ đường huyết nặng).
    - *Cờ an toàn*: `emergency_referral`. Hệ thống bổ sung chỉ dẫn: *"Nếu có dấu hiệu nguy hiểm, hãy gọi cấp cứu 115 hoặc đến cơ sở y tế gần nhất ngay."*
@@ -689,19 +690,21 @@ Hệ thống đã trải qua quy trình kiểm chuẩn tự động nghiêm ng�
 *Phân tích kết quả*:
 - Lần chạy này làm trước khi có đồ thị tri thức và RL: cả ba cấu hình đều không có Graph agent, OCR hay RLAgent. Tỷ lệ đạt từng lượt cao nhất là **88%** ở cấu hình all; khoảng tin cậy của ba cấu hình vẫn chồng nhau.
 - Khả năng duy trì trí nhớ ngữ cảnh tăng từ 0.25 (V1) lên **1.00** nhờ `MemoryAgent`.
-- Đồ thị tri thức **chưa được đo trên benchmark hội thoại**. Bước tiếp theo là so sánh `v2` với `v2,kg` bằng kiểm định McNemar.
-- Trong toàn bộ 414 lượt chạy thực tế, **0% câu trả lời vi phạm an toàn y tế** (không có bất kỳ gợi ý tự ý thay đổi thuốc nào vượt qua được rào chắn `SafeStream` và `apply_rules`).
+- Kiểm định McNemar chính xác theo ca (`eval/compare.py`, một ca đạt khi đạt cả 3 lượt) trên 46 ca chung: V1 so với V2 $p = 0{,}73$, V2 so với all $p = 0{,}38$, V1 so với all $p = 0{,}27$. Các mức tăng chung vì vậy **chưa có ý nghĩa thống kê**; kết luận chắc chắn chỉ có ở nhóm trí nhớ.
+- Đồ thị tri thức và RLAgent **chưa được đo trên benchmark hội thoại**; công cụ so sánh cặp đã có, bước tiếp theo là chạy `v2`, `v2,kg`, `v2,kg,rl` trên cùng bộ ca.
+- `JournalAgent` đã được đo riêng: bộ benchmark thêm 12 ca có nhật ký gieo sẵn (tổng 62 ca, 12 nhóm). Trên máy cá nhân với `qwen2.5:3b`, 12 ca × 3 lượt: có JournalAgent Pass^3 = 0,50, tỉ lệ đạt từng lượt 0,78 (28/36); không có JournalAgent Pass^3 = 0,08, 0,08 (3/36); 6 ca chỉ đạt khi có JournalAgent, 1 ca ngược lại, McNemar theo ca $p = 0{,}125$ (với 12 ca thì chưa đạt mức 0,05). Mô hình 3B vẫn trượt một số ca dù đã có số liệu (quên trích nguồn, không nhắc ngày tái khám).
+- Trong toàn bộ 414 lượt chạy thực tế, **không ghi nhận câu trả lời nào vi phạm an toàn y tế** (không có bất kỳ gợi ý tự ý thay đổi thuốc nào vượt qua được rào chắn `SafeStream` và `apply_rules`).
 
 ## 11.2. Năng lực Kiểm thử Đơn vị Toàn diện
 
-Hệ thống có bộ kiểm thử tự động gồm **491 unit tests** phân bổ trên 28 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **611 unit tests** phân bổ trên 31 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Toàn bộ 491 bài kiểm thử hoàn thành trong khoảng 80 giây trên CPU, khẳng định tính ổn định và độ tin cậy của phần mềm.
+Toàn bộ 611 bài kiểm thử (610 đạt, 1 bài đọc Neo4j tự bỏ qua khi Neo4j không chạy) hoàn thành trong khoảng 60 giây trên CPU. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
 
 ## 11.3. Khả năng Mở rộng Kiến trúc (Scalability & Extensibility)
 

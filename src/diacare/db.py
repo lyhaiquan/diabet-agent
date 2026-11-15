@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS appointments (
     note TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS targets (
+    patient_id INTEGER PRIMARY KEY,
+    pre_lo REAL NOT NULL,
+    pre_hi REAL NOT NULL,
+    post_max REAL NOT NULL,
+    note TEXT,
+    updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
@@ -416,6 +424,23 @@ class Store:
         row = self.conn.execute(
             "SELECT * FROM appointments WHERE patient_id = ? ORDER BY id DESC LIMIT 1", (patient_id,)).fetchone()
         return dict(row) if row else None
+
+    # ---------- mục tiêu đường huyết riêng do bác sĩ đặt (mg/dL); không có dòng = mục tiêu chung ----------
+    def set_targets(self, patient_id, pre_lo, pre_hi, post_max, note=None):
+        self.conn.execute(
+            "INSERT INTO targets (patient_id, pre_lo, pre_hi, post_max, note, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT(patient_id) DO UPDATE SET pre_lo = excluded.pre_lo, pre_hi = excluded.pre_hi,"
+            " post_max = excluded.post_max, note = excluded.note, updated_at = excluded.updated_at",
+            (patient_id, float(pre_lo), float(pre_hi), float(post_max), note, _now()))
+        self.conn.commit()
+
+    def get_targets(self, patient_id):
+        row = self.conn.execute("SELECT * FROM targets WHERE patient_id = ?", (patient_id,)).fetchone()
+        return dict(row) if row else None
+
+    def clear_targets(self, patient_id):
+        self.conn.execute("DELETE FROM targets WHERE patient_id = ?", (patient_id,))
+        self.conn.commit()
 
     def add_doctor_question(self, patient_id, text):
         cur = self.conn.execute(

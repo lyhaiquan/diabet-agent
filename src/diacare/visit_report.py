@@ -25,6 +25,7 @@ def collect(store, patient_id, days=28, now=None):
     now = journal.to_vn(now or journal.now_vn())
     patient = store.get_patient(patient_id)
     readings = store.list_readings(patient_id)
+    targets = journal.resolve_targets(store.get_targets(patient_id))
     labs = []
     for r in store.list_labs(patient_id):
         c = classify([{"test": r["test"], "value": r["value"], "unit": r["unit"]}])
@@ -36,7 +37,8 @@ def collect(store, patient_id, days=28, now=None):
         "name": patient["name"] if patient else f"#{patient_id}",
         "now": now, "days": days,
         "start": now.date() - timedelta(days=days - 1),
-        "glucose": journal.summarize_glucose(readings, days, now),
+        "glucose": journal.summarize_glucose(readings, days, now, targets),
+        "targets": targets,
         "compare": journal.compare_periods(readings, days, now),
         "series": journal.daily_series(readings, days, now),
         "bp": journal.summarize_bp(readings, days, now),
@@ -49,13 +51,14 @@ def collect(store, patient_id, days=28, now=None):
     }
 
 
-def glucose_chart_png(series, days, now, width=7.2, height=2.3):
+def glucose_chart_png(series, days, now, width=7.2, height=2.3, targets=None):
     """Biểu đồ đường huyết theo ngày (mmol/L), dải mục tiêu trước ăn tô xanh, ngưỡng sau ăn và hạ đường huyết."""
     fig, ax = plt.subplots(figsize=(width, height), dpi=150)
     start = now.date() - timedelta(days=days - 1)
-    ax.axhspan(journal.to_mmol(journal.PRE_MEAL_TARGET[0]), journal.to_mmol(journal.PRE_MEAL_TARGET[1]),
-               color="#2e7d32", alpha=0.10, label="mục tiêu trước ăn 4,4–7,2")
-    ax.axhline(journal.to_mmol(journal.POST_MEAL_MAX), color="#ef6c00", ls="--", lw=0.8, label="sau ăn < 10,0")
+    t = targets or journal.resolve_targets()
+    ax.axhspan(journal.to_mmol(t["pre"][0]), journal.to_mmol(t["pre"][1]), color="#2e7d32", alpha=0.10,
+               label=f"mục tiêu trước ăn {_g(t['pre'][0])}–{_g(t['pre'][1])}")
+    ax.axhline(journal.to_mmol(t["post"]), color="#ef6c00", ls="--", lw=0.8, label=f"sau ăn < {_g(t['post'])}")
     ax.axhline(journal.to_mmol(journal.HYPO_1), color="#1565c0", ls=":", lw=0.8, label="hạ đường huyết < 3,9")
     marker = {"fasting": "o", "before_meal": "o", "after_meal": "^", "bedtime": "s", "random": "D"}
     names = {"fasting": "lúc đói", "before_meal": "trước ăn", "after_meal": "sau ăn", "bedtime": "trước ngủ",
@@ -144,7 +147,8 @@ def render_pdf(data):
             line += (f" Trung bình lúc đói/trước ăn {_g(cmp_['current_mgdl'])}, kỳ trước {_g(cmp_['previous_mgdl'])} "
                      f"({'+' if cmp_['delta_mgdl'] >= 0 else '−'}{_g(abs(cmp_['delta_mgdl']))}).")
         story += [Spacer(1, 3), Paragraph(line, body), Spacer(1, 3),
-                  Image(io.BytesIO(glucose_chart_png(data["series"], data["days"], now)),
+                  Image(io.BytesIO(glucose_chart_png(data["series"], data["days"], now,
+                                                     targets=data.get("targets"))),
                         width=17.5 * cm, height=5.6 * cm)]
     else:
         story.append(Paragraph("Chưa có lần đo nào trong giai đoạn này.", body))
@@ -176,9 +180,15 @@ def render_pdf(data):
             story.append(Paragraph(f"{i}. {escape(q)}", body))
     else:
         story.append(Paragraph("(chưa có)", body))
+    t = data.get("targets") or journal.resolve_targets()
+    basis = (f"Mục tiêu dùng trong bản này do người bệnh nhập theo lời bác sĩ: trước ăn {_g(t['pre'][0])}–"
+             f"{_g(t['pre'][1])}, sau ăn dưới {_g(t['post'])} mmol/L (mục tiêu chung theo {journal.SOURCE}: "
+             f"{_g(journal.PRE_MEAL_TARGET[0])}–{_g(journal.PRE_MEAL_TARGET[1])}, dưới {_g(journal.POST_MEAL_MAX)})."
+             if t["custom"] else
+             "Mục tiêu tham khảo theo " + journal.SOURCE + " cho người lớn không mang thai; bác sĩ có thể đặt "
+             "mục tiêu riêng.")
     story += [Spacer(1, 8), Paragraph(
-        "Số liệu do người bệnh tự ghi tại nhà bằng máy đo cá nhân. Mục tiêu tham khảo theo " + journal.SOURCE +
-        " cho người lớn không mang thai; bác sĩ có thể đặt mục tiêu riêng. Bản này không phải chẩn đoán "
+        "Số liệu do người bệnh tự ghi tại nhà bằng máy đo cá nhân. " + basis + " Bản này không phải chẩn đoán "
         "và không thay thế ý kiến bác sĩ. Lập bằng DiaCare.", small)]
 
     buf = io.BytesIO()

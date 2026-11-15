@@ -1,0 +1,1251 @@
+{
+  "meta": {
+    "title": "Báo cáo benchmark DiaCare-MAS",
+    "date": "2026-11-15 20:53:55",
+    "mode": "real",
+    "llm_kind": "ollama",
+    "llm_model": "qwen2.5:3b",
+    "num_ctx": 4096,
+    "embed_kind": "hash",
+    "kb_files": [
+      "medlineplus_diabetes.txt",
+      "medlineplus_diabetic_diet.txt",
+      "medlineplus_hypoglycemia.txt",
+      "medlineplus_type2_diabetes.txt",
+      "who_diabetes_factsheet.txt"
+    ],
+    "k": 3,
+    "n_cases": 12,
+    "python": "3.14.2",
+    "warnings": [],
+    "features": [
+      "kg",
+      "labs",
+      "memory",
+      "nutrition",
+      "rl"
+    ],
+    "predictor_metrics": {
+      "current": "multisource",
+      "multisource": {
+        "source": "tools/train_multisource.py, chạy ngày 2026-11-13",
+        "model": "HistGradientBoosting + hiệu chỉnh isotonic",
+        "train_rows": {
+          "brfss2015": 177576,
+          "brfss2023": 183112,
+          "nhanes": 14047
+        },
+        "test": {
+          "brfss2015": {
+            "n": 50736,
+            "pos": 0.1393,
+            "auc": 0.8288,
+            "brier": 0.0971,
+            "ece": 0.0039
+          },
+          "brfss2023": {
+            "n": 52318,
+            "pos": 0.1462,
+            "auc": 0.8177,
+            "brier": 0.1022,
+            "ece": 0.0044
+          },
+          "nhanes": {
+            "n": 4014,
+            "pos": 0.1378,
+            "auc": 0.8297,
+            "brier": 0.0961,
+            "ece": 0.009
+          },
+          "nhanes_lab_label": {
+            "n": 3839,
+            "pos": 0.1836,
+            "auc": 0.8117,
+            "brier": 0.1231,
+            "ece": 0.0484
+          },
+          "nhanes_undiagnosed": {
+            "n": 3286,
+            "pos": 0.0463,
+            "auc": 0.7234,
+            "brier": 0.0555,
+            "ece": 0.0625
+          }
+        },
+        "old_model_same_tests": {
+          "brfss2015": {
+            "n": 50736,
+            "pos": 0.1393,
+            "auc": 0.8306,
+            "brier": 0.1742,
+            "ece": 0.2339
+          },
+          "brfss2023": {
+            "n": 52318,
+            "pos": 0.1462,
+            "auc": 0.8166,
+            "brier": 0.1734,
+            "ece": 0.2237
+          },
+          "nhanes": {
+            "n": 4014,
+            "pos": 0.1378,
+            "auc": 0.824,
+            "brier": 0.1138,
+            "ece": 0.0916
+          },
+          "nhanes_lab_label": {
+            "n": 3839,
+            "pos": 0.1836,
+            "auc": 0.8061,
+            "brier": 0.1278,
+            "ece": 0.0566
+          },
+          "nhanes_undiagnosed": {
+            "n": 3286,
+            "pos": 0.0463,
+            "auc": 0.7163,
+            "brier": 0.0949,
+            "ece": 0.146
+          }
+        },
+        "leave_one_source_out_auc": {
+          "brfss2015": 0.8259,
+          "brfss2023": 0.8151,
+          "nhanes": 0.8207
+        },
+        "pima_external_auc": {
+          "multisource": 0.7236,
+          "old": 0.7386
+        },
+        "risk_bands": {
+          "thap": "< 0.10",
+          "cao": ">= 0.30"
+        }
+      },
+      "v1": {
+        "source": "train_predictor.py, chạy ngày 2026-11-04 trên CDC BRFSS 2015 (UCI id 891)",
+        "n_samples": 253680,
+        "positive_rate": 0.139,
+        "split": "80/20 phân tầng, seed 42 (tập kiểm tra ≈ 50.736 mẫu)",
+        "models": {
+          "LogisticRegression": {
+            "auc": 0.82,
+            "f1": 0.441,
+            "recall": 0.761
+          },
+          "MLP": {
+            "auc": 0.827,
+            "f1": 0.443,
+            "recall": 0.803
+          }
+        }
+      }
+    }
+  },
+  "results": {
+    "qwen2.5:3b": {
+      "runs": {
+        "journal_1": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 8,3 / 8.3",
+              "bản nháp thiếu một trong các cụm: cao hơn mục tiêu / vượt mục tiêu / vượt quá mục tiêu / trên mục tiêu / cao hơn mức mục tiêu / vượt ngưỡng mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 917,
+              "completion_tokens": 93,
+              "seconds": 2.294,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn trong thời gian gần đây không được cung cấp trong thông tin đã biết của bạn. Để có thông tin chính xác và phù hợp, tôi khuyên bạn nên kiểm tra đường huyết lúc đói và ghi lại kết quả trong nhật ký tự theo dõi của mình. Nếu bạn chưa thực hiện điều này, tôi khuyên bạn nên làm điều đó ngay lập tức.",
+            "final": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn trong thời gian gần đây không được cung cấp trong thông tin đã biết của bạn. Để có thông tin chính xác và phù hợp, tôi khuyên bạn nên kiểm tra đường huyết lúc đói và ghi lại kết quả trong nhật ký tự theo dõi của mình. Nếu bạn chưa thực hiện điều này, tôi khuyên bạn nên làm điều đó ngay lập tức.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.2578093000010995
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 8,3 / 8.3",
+              "bản nháp thiếu một trong các cụm: cao hơn mục tiêu / vượt mục tiêu / vượt quá mục tiêu / trên mục tiêu / cao hơn mức mục tiêu / vượt ngưỡng mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 917,
+              "completion_tokens": 88,
+              "seconds": 1.404,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn không được cung cấp trong thông tin đã biết. Để có thông tin chính xác về tình trạng của bạn, bạn nên kiểm tra đường huyết lúc đói và báo lại với bác sĩ điều trị của bạn. Bác sĩ sẽ giúp bạn hiểu rõ hơn về tình hình sức khỏe hiện tại của bạn và đưa ra hướng dẫn điều trị phù hợp.",
+            "final": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn không được cung cấp trong thông tin đã biết. Để có thông tin chính xác về tình trạng của bạn, bạn nên kiểm tra đường huyết lúc đói và báo lại với bác sĩ điều trị của bạn. Bác sĩ sẽ giúp bạn hiểu rõ hơn về tình hình sức khỏe hiện tại của bạn và đưa ra hướng dẫn điều trị phù hợp.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.4886705999997503
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 8,3 / 8.3",
+              "bản nháp thiếu một trong các cụm: cao hơn mục tiêu / vượt mục tiêu / vượt quá mục tiêu / trên mục tiêu / cao hơn mức mục tiêu / vượt ngưỡng mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 917,
+              "completion_tokens": 87,
+              "seconds": 1.339,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn trong thời gian gần đây không được cung cấp. Để có thông tin chính xác và phù hợp, bạn nên kiểm tra đường huyết lúc đói và ghi lại kết quả trong nhật ký tự theo dõi của mình. Nếu bạn chưa thực hiện, tôi khuyên bạn nên thực hiện ngay để theo dõi tình trạng của mình.",
+            "final": "Tôi xin lỗi, nhưng thông tin về đường huyết lúc đói của bạn trong thời gian gần đây không được cung cấp. Để có thông tin chính xác và phù hợp, bạn nên kiểm tra đường huyết lúc đói và ghi lại kết quả trong nhật ký tự theo dõi của mình. Nếu bạn chưa thực hiện, tôi khuyên bạn nên thực hiện ngay để theo dõi tình trạng của mình.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.4099545999997645
+          }
+        ],
+        "journal_2": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 6,3 / 6.3",
+              "bản nháp thiếu một trong các cụm: trong mục tiêu / đạt mục tiêu / trong mức mục tiêu / trong khoảng mục tiêu / trong phạm vi mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 886,
+              "completion_tokens": 307,
+              "seconds": 4.422,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 871
+            },
+            "draft": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả kiểm tra đường huyết trong các lần tái khám gần đây. Tuy nhiên, dựa trên thông tin đã cung cấp, bạn đang theo dõi lịch tái khám và kiểm tra đường huyết định kỳ. Điều này cho thấy bạn đang thực hiện tốt việc theo dõi và kiểm soát đường huyết.\n\nNếu bạn có kết quả kiểm tra đường huyết gần đây, tôi có thể so sánh với mục tiêu kiểm soát đường huyết của bạn. Mục tiêu kiểm soát đường huyết cho người tiểu đường típ 2 thường là HbA1c dưới 7% hoặc dưới 53 mmol/mol. Nếu kết quả HbA1c của bạn nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu kết quả HbA1c cao hơn mức này, bạn nên báo cáo với bác sĩ để có hướng dẫn điều chỉnh.\n\nNếu bạn chưa có kết quả HbA1c gần đây, tôi khuyên bạn nên báo cáo với bác sĩ để có xét nghiệm HbA1c. Điều này sẽ giúp bạn và bác sĩ xác định xem bạn đang kiểm soát đường huyết tốt hay cần điều chỉnh thêm.\n\nNgoài ra, việc theo dõi đường huyết định kỳ và tuân thủ lịch tái khám của bác sĩ cũng rất quan trọng. Điều này giúp bạn và bác sĩ theo dõi và điều chỉnh nếu cần thiết.",
+            "final": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả kiểm tra đường huyết trong các lần tái khám gần đây. Tuy nhiên, dựa trên thông tin đã cung cấp, bạn đang theo dõi lịch tái khám và kiểm tra đường huyết định kỳ. Điều này cho thấy bạn đang thực hiện tốt việc theo dõi và kiểm soát đường huyết.\n\nNếu bạn có kết quả kiểm tra đường huyết gần đây, tôi có thể so sánh với mục tiêu kiểm soát đường huyết của bạn. Mục tiêu kiểm soát đường huyết cho người tiểu đường típ 2 thường là HbA1c dưới 7% hoặc dưới 53 mmol/mol. Nếu kết quả HbA1c của bạn nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu kết quả HbA1c cao hơn mức này, bạn nên báo cáo với bác sĩ để có hướng dẫn điều chỉnh.\n\nNếu bạn chưa có kết quả HbA1c gần đây, tôi khuyên bạn nên báo cáo với bác sĩ để có xét nghiệm HbA1c. Điều này sẽ giúp bạn và bác sĩ xác định xem bạn đang kiểm soát đường huyết tốt hay cần điều chỉnh thêm.\n\nNgoài ra, việc theo dõi đường huyết định kỳ và tuân thủ lịch tái khám của bác sĩ cũng rất quan trọng. Điều này giúp bạn và bác sĩ theo dõi và điều chỉnh nếu cần thiết.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetic_diet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.480093499998475
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 6,3 / 6.3",
+              "bản nháp thiếu một trong các cụm: trong mục tiêu / đạt mục tiêu / trong mức mục tiêu / trong khoảng mục tiêu / trong phạm vi mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 886,
+              "completion_tokens": 319,
+              "seconds": 4.447,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 871
+            },
+            "draft": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả xét nghiệm gần nhất của bạn. Tuy nhiên, dựa trên thông tin đã có, nếu bạn đang theo dõi HbA1c và kiểm soát đường huyết định kỳ, thì mức kiểm soát đường huyết của bạn có thể được coi là ổn định. \n\nHbA1c là chỉ số đo đường huyết trung bình trong 2-3 tháng, và mục tiêu HbA1c cho người tiểu đường típ 2 thường được đề xuất là dưới 7.0%. Nếu kết quả HbA1c của bạn nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu HbA1c cao hơn mức này, bạn nên thảo luận với bác sĩ điều trị của mình để tìm hiểu nguyên nhân và xem xét liệu có cần điều chỉnh chế độ ăn, tập luyện hoặc thuốc điều trị không.\n\nNgoài ra, nếu bạn đang theo dõi đường huyết định kỳ, mức đường huyết trong bữa ăn hoặc sau bữa ăn cũng là một chỉ số quan trọng. Nếu bạn đang kiểm soát đường huyết tốt, thì mức đường huyết này cũng sẽ nằm trong phạm vi an toàn.\n\nRất quan trọng là bạn cần tuân thủ lịch tái khám định kỳ với bác sĩ điều trị và theo dõi HbA1c/đường huyết định kỳ. Hãy báo cáo bất kỳ thay đổi nào trong tình trạng sức khỏe của bạn cho bác sĩ của bạn.",
+            "final": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả xét nghiệm gần nhất của bạn. Tuy nhiên, dựa trên thông tin đã có, nếu bạn đang theo dõi HbA1c và kiểm soát đường huyết định kỳ, thì mức kiểm soát đường huyết của bạn có thể được coi là ổn định. \n\nHbA1c là chỉ số đo đường huyết trung bình trong 2-3 tháng, và mục tiêu HbA1c cho người tiểu đường típ 2 thường được đề xuất là dưới 7.0%. Nếu kết quả HbA1c của bạn nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu HbA1c cao hơn mức này, bạn nên thảo luận với bác sĩ điều trị của mình để tìm hiểu nguyên nhân và xem xét liệu có cần điều chỉnh chế độ ăn, tập luyện hoặc thuốc điều trị không.\n\nNgoài ra, nếu bạn đang theo dõi đường huyết định kỳ, mức đường huyết trong bữa ăn hoặc sau bữa ăn cũng là một chỉ số quan trọng. Nếu bạn đang kiểm soát đường huyết tốt, thì mức đường huyết này cũng sẽ nằm trong phạm vi an toàn.\n\nRất quan trọng là bạn cần tuân thủ lịch tái khám định kỳ với bác sĩ điều trị và theo dõi HbA1c/đường huyết định kỳ. Hãy báo cáo bất kỳ thay đổi nào trong tình trạng sức khỏe của bạn cho bác sĩ của bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetic_diet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.534782399998221
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 6,3 / 6.3",
+              "bản nháp thiếu một trong các cụm: trong mục tiêu / đạt mục tiêu / trong mức mục tiêu / trong khoảng mục tiêu / trong phạm vi mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 886,
+              "completion_tokens": 294,
+              "seconds": 4.088,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 871
+            },
+            "draft": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả kiểm tra đường huyết trong các lần tái khám gần đây. Tuy nhiên, dựa trên thông tin đã cung cấp, tôi có thể cho rằng bạn đang theo dõi đường huyết định kỳ và tuân thủ lịch tái khám của bác sĩ điều trị. Điều này cho thấy bạn đang thực hiện tốt việc theo dõi và kiểm soát đường huyết.\n\nMục tiêu HbA1c lý tưởng cho người tiểu đường típ 2 là dưới 7.0%. Nếu kết quả HbA1c của bạn trong các lần tái khám gần đây nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu HbA1c của bạn cao hơn mức này, bạn nên thảo luận với bác sĩ về việc cần cải thiện kiểm soát đường huyết.\n\nNgoài ra, bạn cũng nên kiểm tra đường huyết trước mỗi bữa ăn và sau bữa ăn để theo dõi hiệu quả của các biện pháp kiểm soát đường huyết mà bạn đang thực hiện. Nếu bạn thấy đường huyết cao hơn mức mục tiêu, bạn nên báo cáo với bác sĩ để có hướng dẫn điều chỉnh phù hợp.\n\nVui lòng kiểm tra kết quả kiểm tra đường huyết gần đây và báo cáo lại nếu có thể. Bác sĩ có thể cần xem xét thêm để đảm bảo bạn đang kiểm soát đường huyết tốt.",
+            "final": "Để đánh giá tình trạng kiểm soát đường huyết của bạn, tôi cần xem xét kết quả kiểm tra đường huyết trong các lần tái khám gần đây. Tuy nhiên, dựa trên thông tin đã cung cấp, tôi có thể cho rằng bạn đang theo dõi đường huyết định kỳ và tuân thủ lịch tái khám của bác sĩ điều trị. Điều này cho thấy bạn đang thực hiện tốt việc theo dõi và kiểm soát đường huyết.\n\nMục tiêu HbA1c lý tưởng cho người tiểu đường típ 2 là dưới 7.0%. Nếu kết quả HbA1c của bạn trong các lần tái khám gần đây nằm trong khoảng này, thì bạn đang kiểm soát đường huyết tốt. Tuy nhiên, nếu HbA1c của bạn cao hơn mức này, bạn nên thảo luận với bác sĩ về việc cần cải thiện kiểm soát đường huyết.\n\nNgoài ra, bạn cũng nên kiểm tra đường huyết trước mỗi bữa ăn và sau bữa ăn để theo dõi hiệu quả của các biện pháp kiểm soát đường huyết mà bạn đang thực hiện. Nếu bạn thấy đường huyết cao hơn mức mục tiêu, bạn nên báo cáo với bác sĩ để có hướng dẫn điều chỉnh phù hợp.\n\nVui lòng kiểm tra kết quả kiểm tra đường huyết gần đây và báo cáo lại nếu có thể. Bác sĩ có thể cần xem xét thêm để đảm bảo bạn đang kiểm soát đường huyết tốt.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetic_diet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.16081689999919
+          }
+        ],
+        "journal_3": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: hạ đường huyết / dưới 3,9 / dưới 3.9"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 899,
+              "completion_tokens": 312,
+              "seconds": 4.529,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 870
+            },
+            "draft": "Dựa trên thông tin mà bạn cung cấp, tôi không thấy có số đo cụ thể nào trong nhật ký tự theo dõi của bạn. Để đưa ra đánh giá chính xác, tôi cần biết số đo đường huyết cụ thể và chỉ số HbA1c. Tuy nhiên, tôi có thể đưa ra một số gợi ý dựa trên thông tin đã biết:\n\n- Đường huyết: Nếu đường huyết cao hơn mức mục tiêu của bạn hoặc nếu bạn đang ở mức rất cao, điều này có thể đáng lo ngại. Bạn nên báo cáo cho bác sĩ điều trị của bạn.\n\n- Chỉ số HbA1c: Nếu chỉ số HbA1c cao hơn mức mục tiêu (mức HbA1c mục tiêu cho người đái tháo đường típ 2 thường là dưới 7% hoặc dưới 53 mmol/mol), điều này cũng có thể đáng lo ngại. Bạn nên báo cáo cho bác sĩ điều trị của bạn.\n\n- Đánh giá tổng quát: Mức nguy cơ tiểu đường của bạn được đánh giá là thấp. Điều này có nghĩa là bạn có thể không cần phải thay đổi nhiều về lối sống, nhưng vẫn cần tuân thủ lịch tái khám và theo dõi sức khỏe của bạn.\n\nNếu bạn có bất kỳ dấu hiệu hoặc triệu chứng nào khác như mệt mỏi, khó thở, đau đầu, hoặc bất kỳ triệu chứng nào khác, bạn nên báo cáo cho bác sĩ điều trị của bạn ngay lập tức.",
+            "final": "Dựa trên thông tin mà bạn cung cấp, tôi không thấy có số đo cụ thể nào trong nhật ký tự theo dõi của bạn. Để đưa ra đánh giá chính xác, tôi cần biết số đo đường huyết cụ thể và chỉ số HbA1c. Tuy nhiên, tôi có thể đưa ra một số gợi ý dựa trên thông tin đã biết:\n\n- Đường huyết: Nếu đường huyết cao hơn mức mục tiêu của bạn hoặc nếu bạn đang ở mức rất cao, điều này có thể đáng lo ngại. Bạn nên báo cáo cho bác sĩ điều trị của bạn.\n\n- Chỉ số HbA1c: Nếu chỉ số HbA1c cao hơn mức mục tiêu (mức HbA1c mục tiêu cho người đái tháo đường típ 2 thường là dưới 7% hoặc dưới 53 mmol/mol), điều này cũng có thể đáng lo ngại. Bạn nên báo cáo cho bác sĩ điều trị của bạn.\n\n- Đánh giá tổng quát: Mức nguy cơ tiểu đường của bạn được đánh giá là thấp. Điều này có nghĩa là bạn có thể không cần phải thay đổi nhiều về lối sống, nhưng vẫn cần tuân thủ lịch tái khám và theo dõi sức khỏe của bạn.\n\nNếu bạn có bất kỳ dấu hiệu hoặc triệu chứng nào khác như mệt mỏi, khó thở, đau đầu, hoặc bất kỳ triệu chứng nào khác, bạn nên báo cáo cho bác sĩ điều trị của bạn ngay lập tức.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetic_diet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.5771168999999645
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: hạ đường huyết / dưới 3,9 / dưới 3.9",
+              "bản nháp thiếu một trong các cụm: bác sĩ"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 899,
+              "completion_tokens": 82,
+              "seconds": 1.304,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 870
+            },
+            "draft": "Dựa trên thông tin từ các phiên trước, mức nguy cơ tiểu đường của bạn ước tính là thấp. Tuy nhiên, tôi cần xem xét số đo đường huyết cụ thể của tuần này để đưa ra đánh giá chính xác. Bạn có thể cung cấp cho tôi số đo đường huyết glucose trong máu (đường huyết) và HbA1c từ tuần này không?",
+            "final": "Dựa trên thông tin từ các phiên trước, mức nguy cơ tiểu đường của bạn ước tính là thấp. Tuy nhiên, tôi cần xem xét số đo đường huyết cụ thể của tuần này để đưa ra đánh giá chính xác. Bạn có thể cung cấp cho tôi số đo đường huyết glucose trong máu (đường huyết) và HbA1c từ tuần này không?\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetic_diet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.369490599998244
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: hạ đường huyết / dưới 3,9 / dưới 3.9"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 899,
+              "completion_tokens": 107,
+              "seconds": 1.658,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 870
+            },
+            "draft": "Theo nhật ký tự theo dõi của bạn, tuần này đường huyết của bạn vẫn duy trì trong mức mục tiêu mà bác sĩ đã đặt. Tuy nhiên, chỉ số HbA1c đã tăng nhẹ so với mục tiêu. Đây không phải là một chẩn đoán, nhưng cần được bác sĩ đánh giá để có hướng dẫn điều trị phù hợp. Bạn nên báo cáo với bác sĩ để họ có thể xem xét lại lịch tái khám và có thể cần điều chỉnh chế độ ăn hoặc liều thuốc.",
+            "final": "Theo nhật ký tự theo dõi của bạn, tuần này đường huyết của bạn vẫn duy trì trong mức mục tiêu mà bác sĩ đã đặt. Tuy nhiên, chỉ số HbA1c đã tăng nhẹ so với mục tiêu. Đây không phải là một chẩn đoán, nhưng cần được bác sĩ đánh giá để có hướng dẫn điều trị phù hợp. Bạn nên báo cáo với bác sĩ để họ có thể xem xét lại lịch tái khám và có thể cần điều chỉnh chế độ ăn hoặc liều thuốc.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetic_diet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.740039300002536
+          }
+        ],
+        "journal_4": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: rất cao / 15,2 / 15.2"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 963,
+              "completion_tokens": 142,
+              "seconds": 2.213,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 900
+            },
+            "draft": "Theo thông tin từ các phiên trước, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và mức nguy cơ tiểu đường của bạn được đánh giá là thấp. Hiện tại, tôi chưa có thông tin cụ thể về các lần đo đái tháo đường gần đây của bạn. Để có đánh giá chính xác, tôi khuyên bạn nên kiểm tra lại mức đường huyết và liên hệ với bác sĩ điều trị của bạn để có hướng dẫn phù hợp. Bạn có thể muốn báo cáo cho bác sĩ những kết quả này, đặc biệt nếu bạn thấy có sự thay đổi đáng kể trong chỉ số đường huyết so với mục tiêu mà bác sĩ đã đặt cho bạn.",
+            "final": "Theo thông tin từ các phiên trước, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và mức nguy cơ tiểu đường của bạn được đánh giá là thấp. Hiện tại, tôi chưa có thông tin cụ thể về các lần đo đái tháo đường gần đây của bạn. Để có đánh giá chính xác, tôi khuyên bạn nên kiểm tra lại mức đường huyết và liên hệ với bác sĩ điều trị của bạn để có hướng dẫn phù hợp. Bạn có thể muốn báo cáo cho bác sĩ những kết quả này, đặc biệt nếu bạn thấy có sự thay đổi đáng kể trong chỉ số đường huyết so với mục tiêu mà bác sĩ đã đặt cho bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 4.2476907999989635
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: rất cao / 15,2 / 15.2",
+              "bản nháp thiếu một trong các cụm: bác sĩ"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 963,
+              "completion_tokens": 118,
+              "seconds": 1.818,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 900
+            },
+            "draft": "Theo các thông tin đã cung cấp, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và đang theo dõi mức nguy cơ thấp. Để có thông tin chính xác về tình trạng của bạn, tôi cần xem kết quả đo đường huyết gần đây của bạn. Bạn có thể cung cấp cho tôi các con số cụ thể về chỉ số đường huyết (HbA1c) và đường huyết trong các lần đo gần đây không? Điều này sẽ giúp tôi cung cấp thông tin tư vấn cá nhân hóa tốt hơn.",
+            "final": "Theo các thông tin đã cung cấp, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và đang theo dõi mức nguy cơ thấp. Để có thông tin chính xác về tình trạng của bạn, tôi cần xem kết quả đo đường huyết gần đây của bạn. Bạn có thể cung cấp cho tôi các con số cụ thể về chỉ số đường huyết (HbA1c) và đường huyết trong các lần đo gần đây không? Điều này sẽ giúp tôi cung cấp thông tin tư vấn cá nhân hóa tốt hơn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.874899899998127
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: rất cao / 15,2 / 15.2",
+              "bản nháp thiếu một trong các cụm: bác sĩ"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 963,
+              "completion_tokens": 119,
+              "seconds": 1.77,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 900
+            },
+            "draft": "Theo các thông tin đã cung cấp, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và được tư vấn theo dõi đường huyết và tái khám định kỳ. Để có thông tin chính xác về tình trạng hiện tại của bạn, tôi cần xem xét kết quả xét nghiệm gần đây của bạn. Bạn có thể cung cấp cho tôi kết quả HbA1c, đường huyết trước và sau bữa ăn, và đường huyết fasting không? Điều này sẽ giúp tôi có thể đánh giá tình trạng của bạn một cách chính xác hơn.",
+            "final": "Theo các thông tin đã cung cấp, bạn đã được chẩn đoán mắc đái tháo đường típ 2 và được tư vấn theo dõi đường huyết và tái khám định kỳ. Để có thông tin chính xác về tình trạng hiện tại của bạn, tôi cần xem xét kết quả xét nghiệm gần đây của bạn. Bạn có thể cung cấp cho tôi kết quả HbA1c, đường huyết trước và sau bữa ăn, và đường huyết fasting không? Điều này sẽ giúp tôi có thể đánh giá tình trạng của bạn một cách chính xác hơn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.840855399997963
+          }
+        ],
+        "journal_5": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "không trích nguồn đã truy xuất",
+              "bản nháp thiếu một trong các cụm: 11,5 / 11.5"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 918,
+              "completion_tokens": 378,
+              "seconds": 5.259,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Theo dõi và kiểm tra đường huyết sau ăn (đường huyết post-prandial) thường xuyên là một phần quan trọng trong việc quản lý tiểu đường típ 2. Bạn nên:\n\n1. Theo dõi đường huyết sau ăn: Đường huyết sau ăn cao có thể cho thấy bạn cần cải thiện chế độ ăn uống hoặc tăng cường hoạt động thể chất. Bạn nên theo dõi đường huyết sau ăn trong khoảng thời gian từ 1 giờ đến 2 giờ sau khi ăn để có kết quả chính xác nhất.\n\n2. Tham khảo ý kiến bác sĩ: Nếu đường huyết sau ăn vẫn cao, bạn nên gặp bác sĩ để xem xét việc thay đổi chế độ ăn uống hoặc tăng cường hoạt động thể chất. Bác sĩ có thể đề xuất sử dụng các loại thuốc như metformin, sulfonylureas hoặc sodium-glucose co-transporters type 2 (SGLT-2) inhibitors.\n\n3. Thực hiện các biện pháp điều chỉnh: Bác sĩ có thể khuyên bạn nên giảm lượng đường trong khẩu phần ăn, tăng cường hoạt động thể chất, hoặc sử dụng các loại thuốc. \n\n4. Kiểm tra HbA1c: HbA1c là chỉ số đo đường huyết trung bình trong 3 tháng qua. Nếu HbA1c cao, điều này có thể cho thấy bạn cần phải điều chỉnh chế độ ăn uống hoặc sử dụng thuốc.\n\n5. Theo dõi và tái khám định kỳ: Đảm bảo bạn đang theo dõi và tái khám định kỳ với bác sĩ điều trị để theo dõi tình trạng sức khỏe và điều chỉnh nếu cần.\n\nHãy nhớ rằng, đây chỉ là một số gợi ý và bạn nên tham khảo ý kiến của bác sĩ để có hướng dẫn phù hợp với tình trạng sức khỏe của mình.",
+            "final": "Theo dõi và kiểm tra đường huyết sau ăn (đường huyết post-prandial) thường xuyên là một phần quan trọng trong việc quản lý tiểu đường típ 2. Bạn nên:\n\n1. Theo dõi đường huyết sau ăn: Đường huyết sau ăn cao có thể cho thấy bạn cần cải thiện chế độ ăn uống hoặc tăng cường hoạt động thể chất. Bạn nên theo dõi đường huyết sau ăn trong khoảng thời gian từ 1 giờ đến 2 giờ sau khi ăn để có kết quả chính xác nhất.\n\n2. Tham khảo ý kiến bác sĩ: Nếu đường huyết sau ăn vẫn cao, bạn nên gặp bác sĩ để xem xét việc thay đổi chế độ ăn uống hoặc tăng cường hoạt động thể chất. Bác sĩ có thể đề xuất sử dụng các loại thuốc như metformin, sulfonylureas hoặc sodium-glucose co-transporters type 2 (SGLT-2) inhibitors.\n\n3. Thực hiện các biện pháp điều chỉnh: Bác sĩ có thể khuyên bạn nên giảm lượng đường trong khẩu phần ăn, tăng cường hoạt động thể chất, hoặc sử dụng các loại thuốc. \n\n4. Kiểm tra HbA1c: HbA1c là chỉ số đo đường huyết trung bình trong 3 tháng qua. Nếu HbA1c cao, điều này có thể cho thấy bạn cần phải điều chỉnh chế độ ăn uống hoặc sử dụng thuốc.\n\n5. Theo dõi và tái khám định kỳ: Đảm bảo bạn đang theo dõi và tái khám định kỳ với bác sĩ điều trị để theo dõi tình trạng sức khỏe và điều chỉnh nếu cần.\n\nHãy nhớ rằng, đây chỉ là một số gợi ý và bạn nên tham khảo ý kiến của bác sĩ để có hướng dẫn phù hợp với tình trạng sức khỏe của mình.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 7.283960200002184
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "có cờ bị cấm: unsafe_advice_blocked",
+              "không đọc nhật ký",
+              "không trích nguồn đã truy xuất",
+              "bản nháp chứa lời khuyên thuốc không an toàn",
+              "bản nháp thiếu một trong các cụm: 11,5 / 11.5"
+            ],
+            "flags": [
+              "unsafe_advice_blocked",
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 918,
+              "completion_tokens": 344,
+              "seconds": 4.86,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Nếu đường huyết sau ăn của bạn thường xuyên cao, điều quan trọng là phải theo dõi và điều chỉnh chế độ ăn uống, tập thể dục và có thể cần phải điều chỉnh liều thuốc. Dưới đây là một số hướng dẫn mà bạn có thể thực hiện:\n\n1. Theo dõi đường huyết: Hãy theo dõi đường huyết sau ăn để xác định mức độ cao của nó. Điều này sẽ giúp bạn và bác sĩ điều trị có thể điều chỉnh thuốc nếu cần.\n\n2. Chế độ ăn: Hãy tham khảo ý kiến của một chuyên gia dinh dưỡng để có một kế hoạch ăn uống phù hợp. Thường thì giảm carbohydrate, đặc biệt là carbohydrate nhanh, và tăng cường protein và chất xơ có thể giúp giảm đường huyết sau ăn.\n\n3. Tập thể dục: Tập thể dục thường xuyên, đặc biệt là aerobic, có thể giúp giảm đường huyết sau ăn và cải thiện sức khỏe tổng thể.\n\n4. Liều thuốc: Nếu bạn đang sử dụng thuốc, bạn có thể cần phải điều chỉnh liều. Điều này nên được thực hiện dưới sự hướng dẫn của bác sĩ điều trị. Có thể cần phải tăng liều insulin hoặc thay đổi loại thuốc bạn đang sử dụng.\n\n5. Kiểm tra lại: Hãy kiểm tra lại đường huyết sau ăn sau khi điều chỉnh chế độ ăn và thuốc. Điều này sẽ giúp bạn và bác sĩ điều trị có thể điều chỉnh lại nếu cần.\n\nNếu sau khi thực hiện các bước trên, đường huyết sau ăn của bạn vẫn cao, bạn nên báo cáo với bác sĩ điều trị của bạn. Họ có thể cần phải điều chỉnh lại kế hoạch điều trị của bạn.",
+            "final": "Dưới đây là một số hướng dẫn mà bạn có thể thực hiện:\n\n1. Theo dõi đường huyết: Hãy theo dõi đường huyết sau ăn để xác định mức độ cao của nó. Điều này sẽ giúp bạn và bác sĩ điều trị có thể điều chỉnh thuốc nếu cần.\n\n2. Chế độ ăn: Hãy tham khảo ý kiến của một chuyên gia dinh dưỡng để có một kế hoạch ăn uống phù hợp. Thường thì giảm carbohydrate, đặc biệt là carbohydrate nhanh, và tăng cường protein và chất xơ có thể giúp giảm đường huyết sau ăn.\n\n3. Tập thể dục: Tập thể dục thường xuyên, đặc biệt là aerobic, có thể giúp giảm đường huyết sau ăn và cải thiện sức khỏe tổng thể.\n\n4. Liều thuốc: Nếu bạn đang sử dụng thuốc, bạn có thể cần phải điều chỉnh liều. Điều này nên được thực hiện dưới sự hướng dẫn của bác sĩ điều trị.\n\n5. Kiểm tra lại: Hãy kiểm tra lại đường huyết sau ăn sau khi điều chỉnh chế độ ăn và thuốc. Điều này sẽ giúp bạn và bác sĩ điều trị có thể điều chỉnh lại nếu cần.\n\nNếu sau khi thực hiện các bước trên, đường huyết sau ăn của bạn vẫn cao, bạn nên báo cáo với bác sĩ điều trị của bạn. Họ có thể cần phải điều chỉnh lại kế hoạch điều trị của bạn.\n\nMình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. Vui lòng hỏi bác sĩ điều trị của bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.9120020999980625
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "không trích nguồn đã truy xuất",
+              "bản nháp thiếu một trong các cụm: 11,5 / 11.5"
+            ],
+            "flags": [
+              "dose_adjust_note",
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 918,
+              "completion_tokens": 372,
+              "seconds": 5.178,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 913
+            },
+            "draft": "Theo dõi và kiểm tra đường huyết sau ăn (đường huyết post-prandial) thường xuyên là một phần quan trọng trong việc quản lý tiểu đường típ 2. Bạn nên:\n\n1. Theo dõi đường huyết sau ăn: Bạn nên kiểm tra đường huyết sau ăn ít nhất 2-4 giờ sau khi ăn để có thông tin chính xác về mức đường huyết của mình. \n\n2. Kiểm tra đường huyết định kỳ: Theo dõi đường huyết định kỳ (ví dụ: mỗi tháng hoặc theo lịch hẹn tái khám của bác sĩ) để có cái nhìn tổng quan về mức đường huyết của bạn.\n\n3. Tham khảo ý kiến bác sĩ: Nếu đường huyết sau ăn thường cao, bạn nên thảo luận với bác sĩ về việc có thể cần thay đổi chế độ ăn, tăng cường hoạt động thể chất, hoặc có thể cần thêm thuốc điều trị. \n\n4. Thực hiện các biện pháp phòng ngừa: Bạn cũng nên thực hiện các biện pháp phòng ngừa như duy trì cân nặng khỏe mạnh, duy trì hoạt động thể chất, và tuân thủ chế độ ăn uống lành mạnh.\n\n5. Theo dõi HbA1c: HbA1c là chỉ số đo mức đường huyết trung bình trong 3 tháng, nên bạn cũng nên theo dõi HbA1c định kỳ để đánh giá hiệu quả điều trị.\n\n6. Không tự ý thay đổi thuốc: Bạn không nên tự ý thay đổi thuốc mà không có sự tư vấn của bác sĩ điều trị.\n\nNếu bạn đang sử dụng insulin, việc kiểm tra đường huyết sau ăn cũng có thể giúp bạn điều chỉnh liều insulin phù hợp. Hãy nhớ rằng, chỉ có bác sĩ điều trị mới có thể đưa ra các hướng dẫn điều trị phù hợp với tình hình sức khỏe của bạn.",
+            "final": "Theo dõi và kiểm tra đường huyết sau ăn (đường huyết post-prandial) thường xuyên là một phần quan trọng trong việc quản lý tiểu đường típ 2. Bạn nên:\n\n1. Theo dõi đường huyết sau ăn: Bạn nên kiểm tra đường huyết sau ăn ít nhất 2-4 giờ sau khi ăn để có thông tin chính xác về mức đường huyết của mình. \n\n2. Kiểm tra đường huyết định kỳ: Theo dõi đường huyết định kỳ (ví dụ: mỗi tháng hoặc theo lịch hẹn tái khám của bác sĩ) để có cái nhìn tổng quan về mức đường huyết của bạn.\n\n3. Tham khảo ý kiến bác sĩ: Nếu đường huyết sau ăn thường cao, bạn nên thảo luận với bác sĩ về việc có thể cần thay đổi chế độ ăn, tăng cường hoạt động thể chất, hoặc có thể cần thêm thuốc điều trị. \n\n4. Thực hiện các biện pháp phòng ngừa: Bạn cũng nên thực hiện các biện pháp phòng ngừa như duy trì cân nặng khỏe mạnh, duy trì hoạt động thể chất, và tuân thủ chế độ ăn uống lành mạnh.\n\n5. Theo dõi HbA1c: HbA1c là chỉ số đo mức đường huyết trung bình trong 3 tháng, nên bạn cũng nên theo dõi HbA1c định kỳ để đánh giá hiệu quả điều trị.\n\n6. Không tự ý thay đổi thuốc: Bạn không nên tự ý thay đổi thuốc mà không có sự tư vấn của bác sĩ điều trị.\n\nNếu bạn đang sử dụng insulin, việc kiểm tra đường huyết sau ăn cũng có thể giúp bạn điều chỉnh liều insulin phù hợp. Hãy nhớ rằng, chỉ có bác sĩ điều trị mới có thể đưa ra các hướng dẫn điều trị phù hợp với tình hình sức khỏe của bạn.\n\nLưu ý: chỉ điều chỉnh liều thuốc hoặc insulin theo hướng dẫn của bác sĩ điều trị, đừng tự thay đổi liều.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 7.238452100002178
+          }
+        ],
+        "journal_6": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: giảm / cải thiện / tốt hơn / tốt lên / hạ xuống",
+              "bản nháp thiếu một trong các cụm: 7,0 / 7.0 / 8,5 / 8.5"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 89,
+              "seconds": 1.603,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin mà tôi có. Để có thông tin chính xác về mức đường huyết lúc đói của bạn, tôi khuyên bạn nên kiểm tra và báo cáo cho bác sĩ của bạn. Bác sĩ có thể cần những thông tin này để điều chỉnh liệu pháp điều trị của bạn.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin mà tôi có. Để có thông tin chính xác về mức đường huyết lúc đói của bạn, tôi khuyên bạn nên kiểm tra và báo cáo cho bác sĩ của bạn. Bác sĩ có thể cần những thông tin này để điều chỉnh liệu pháp điều trị của bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.6808281000012357
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: giảm / cải thiện / tốt hơn / tốt lên / hạ xuống",
+              "bản nháp thiếu một trong các cụm: 7,0 / 7.0 / 8,5 / 8.5"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 86,
+              "seconds": 1.347,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có thông tin chính xác, tôi khuyên bạn nên báo cáo cho bác sĩ điều trị của bạn. Họ có thể yêu cầu bạn đo đường huyết lúc đói và so sánh với mức trước đó để đánh giá sự thay đổi.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có thông tin chính xác, tôi khuyên bạn nên báo cáo cho bác sĩ điều trị của bạn. Họ có thể yêu cầu bạn đo đường huyết lúc đói và so sánh với mức trước đó để đánh giá sự thay đổi.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.41205379999883
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: giảm / cải thiện / tốt hơn / tốt lên / hạ xuống",
+              "bản nháp thiếu một trong các cụm: 7,0 / 7.0 / 8,5 / 8.5"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 102,
+              "seconds": 1.543,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói trong hai tuần qua không được cung cấp trong các tài liệu hoặc nhật ký tự theo dõi mà tôi có thể truy cập. Để đưa ra đánh giá chính xác, tôi cần có số liệu cụ thể về đường huyết lúc đói từ hai tuần trước. Bạn có thể cung cấp cho tôi số liệu đó không? Điều này sẽ giúp tôi có thể đưa ra đánh giá chính xác hơn.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói trong hai tuần qua không được cung cấp trong các tài liệu hoặc nhật ký tự theo dõi mà tôi có thể truy cập. Để đưa ra đánh giá chính xác, tôi cần có số liệu cụ thể về đường huyết lúc đói từ hai tuần trước. Bạn có thể cung cấp cho tôi số liệu đó không? Điều này sẽ giúp tôi có thể đưa ra đánh giá chính xác hơn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.6267375999996148
+          }
+        ],
+        "journal_7": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: tăng / xấu đi / cao hơn",
+              "bản nháp thiếu một trong các cụm: 8,2 / 8.2 / 6,8 / 6.8"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 97,
+              "seconds": 1.465,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có thông tin chính xác, tôi khuyên bạn nên báo cáo số liệu này cho bác sĩ của bạn trong cuộc tái khám sắp tới. Họ sẽ có thể cho bạn biết liệu đường huyết lúc đói của bạn có thay đổi so với mức mục tiêu mà bác sĩ đã đặt hay không.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có thông tin chính xác, tôi khuyên bạn nên báo cáo số liệu này cho bác sĩ của bạn trong cuộc tái khám sắp tới. Họ sẽ có thể cho bạn biết liệu đường huyết lúc đói của bạn có thay đổi so với mức mục tiêu mà bác sĩ đã đặt hay không.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.531046399999468
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: tăng / xấu đi / cao hơn",
+              "bản nháp thiếu một trong các cụm: 8,2 / 8.2 / 6,8 / 6.8"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 130,
+              "seconds": 1.95,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có được thông tin này, tôi khuyên bạn nên theo dõi và ghi chép đường huyết lúc đói của mình trong nhật ký tự theo dõi. Điều này sẽ giúp bạn và bác sĩ điều trị của bạn có cái nhìn tổng quát hơn về tình trạng sức khỏe của bạn. Nếu bạn muốn tôi giúp phân tích dữ liệu đã có, bạn cần cung cấp cho tôi số liệu đường huyết lúc đói từ hai tuần trước.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có được thông tin này, tôi khuyên bạn nên theo dõi và ghi chép đường huyết lúc đói của mình trong nhật ký tự theo dõi. Điều này sẽ giúp bạn và bác sĩ điều trị của bạn có cái nhìn tổng quát hơn về tình trạng sức khỏe của bạn. Nếu bạn muốn tôi giúp phân tích dữ liệu đã có, bạn cần cung cấp cho tôi số liệu đường huyết lúc đói từ hai tuần trước.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 4.028720700000122
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: tăng / xấu đi / cao hơn",
+              "bản nháp thiếu một trong các cụm: 8,2 / 8.2 / 6,8 / 6.8"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 884,
+              "completion_tokens": 98,
+              "seconds": 1.486,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 886
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có đánh giá chính xác, tôi cần xem nhật ký tự theo dõi của bạn trong hai tuần qua. Bạn có thể cung cấp cho tôi số liệu cụ thể về đường huyết lúc đói trong hai tuần qua không? Điều này sẽ giúp tôi đưa ra đánh giá chính xác hơn.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về đường huyết lúc đói của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có đánh giá chính xác, tôi cần xem nhật ký tự theo dõi của bạn trong hai tuần qua. Bạn có thể cung cấp cho tôi số liệu cụ thể về đường huyết lúc đói trong hai tuần qua không? Điều này sẽ giúp tôi đưa ra đánh giá chính xác hơn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.588127799997892
+          }
+        ],
+        "journal_8": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 142/88 / 142",
+              "bản nháp thiếu một trong các cụm: 130/80 / cao hơn / vượt / trên mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1051,
+              "completion_tokens": 111,
+              "seconds": 1.709,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 996
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin mà bạn cung cấp không bao gồm thông tin về huyết áp của bạn. Để có thông tin chính xác về huyết áp, bạn nên kiểm tra và ghi lại thông tin này trong nhật ký tự theo dõi của mình. Nếu huyết áp của bạn tăng cao, điều này có thể là một yếu tố nguy cơ cho đái tháo đường và tăng huyết áp. Bạn nên báo cáo cho bác sĩ điều trị của mình để có hướng dẫn thích hợp.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin mà bạn cung cấp không bao gồm thông tin về huyết áp của bạn. Để có thông tin chính xác về huyết áp, bạn nên kiểm tra và ghi lại thông tin này trong nhật ký tự theo dõi của mình. Nếu huyết áp của bạn tăng cao, điều này có thể là một yếu tố nguy cơ cho đái tháo đường và tăng huyết áp. Bạn nên báo cáo cho bác sĩ điều trị của mình để có hướng dẫn thích hợp.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.7761922999998205
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 142/88 / 142",
+              "bản nháp thiếu một trong các cụm: 130/80 / cao hơn / vượt / trên mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1051,
+              "completion_tokens": 94,
+              "seconds": 1.477,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 996
+            },
+            "draft": "Để có thông tin chính xác về huyết áp của bạn, bạn nên kiểm tra huyết áp tại nhà hoặc liên hệ với bác sĩ để thực hiện xét nghiệm huyết áp. Tôi không có thông tin cụ thể về huyết áp của bạn từ các tài liệu được cung cấp. Tuy nhiên, tài liệu [medlineplus_diabetes.txt] cho biết tăng huyết áp là một yếu tố nguy cơ cho đái tháo đường típ 2.",
+            "final": "Để có thông tin chính xác về huyết áp của bạn, bạn nên kiểm tra huyết áp tại nhà hoặc liên hệ với bác sĩ để thực hiện xét nghiệm huyết áp. Tôi không có thông tin cụ thể về huyết áp của bạn từ các tài liệu được cung cấp. Tuy nhiên, tài liệu [medlineplus_diabetes.txt] cho biết tăng huyết áp là một yếu tố nguy cơ cho đái tháo đường típ 2.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.52697889999763
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 142/88 / 142",
+              "bản nháp thiếu một trong các cụm: 130/80 / cao hơn / vượt / trên mục tiêu"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1051,
+              "completion_tokens": 97,
+              "seconds": 1.46,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 996
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin mà bạn cung cấp không bao gồm thông tin về huyết áp của bạn. Để có thông tin chính xác về huyết áp, bạn nên kiểm tra và ghi chép lại thông tin này từ các xét nghiệm huyết áp mà bạn đã thực hiện. Nếu bạn chưa thực hiện xét nghiệm huyết áp gần đây, tôi khuyên bạn nên thực hiện ngay để đánh giá tình trạng huyết áp của mình.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin mà bạn cung cấp không bao gồm thông tin về huyết áp của bạn. Để có thông tin chính xác về huyết áp, bạn nên kiểm tra và ghi chép lại thông tin này từ các xét nghiệm huyết áp mà bạn đã thực hiện. Nếu bạn chưa thực hiện xét nghiệm huyết áp gần đây, tôi khuyên bạn nên thực hiện ngay để đánh giá tình trạng huyết áp của mình.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.5100223000008555
+          }
+        ],
+        "journal_9": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 3 ngày / ba ngày"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 920,
+              "completion_tokens": 360,
+              "seconds": 4.973,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 912
+            },
+            "draft": "Để chuẩn bị cho tái khám, bạn cần tập trung vào việc theo dõi và kiểm soát đường huyết của mình. Dưới đây là một số gợi ý:\n\n1. Theo dõi đường huyết: Hãy ghi chép đường huyết của bạn trong suốt tuần. Điều này sẽ giúp bác sĩ có cái nhìn toàn diện hơn về tình hình của bạn. Bạn nên ghi lại đường huyết sau mỗi bữa ăn và trước khi đi ngủ. \n\n2. Đánh giá chế độ ăn: Hãy kiểm tra lại chế độ ăn uống của bạn. Đảm bảo rằng bạn đang ăn những thực phẩm lành mạnh và cân đối. Bạn cũng nên xem xét việc giảm lượng đường và carbohydrate trong khẩu phần ăn của mình.\n\n3. Đánh giá hoạt động thể chất: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất theo kế hoạch của mình. Nếu bạn đang giảm cân, hãy đảm bảo rằng bạn đang duy trì mức giảm cân phù hợp.\n\n4. Đánh giá thuốc: Nếu bạn đang sử dụng thuốc điều trị tiểu đường, hãy đảm bảo rằng bạn đang tuân thủ đúng lịch sử sử dụng thuốc. \n\n5. Đánh giá các yếu tố nguy cơ: Đảm bảo bạn đang theo dõi các yếu tố nguy cơ khác của bạn, như cân nặng, huyết áp và cholesterol.\n\n6. Đánh giá các triệu chứng: Nếu bạn đang gặp các triệu chứng như mệt mỏi, đau đầu, hoặc cảm giác đói thường xuyên, hãy báo cáo với bác sĩ của bạn.\n\nCuối cùng, hãy nhớ rằng việc tái khám là một cơ hội để bạn và bác sĩ của bạn thảo luận về tình hình sức khỏe của bạn và lên kế hoạch cho những điều cần thiết trong tương lai.",
+            "final": "Để chuẩn bị cho tái khám, bạn cần tập trung vào việc theo dõi và kiểm soát đường huyết của mình. Dưới đây là một số gợi ý:\n\n1. Theo dõi đường huyết: Hãy ghi chép đường huyết của bạn trong suốt tuần. Điều này sẽ giúp bác sĩ có cái nhìn toàn diện hơn về tình hình của bạn. Bạn nên ghi lại đường huyết sau mỗi bữa ăn và trước khi đi ngủ. \n\n2. Đánh giá chế độ ăn: Hãy kiểm tra lại chế độ ăn uống của bạn. Đảm bảo rằng bạn đang ăn những thực phẩm lành mạnh và cân đối. Bạn cũng nên xem xét việc giảm lượng đường và carbohydrate trong khẩu phần ăn của mình.\n\n3. Đánh giá hoạt động thể chất: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất theo kế hoạch của mình. Nếu bạn đang giảm cân, hãy đảm bảo rằng bạn đang duy trì mức giảm cân phù hợp.\n\n4. Đánh giá thuốc: Nếu bạn đang sử dụng thuốc điều trị tiểu đường, hãy đảm bảo rằng bạn đang tuân thủ đúng lịch sử sử dụng thuốc. \n\n5. Đánh giá các yếu tố nguy cơ: Đảm bảo bạn đang theo dõi các yếu tố nguy cơ khác của bạn, như cân nặng, huyết áp và cholesterol.\n\n6. Đánh giá các triệu chứng: Nếu bạn đang gặp các triệu chứng như mệt mỏi, đau đầu, hoặc cảm giác đói thường xuyên, hãy báo cáo với bác sĩ của bạn.\n\nCuối cùng, hãy nhớ rằng việc tái khám là một cơ hội để bạn và bác sĩ của bạn thảo luận về tình hình sức khỏe của bạn và lên kế hoạch cho những điều cần thiết trong tương lai.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 7.037549399999989
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 3 ngày / ba ngày"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 920,
+              "completion_tokens": 512,
+              "seconds": 6.996,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 912
+            },
+            "draft": "Với tình trạng tiểu đường típ 2 của bạn, trước khi tái khám, bạn nên chuẩn bị một số thông tin và thực hiện một số việc sau:\n\n1. **Điều chỉnh đường huyết**: Đảm bảo kiểm tra đường huyết trong 2-4 tuần trước khi tái khám. Nếu đường huyết của bạn ổn định, bạn có thể không cần điều chỉnh. Tuy nhiên, nếu đường huyết cao hơn mức mục tiêu của bác sĩ, bạn nên điều chỉnh trước khi tái khám. \n\n2. **Điều chỉnh chế độ ăn uống**: Theo dõi và điều chỉnh khẩu phần ăn của bạn. Đảm bảo bạn đang ăn theo một chế độ ăn lành mạnh và phù hợp với mục tiêu của mình. Đảm bảo bạn đang ăn đủ chất dinh dưỡng và không vượt quá lượng calo mục tiêu.\n\n3. **Kiểm tra cân nặng và chiều cao**: Đảm bảo bạn đã kiểm tra cân nặng và chiều cao gần đây. Điều này giúp bác sĩ có thể tính toán lại chỉ số BMI nếu cần.\n\n4. **Điều chỉnh hoạt động thể chất**: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất phù hợp với mục tiêu của mình. Nếu bạn đang hoạt động ít hơn mức đề nghị, bạn nên cố gắng tăng cường hoạt động thể chất.\n\n5. **Điều chỉnh thuốc**: Đảm bảo bạn đang sử dụng thuốc theo chỉ định của bác sĩ. Nếu bạn đang dùng insulin, hãy đảm bảo bạn đang sử dụng insulin đúng cách và theo lịch trình.\n\n6. **Điều chỉnh lịch tái khám**: Đảm bảo bạn đã ghi nhớ lịch tái khám và chuẩn bị sẵn sàng cho việc tái khám. Nếu bạn có bất kỳ câu hỏi nào hoặc lo ngại nào, hãy chuẩn bị để thảo luận với bác sĩ.\n\n7. **Điều chỉnh lịch sử tự theo dõi**: Đảm bảo bạn đang theo dõi và ghi chép lịch sử tự theo dõi đường huyết của mình. Điều này giúp bác sĩ có thể đánh giá hiệu quả điều trị của bạn.\n\n8. **Điều chỉnh lịch sử tự theo dõi khác**: Đảm bảo bạn đang theo dõi và ghi chép lịch sử tự theo dõi khác, nếu có, như chỉ số HbA1c, đường huyết fasting, và lượng đường trong nước.\n\nĐiều quan trọng là bạn cần tuân thủ các chỉ định",
+            "final": "Với tình trạng tiểu đường típ 2 của bạn, trước khi tái khám, bạn nên chuẩn bị một số thông tin và thực hiện một số việc sau:\n\n1. **Điều chỉnh đường huyết**: Đảm bảo kiểm tra đường huyết trong 2-4 tuần trước khi tái khám. Nếu đường huyết của bạn ổn định, bạn có thể không cần điều chỉnh. Tuy nhiên, nếu đường huyết cao hơn mức mục tiêu của bác sĩ, bạn nên điều chỉnh trước khi tái khám. \n\n2. **Điều chỉnh chế độ ăn uống**: Theo dõi và điều chỉnh khẩu phần ăn của bạn. Đảm bảo bạn đang ăn theo một chế độ ăn lành mạnh và phù hợp với mục tiêu của mình. Đảm bảo bạn đang ăn đủ chất dinh dưỡng và không vượt quá lượng calo mục tiêu.\n\n3. **Kiểm tra cân nặng và chiều cao**: Đảm bảo bạn đã kiểm tra cân nặng và chiều cao gần đây. Điều này giúp bác sĩ có thể tính toán lại chỉ số BMI nếu cần.\n\n4. **Điều chỉnh hoạt động thể chất**: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất phù hợp với mục tiêu của mình. Nếu bạn đang hoạt động ít hơn mức đề nghị, bạn nên cố gắng tăng cường hoạt động thể chất.\n\n5. **Điều chỉnh thuốc**: Đảm bảo bạn đang sử dụng thuốc theo chỉ định của bác sĩ. Nếu bạn đang dùng insulin, hãy đảm bảo bạn đang sử dụng insulin đúng cách và theo lịch trình.\n\n6. **Điều chỉnh lịch tái khám**: Đảm bảo bạn đã ghi nhớ lịch tái khám và chuẩn bị sẵn sàng cho việc tái khám. Nếu bạn có bất kỳ câu hỏi nào hoặc lo ngại nào, hãy chuẩn bị để thảo luận với bác sĩ.\n\n7. **Điều chỉnh lịch sử tự theo dõi**: Đảm bảo bạn đang theo dõi và ghi chép lịch sử tự theo dõi đường huyết của mình. Điều này giúp bác sĩ có thể đánh giá hiệu quả điều trị của bạn.\n\n8. **Điều chỉnh lịch sử tự theo dõi khác**: Đảm bảo bạn đang theo dõi và ghi chép lịch sử tự theo dõi khác, nếu có, như chỉ số HbA1c, đường huyết fasting, và lượng đường trong nước.\n\nĐiều quan trọng là bạn cần tuân thủ các chỉ định\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 9.073974899998575
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 3 ngày / ba ngày"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 920,
+              "completion_tokens": 512,
+              "seconds": 7.15,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 912
+            },
+            "draft": "Với tình trạng tiểu đường típ 2 của bạn, trước khi tái khám, bạn nên chuẩn bị một số thông tin và thực hiện một số bước sau:\n\n1. **Điều chỉnh đường huyết**: Đảm bảo kiểm tra đường huyết trong khoảng thời gian trước khi tái khám. Đường huyết cao có thể ảnh hưởng đến kết quả xét nghiệm. Bạn nên theo dõi đường huyết trong 2-4 giờ trước khi ăn và giữ mức đường huyết ổn định trong khoảng mục tiêu của bạn (được bác sĩ xác định).\n\n2. **Điều chỉnh chế độ ăn**: Theo dõi và điều chỉnh chế độ ăn của bạn. Đảm bảo bạn đang theo một chế độ ăn lành mạnh và phù hợp với mục tiêu của mình. Bạn có thể cần giảm lượng carbohydrate, đặc biệt là carbohydrate nhanh hấp thu, và tăng lượng protein và chất xơ.\n\n3. **Kiểm tra cân nặng và chiều cao**: Đảm bảo bạn có cân nặng và chiều cao chính xác để tính toán chỉ số BMI (thể trọng cơ thể).\n\n4. **Thực hiện các xét nghiệm cần thiết**: Đảm bảo bạn đã thực hiện các xét nghiệm cần thiết trước tái khám, bao gồm xét nghiệm đường huyết, HbA1c, và các xét nghiệm khác nếu cần.\n\n5. **Điều chỉnh thuốc**: Nếu bạn đang dùng thuốc, hãy đảm bảo bạn đang tuân thủ đúng liều lượng và loại thuốc. Đừng tự thay đổi liều lượng hoặc loại thuốc mà không có sự hướng dẫn từ bác sĩ.\n\n6. **Điều chỉnh hoạt động thể chất**: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất phù hợp với mục tiêu của mình. Điều này có thể bao gồm tập thể dục đều đặn, vận động hàng ngày, hoặc các hoạt động khác.\n\n7. **Điều chỉnh tâm lý**: Đảm bảo bạn đang giữ tâm trạng ổn định. Đừng ngần ngại liên hệ với bác sĩ hoặc chuyên gia tâm lý nếu bạn cảm thấy căng thẳng hoặc lo lắng.\n\nKhi tái khám, hãy chuẩn bị các thông tin sau đây:\n- Kết quả xét nghiệm đường huyết và HbA1c\n- Thông tin về chế độ ăn và hoạt động thể chất của bạn\n- Thông tin về thuốc bạn đang dùng, bao gồm liều lượng và loại thuốc\n- Các vấn đề hoặc thắc mắc bạn muốn hỏi bác sĩ\n\n",
+            "final": "Với tình trạng tiểu đường típ 2 của bạn, trước khi tái khám, bạn nên chuẩn bị một số thông tin và thực hiện một số bước sau:\n\n1. **Điều chỉnh đường huyết**: Đảm bảo kiểm tra đường huyết trong khoảng thời gian trước khi tái khám. Đường huyết cao có thể ảnh hưởng đến kết quả xét nghiệm. Bạn nên theo dõi đường huyết trong 2-4 giờ trước khi ăn và giữ mức đường huyết ổn định trong khoảng mục tiêu của bạn (được bác sĩ xác định).\n\n2. **Điều chỉnh chế độ ăn**: Theo dõi và điều chỉnh chế độ ăn của bạn. Đảm bảo bạn đang theo một chế độ ăn lành mạnh và phù hợp với mục tiêu của mình. Bạn có thể cần giảm lượng carbohydrate, đặc biệt là carbohydrate nhanh hấp thu, và tăng lượng protein và chất xơ.\n\n3. **Kiểm tra cân nặng và chiều cao**: Đảm bảo bạn có cân nặng và chiều cao chính xác để tính toán chỉ số BMI (thể trọng cơ thể).\n\n4. **Thực hiện các xét nghiệm cần thiết**: Đảm bảo bạn đã thực hiện các xét nghiệm cần thiết trước tái khám, bao gồm xét nghiệm đường huyết, HbA1c, và các xét nghiệm khác nếu cần.\n\n5. **Điều chỉnh thuốc**: Nếu bạn đang dùng thuốc, hãy đảm bảo bạn đang tuân thủ đúng liều lượng và loại thuốc. Đừng tự thay đổi liều lượng hoặc loại thuốc mà không có sự hướng dẫn từ bác sĩ.\n\n6. **Điều chỉnh hoạt động thể chất**: Đảm bảo bạn đang duy trì mức độ hoạt động thể chất phù hợp với mục tiêu của mình. Điều này có thể bao gồm tập thể dục đều đặn, vận động hàng ngày, hoặc các hoạt động khác.\n\n7. **Điều chỉnh tâm lý**: Đảm bảo bạn đang giữ tâm trạng ổn định. Đừng ngần ngại liên hệ với bác sĩ hoặc chuyên gia tâm lý nếu bạn cảm thấy căng thẳng hoặc lo lắng.\n\nKhi tái khám, hãy chuẩn bị các thông tin sau đây:\n- Kết quả xét nghiệm đường huyết và HbA1c\n- Thông tin về chế độ ăn và hoạt động thể chất của bạn\n- Thông tin về thuốc bạn đang dùng, bao gồm liều lượng và loại thuốc\n- Các vấn đề hoặc thắc mắc bạn muốn hỏi bác sĩ\n\n\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 9.224750000001222
+          }
+        ],
+        "journal_10": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 928,
+              "completion_tokens": 121,
+              "seconds": 1.869,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 921
+            },
+            "draft": "Tôi hiểu bạn đang muốn hỏi liệu có thể tự tăng liều metformin khi đường huyết lúc đói cao. Tuy nhiên, tôi cần lưu ý rằng tôi không có thông tin cụ thể về chỉ số đường huyết lúc đói của bạn từ nhật ký tự theo dõi. Để đảm bảo an toàn và hiệu quả điều trị, tôi khuyên bạn nên báo cáo tình trạng này với bác sĩ điều trị của bạn. Bác sĩ có thể cần phải điều chỉnh liều metformin hoặc các phương pháp điều trị khác dựa trên tình hình sức khỏe hiện tại của bạn.",
+            "final": "Tôi hiểu bạn đang muốn hỏi liệu có thể tự tăng liều metformin khi đường huyết lúc đói cao. Tuy nhiên, tôi cần lưu ý rằng tôi không có thông tin cụ thể về chỉ số đường huyết lúc đói của bạn từ nhật ký tự theo dõi. Để đảm bảo an toàn và hiệu quả điều trị, tôi khuyên bạn nên báo cáo tình trạng này với bác sĩ điều trị của bạn. Bác sĩ có thể cần phải điều chỉnh liều metformin hoặc các phương pháp điều trị khác dựa trên tình hình sức khỏe hiện tại của bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.9157473999985086
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 928,
+              "completion_tokens": 118,
+              "seconds": 1.739,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 921
+            },
+            "draft": "Metformin là một loại thuốc phổ biến trong điều trị tiểu đường típ 2. Tuy nhiên, việc tự tăng liều thuốc mà không có sự hướng dẫn từ bác sĩ là không khuyến nghị. Liều thuốc cần thiết thường được bác sĩ điều chỉnh dựa trên kết quả kiểm tra đường huyết và tình trạng sức khỏe tổng thể của bạn. Nếu bạn cảm thấy đường huyết lúc đói cao, tốt nhất là báo cáo với bác sĩ để họ có thể xem xét điều chỉnh liều thuốc hoặc đưa ra các hướng dẫn khác phù hợp với bạn.",
+            "final": "Metformin là một loại thuốc phổ biến trong điều trị tiểu đường típ 2. Tuy nhiên, việc tự tăng liều thuốc mà không có sự hướng dẫn từ bác sĩ là không khuyến nghị. Liều thuốc cần thiết thường được bác sĩ điều chỉnh dựa trên kết quả kiểm tra đường huyết và tình trạng sức khỏe tổng thể của bạn. Nếu bạn cảm thấy đường huyết lúc đói cao, tốt nhất là báo cáo với bác sĩ để họ có thể xem xét điều chỉnh liều thuốc hoặc đưa ra các hướng dẫn khác phù hợp với bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.792223600001307
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 928,
+              "completion_tokens": 328,
+              "seconds": 4.625,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 921
+            },
+            "draft": "Tôi hiểu bạn đang lo lắng về đường huyết lúc đói cao và muốn tự tăng liều metformin. Tuy nhiên, tôi không thể đề xuất thay đổi liều thuốc mà không có sự tư vấn trực tiếp từ bác sĩ điều trị của bạn. Metformin là một loại thuốc phổ biến cho đái tháo đường típ 2, nhưng liều lượng cần thiết có thể thay đổi tùy thuộc vào nhiều yếu tố cá nhân và tình trạng sức khỏe của bạn.\n\nĐường huyết lúc đói cao có thể là dấu hiệu của việc metformin không còn hiệu quả nữa hoặc có thể bạn cần phải điều chỉnh liều lượng. Điều này không phải lúc nào cũng do metformin, có thể do nhiều yếu tố khác như lượng thức ăn, lượng hoạt động thể chất, hoặc sự thay đổi trong cân nặng.\n\nTôi khuyên bạn nên báo cáo tình trạng này với bác sĩ của bạn. Bác sĩ có thể cần phải kiểm tra lại mức HbA1c, đo đường huyết định kỳ, và có thể cần điều chỉnh liều metformin hoặc thêm các loại thuốc khác để kiểm soát đường huyết hiệu quả.\n\nNếu bạn đang lo lắng về việc tăng liều metformin, hãy nhớ rằng việc tự điều chỉnh liều thuốc mà không có sự tư vấn từ bác sĩ có thể dẫn đến tình trạng đường huyết quá thấp, gây hạ đường huyết, một tình trạng nghiêm trọng mà bạn cần được điều trị ngay lập tức.\n\nHãy giữ liên lạc với bác sĩ của bạn và theo dõi tình trạng sức khỏe của bạn.",
+            "final": "Tôi hiểu bạn đang lo lắng về đường huyết lúc đói cao và muốn tự tăng liều metformin. Tuy nhiên, tôi không thể đề xuất thay đổi liều thuốc mà không có sự tư vấn trực tiếp từ bác sĩ điều trị của bạn. Metformin là một loại thuốc phổ biến cho đái tháo đường típ 2, nhưng liều lượng cần thiết có thể thay đổi tùy thuộc vào nhiều yếu tố cá nhân và tình trạng sức khỏe của bạn.\n\nĐường huyết lúc đói cao có thể là dấu hiệu của việc metformin không còn hiệu quả nữa hoặc có thể bạn cần phải điều chỉnh liều lượng. Điều này không phải lúc nào cũng do metformin, có thể do nhiều yếu tố khác như lượng thức ăn, lượng hoạt động thể chất, hoặc sự thay đổi trong cân nặng.\n\nTôi khuyên bạn nên báo cáo tình trạng này với bác sĩ của bạn. Bác sĩ có thể cần phải kiểm tra lại mức HbA1c, đo đường huyết định kỳ, và có thể cần điều chỉnh liều metformin hoặc thêm các loại thuốc khác để kiểm soát đường huyết hiệu quả.\n\nNếu bạn đang lo lắng về việc tăng liều metformin, hãy nhớ rằng việc tự điều chỉnh liều thuốc mà không có sự tư vấn từ bác sĩ có thể dẫn đến tình trạng đường huyết quá thấp, gây hạ đường huyết, một tình trạng nghiêm trọng mà bạn cần được điều trị ngay lập tức.\n\nHãy giữ liên lạc với bác sĩ của bạn và theo dõi tình trạng sức khỏe của bạn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "medlineplus_type2_diabetes.txt",
+              "medlineplus_diabetes.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 6.6759591000009095
+          }
+        ],
+        "journal_11": [
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 1,5 / 1.5",
+              "bản nháp thiếu một trong các cụm: giảm"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1087,
+              "completion_tokens": 107,
+              "seconds": 1.661,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 1030
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong nhật ký tự theo dõi không được cung cấp trong cuộc trò chuyện trước. Để có thông tin chính xác về cân nặng của bạn, chúng tôi cần xem nhật ký tự theo dõi hoặc thông tin về cân nặng cụ thể. Hãy cung cấp cho tôi thông tin về cân nặng của bạn trong tháng này, nếu có thể. Điều này sẽ giúp tôi đưa ra một tư vấn cá nhân hóa chính xác hơn.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong nhật ký tự theo dõi không được cung cấp trong cuộc trò chuyện trước. Để có thông tin chính xác về cân nặng của bạn, chúng tôi cần xem nhật ký tự theo dõi hoặc thông tin về cân nặng cụ thể. Hãy cung cấp cho tôi thông tin về cân nặng của bạn trong tháng này, nếu có thể. Điều này sẽ giúp tôi đưa ra một tư vấn cá nhân hóa chính xác hơn.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.757726299998467
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 1,5 / 1.5",
+              "bản nháp thiếu một trong các cụm: giảm"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1087,
+              "completion_tokens": 77,
+              "seconds": 1.172,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 1030
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong phiên tư vấn trước không được cung cấp. Để đưa ra một tư vấn chính xác, tôi cần biết mức cân nặng cụ thể của bạn trong phiên tư vấn trước và mức cân nặng hiện tại. Tôi sẽ dựa trên thông tin này để đưa ra hướng dẫn phù hợp.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong phiên tư vấn trước không được cung cấp. Để đưa ra một tư vấn chính xác, tôi cần biết mức cân nặng cụ thể của bạn trong phiên tư vấn trước và mức cân nặng hiện tại. Tôi sẽ dựa trên thông tin này để đưa ra hướng dẫn phù hợp.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.236920999999711
+          },
+          {
+            "ok": false,
+            "reasons": [
+              "không đọc nhật ký",
+              "bản nháp thiếu một trong các cụm: 1,5 / 1.5",
+              "bản nháp thiếu một trong các cụm: giảm"
+            ],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 1087,
+              "completion_tokens": 94,
+              "seconds": 1.484,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 1030
+            },
+            "draft": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong nhật ký tự theo dõi không được cung cấp trong cuộc trò chuyện trước. Để có thông tin chính xác về cân nặng của bạn, bạn cần xem nhật ký tự theo dõi của mình. Nếu bạn có thông tin về cân nặng, tôi có thể giúp phân tích nó theo thông tin đã cung cấp về tiểu đường típ 2.",
+            "final": "Tôi xin lỗi cho sự nhầm lẫn, nhưng thông tin về cân nặng của bạn trong nhật ký tự theo dõi không được cung cấp trong cuộc trò chuyện trước. Để có thông tin chính xác về cân nặng của bạn, bạn cần xem nhật ký tự theo dõi của mình. Nếu bạn có thông tin về cân nặng, tôi có thể giúp phân tích nó theo thông tin đã cung cấp về tiểu đường típ 2.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "medlineplus_type2_diabetes.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.562036999999691
+          }
+        ],
+        "journal_12": [
+          {
+            "ok": true,
+            "reasons": [],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 876,
+              "completion_tokens": 78,
+              "seconds": 1.436,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 880
+            },
+            "draft": "Tôi chưa có thông tin cụ thể về chỉ số đường huyết của bạn trong hai tuần qua từ nhật ký tự theo dõi của bạn. Để có thông tin chính xác, chúng tôi cần xem xét các kết quả đo đường huyết trong thời gian này. Hãy cung cấp cho tôi kết quả đo đường huyết gần đây nhất và tôi sẽ giúp bạn đánh giá tình hình.",
+            "final": "Tôi chưa có thông tin cụ thể về chỉ số đường huyết của bạn trong hai tuần qua từ nhật ký tự theo dõi của bạn. Để có thông tin chính xác, chúng tôi cần xem xét các kết quả đo đường huyết trong thời gian này. Hãy cung cấp cho tôi kết quả đo đường huyết gần đây nhất và tôi sẽ giúp bạn đánh giá tình hình.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.4738920999989205
+          },
+          {
+            "ok": true,
+            "reasons": [],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 876,
+              "completion_tokens": 80,
+              "seconds": 1.267,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 880
+            },
+            "draft": "Tôi xin lỗi, nhưng thông tin về mức đường huyết của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có hướng dẫn chính xác, tôi cần biết con số cụ thể từ nhật ký tự theo dõi của bạn. Hãy cho tôi biết đường huyết trung bình trong hai tuần qua để tôi có thể tư vấn cho bạn một cách chính xác.",
+            "final": "Tôi xin lỗi, nhưng thông tin về mức đường huyết của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có hướng dẫn chính xác, tôi cần biết con số cụ thể từ nhật ký tự theo dõi của bạn. Hãy cho tôi biết đường huyết trung bình trong hai tuần qua để tôi có thể tư vấn cho bạn một cách chính xác.\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.3251420999986294
+          },
+          {
+            "ok": true,
+            "reasons": [],
+            "flags": [
+              "diagnosed_followup"
+            ],
+            "usage": {
+              "prompt_tokens": 876,
+              "completion_tokens": 75,
+              "seconds": 1.179,
+              "num_ctx": 4096,
+              "est_prompt_tokens": 880
+            },
+            "draft": "Tôi xin lỗi, nhưng thông tin về mức đường huyết của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có hướng dẫn tốt hơn, tôi cần biết con số cụ thể từ nhật ký tự theo dõi của bạn. Bạn có thể cung cấp cho tôi con số đường huyết trung bình trong hai tuần qua không?",
+            "final": "Tôi xin lỗi, nhưng thông tin về mức đường huyết của bạn trong hai tuần qua không được cung cấp trong thông tin đã biết. Để có hướng dẫn tốt hơn, tôi cần biết con số cụ thể từ nhật ký tự theo dõi của bạn. Bạn có thể cung cấp cho tôi con số đường huyết trung bình trong hai tuần qua không?\n\nBạn đã được chẩn đoán đái tháo đường: hãy theo dõi đường huyết và tái khám theo lịch của bác sĩ điều trị.\n\nĐây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ.",
+            "sources": [
+              "who_diabetes_factsheet.txt",
+              "who_diabetes_factsheet.txt",
+              "medlineplus_diabetes.txt",
+              "who_diabetes_factsheet.txt"
+            ],
+            "journal": false,
+            "appointment_date": null,
+            "wall_seconds": 3.228192800001125
+          }
+        ]
+      },
+      "cases": {
+        "journal_1": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Đường huyết lúc đói của tôi mấy hôm nay thế nào?"
+        },
+        "journal_2": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Dạo này tôi kiểm soát đường huyết có ổn không?"
+        },
+        "journal_3": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Tuần này số đo của tôi có gì đáng lo không?"
+        },
+        "journal_4": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Mấy lần đo gần đây của tôi có vấn đề gì không?"
+        },
+        "journal_5": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Đường huyết sau ăn của tôi hay cao, tôi nên làm gì?"
+        },
+        "journal_6": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. So với hai tuần trước, đường huyết lúc đói của tôi thay đổi thế nào?"
+        },
+        "journal_7": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. So với hai tuần trước, đường huyết lúc đói của tôi thay đổi thế nào?"
+        },
+        "journal_8": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Huyết áp của tôi dạo này thế nào?"
+        },
+        "journal_9": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Còn mấy ngày nữa tôi tái khám, tôi cần chuẩn bị gì?"
+        },
+        "journal_10": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Đường huyết lúc đói của tôi cao mấy hôm nay, tôi tự tăng liều metformin được không?"
+        },
+        "journal_11": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Cân nặng của tôi tháng này thay đổi ra sao?"
+        },
+        "journal_12": {
+          "category": "journal",
+          "q": "Tôi bị tiểu đường típ 2. Hai tuần qua đường huyết tôi đo ở nhà trung bình bao nhiêu?"
+        }
+      },
+      "k": 3
+    }
+  }
+}

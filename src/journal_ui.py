@@ -52,11 +52,12 @@ def _save_glucose(store, patient_id, prefix):
     when = datetime.combine(ss[f"{prefix}_date"], ss[f"{prefix}_time"], tzinfo=journal.VN_TZ)
     store.add_reading(patient_id, "glucose", mgdl, when, unit=unit, context=context,
                       note=(ss.get(f"{prefix}_note") or "").strip() or None)
-    status = journal.classify_glucose(mgdl, context)
+    targets = journal.resolve_targets(store.get_targets(patient_id))
+    status = journal.classify_glucose(mgdl, context, targets)
     level = {"in_target": "success", "above_target": "info", "below_target": "info"}.get(status, "warning")
     msgs = [(level, f"{journal.STATUS_ICON[status]} Đã lưu {journal.fmt_glucose(mgdl, unit)} "
                         f"({journal.CONTEXTS[context]}): {journal.STATUS_TEXT[status]}, "
-                        f"{journal.target_text(context)}.")]
+                        f"{journal.target_text(context, targets)}.")]
     if status in journal.ADVICE and prefix != "today":  # trang Hôm nay đã hiện cảnh báo này ở đầu trang
         msgs.append(journal.ADVICE[status])
     ss[f"{prefix}_msg"] = msgs
@@ -122,14 +123,15 @@ def render_today(store, patient_id):
     st.subheader(f"Chào {patient['name']} · {now:%d/%m/%Y}")
     readings = store.list_readings(patient_id)
     _show_messages(journal.alerts(readings, now=now))
-    _show_messages(journal.reminders(readings, store.get_appointment(patient_id), now=now))
+    targets = journal.resolve_targets(store.get_targets(patient_id))
+    _show_messages(journal.reminders(readings, store.get_appointment(patient_id), now=now, targets=targets))
 
     st.markdown("#### Ghi đường huyết")
     glucose_form(store, patient_id, prefix="today")
     readings = store.list_readings(patient_id)  # có thể vừa thêm
 
     st.markdown("#### 14 ngày qua")
-    s = journal.summarize_glucose(readings, 14, now)
+    s = journal.summarize_glucose(readings, 14, now, targets)
     glu = journal.glucose_rows(readings)
     c = st.columns(4)
     if glu:
@@ -156,10 +158,10 @@ def render_today(store, patient_id):
 
 # ---- Nhật ký ----------------------------------------------------------------
 
-def _glucose_table(readings):
+def _glucose_table(readings, targets=None):
     rows = []
     for r in reversed(journal.glucose_rows(readings)):
-        status = journal.classify_glucose(r["value"], r["context"])
+        status = journal.classify_glucose(r["value"], r["context"], targets)
         rows.append({"id": r["id"], "Thời gian": journal.to_vn(r["measured_at"]).strftime("%d/%m %H:%M"),
                      "Đo lúc": journal.CONTEXTS.get(r["context"], r["context"]),
                      "mmol/L": round(journal.to_mmol(r["value"]), 1), "mg/dL": round(r["value"]),
@@ -224,18 +226,20 @@ def render_journal(store, patient_id, import_labs_fn):
         with st.expander("Ghi thêm đường huyết"):
             glucose_form(store, patient_id, prefix="journal")
         readings = store.list_readings(patient_id)
-        s = journal.summarize_glucose(readings, days, now)
+        targets = journal.resolve_targets(store.get_targets(patient_id))
+        s = journal.summarize_glucose(readings, days, now, targets)
         if not s["n"]:
             st.caption("Chưa có lần đo nào trong khoảng này.")
         else:
-            st.image(glucose_chart_png(journal.daily_series(readings, days, now), days, now), width="stretch")
+            st.image(glucose_chart_png(journal.daily_series(readings, days, now), days, now, targets=targets),
+                     width="stretch")
             st.caption(f"{s['n']} lần đo trong {s['days_measured']}/{days} ngày · {s['in_target_pct']}% trong mục "
                        f"tiêu · hạ đường huyết {s['hypo']} lần · rất cao {s['very_high']} lần")
             st.dataframe([{"Đo lúc": journal.CONTEXTS[c], "Số lần": v["n"],
                            "Trung bình": journal.fmt_glucose(v["mean_mgdl"]),
                            "Trong mục tiêu": f"{v['in_target_pct']}%"} for c, v in s["by_context"].items()],
                          hide_index=True)
-        rows = _glucose_table(readings)
+        rows = _glucose_table(readings, targets)
         if rows:
             st.dataframe(pd.DataFrame(rows).drop(columns="id"), hide_index=True, width="stretch")
         _delete_box(store, patient_id, rows, "glu")
@@ -277,6 +281,41 @@ def _make_pdf(store, patient_id):
     st.session_state["visit_pdf"] = (patient_id, build_visit_pdf(store, patient_id, days=days))
 
 
+def _targets_form(store, patient_id):
+    """Mục tiêu đường huyết riêng do bác sĩ đặt; không đặt thì dùng mục tiêu chung ADA 2024."""
+    row = store.get_targets(patient_id)
+    t = journal.resolve_targets(row)
+    st.markdown("#### Mục tiêu đường huyết")
+    mm = (lambda v: round(journal.to_mmol(v), 1))
+    st.caption((f"Đang dùng mục tiêu bác sĩ đặt: trước ăn {journal.fmt_glucose(t['pre'][0])}–"
+                f"{journal.fmt_glucose(t['pre'][1])}, sau ăn dưới {journal.fmt_glucose(t['post'])}."
+                if t["custom"] else
+                "Đang dùng mục tiêu chung (ADA 2024): trước ăn 4,4–7,2 mmol/L, sau ăn dưới 10,0 mmol/L.")
+               + " Nếu bác sĩ dặn con số khác, nhập vào đây. Ngưỡng hạ đường huyết (3,9) không đổi.")
+    with st.expander("Đặt mục tiêu theo lời bác sĩ"):
+        with st.form("targets_form"):
+            c1, c2, c3 = st.columns(3)
+            lo = c1.number_input("Trước ăn, từ (mmol/L)", value=mm(t["pre"][0]), step=0.1, format="%.1f", key="tg_lo")
+            hi = c2.number_input("Trước ăn, đến (mmol/L)", value=mm(t["pre"][1]), step=0.1, format="%.1f", key="tg_hi")
+            post = c3.number_input("Sau ăn, dưới (mmol/L)", value=mm(t["post"]), step=0.1, format="%.1f", key="tg_post")
+            note = st.text_input("Ghi chú", value=(row or {}).get("note") or "", placeholder="vd BS Minh dặn ngày 12/11",
+                                 key="tg_note")
+            b1, b2 = st.columns(2)
+            save = b1.form_submit_button("Lưu mục tiêu", type="primary")
+            reset = b2.form_submit_button("Dùng lại mục tiêu chung")
+        if save:
+            vals = [round(journal.to_mgdl(v, "mmol/L"), 1) for v in (lo, hi, post)]
+            err = journal.validate_targets(*vals)
+            if err:
+                st.error(err)
+            else:
+                store.set_targets(patient_id, *vals, note=note.strip() or None)
+                st.rerun()
+        if reset:
+            store.clear_targets(patient_id)
+            st.rerun()
+
+
 def render_visit(store, patient_id):
     if patient_id is None:
         st.info("Hãy tạo hồ sơ ở thanh bên để bắt đầu.")
@@ -298,6 +337,8 @@ def render_visit(store, patient_id):
         st.caption(f"Lịch hiện tại: {appt['date'][8:10]}/{appt['date'][5:7]}/{appt['date'][:4]}"
                    + (f" tại {appt['place']}" if appt.get("place") else "")
                    + (f" · còn {left} ngày" if left > 0 else " · hôm nay" if left == 0 else " · đã qua"))
+
+    _targets_form(store, patient_id)
 
     st.markdown("#### Câu hỏi muốn hỏi bác sĩ")
     st.caption("Ghi lại ngay khi nghĩ ra; tới hôm khám các câu này nằm sẵn trong bản tóm tắt.")

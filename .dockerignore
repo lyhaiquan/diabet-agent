@@ -1,0 +1,25 @@
+# Ngữ cảnh dựng ảnh API: chỉ cần src, kb, models, data/nutrition, requirements-api.txt
+.git
+.archify
+.claude
+**/__pycache__
+**/*.pyc
+.pytest_cache
+web
+docs
+tests
+eval
+tools
+kaggle
+logs
+reports
+neo4j_data
+neo4j.local.json
+*.db
+*.sqlite
+*.pdf
+*.bat
+*.ps1
+data/*
+!data/nutrition
+data/api_secret.key

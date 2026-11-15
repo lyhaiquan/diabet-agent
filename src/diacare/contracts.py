@@ -34,6 +34,7 @@ HUMAN_REVIEW_FLAGS = (
     "conflicting_results_review",
     "uncertain_prediction_review",
     "unsafe_advice_blocked",
+    "dose_adjust_note",
 )
 
 LIMITATIONS = (

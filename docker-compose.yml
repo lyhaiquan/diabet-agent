@@ -1,0 +1,86 @@
+# DiaCare-MAS bằng một lệnh:   docker compose up --build
+#   web     http://localhost:3000   (giao diện Next.js)
+#   api     http://localhost:8000   (FastAPI; tài liệu ở /docs)
+#   ollama  chỉ mở trong mạng Docker (LLM qwen2.5:3b, tải về ở lần chạy đầu, khoảng 1,9 GB)
+#
+# Đổi model:        DIACARE_MODEL=qwen2.5:7b docker compose up --build
+# Chạy thử không cần LLM (câu trả lời giả lập, không tải model):
+#                   DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up --build api web
+# Có GPU NVIDIA:    bỏ dấu # ở khối "deploy" của dịch vụ ollama (cần NVIDIA Container Toolkit).
+#
+# Dữ liệu người dùng (SQLite, khoá ký token) nằm trong volume diacare-data; `docker compose down` không xoá,
+# `docker compose down -v` mới xoá. Khoá ký token tự sinh ở lần chạy đầu; muốn tự đặt thì khai báo
+# DIACARE_API_SECRET (ít nhất 32 ký tự) trong tệp .env cạnh tệp này, KHÔNG ghi thẳng vào đây.
+
+services:
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # Chạy một lần rồi thoát: tải model về volume ollama-models (lần sau có sẵn nên xong ngay)
+  ollama-pull:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${DIACARE_MODEL:-qwen2.5:3b}"]
+    restart: "no"
+
+  api:
+    build: .
+    depends_on:
+      # required: false để chạy được riêng "api web" ở chế độ demo mà không kéo Ollama lên
+      ollama:
+        condition: service_healthy
+        required: false
+      ollama-pull:
+        condition: service_completed_successfully
+        required: false
+    environment:
+      DIACARE_LLM: ${DIACARE_LLM:-ollama}
+      DIACARE_MODEL: ${DIACARE_MODEL:-qwen2.5:3b}
+      DIACARE_OLLAMA_URL: http://ollama:11434
+      DIACARE_EMBED: ${DIACARE_EMBED:-sbert}
+      DIACARE_FEATURES: ${DIACARE_FEATURES:-default}
+      DIACARE_DB: /app/data/diacare.db
+      DIACARE_LOG: /app/logs/runs.jsonl
+      DIACARE_CORS: ${DIACARE_CORS:-http://localhost:3000}
+      DIACARE_API_SECRET: ${DIACARE_API_SECRET:-}
+    volumes:
+      - diacare-data:/app/data
+      - hf-cache:/hf-cache        # mô hình embedding và PhoWhisper tải từ Hugging Face ở lần dùng đầu
+    ports:
+      - "127.0.0.1:8000:8000"     # chỉ mở trên máy này; muốn cho máy khác trong mạng vào thì bỏ 127.0.0.1
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+volumes:
+  ollama-models:
+  diacare-data:
+  hf-cache:

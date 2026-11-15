@@ -69,7 +69,9 @@ _CAUTION = re.compile(
     r"|cần (?:phải )?(?:được )?(?:thảo luận|quyết định|trao đổi|tham khảo|chỉ định)"
     r"|(?:được )?chỉ định bởi bác sĩ|không phải tự ý"
     r"|(?:nếu|dù) bạn (?:có )?muốn.*bác sĩ"
-    r"|\bliệu (?:có|tôi|bạn)\b|bạn muốn hỏi|bạn đang cân nhắc"
+    r"|\bliệu (?:có|tôi|bạn)\b|bạn (?:đang )?muốn hỏi|bạn đang cân nhắc"
+    # nhắc lại ý định của người hỏi (benchmark nhật ký 2026-11-15): "Tôi hiểu rằng bạn ... có ý định tăng liều"
+    r"|tôi hiểu (?:rằng )?bạn|bạn (?:đang )?có ý định"
     r"|không (?:cung cấp|có|chứa|đề cập)(?: đủ)? thông tin"
     r"|without (?:consulting|talking|medical|your doctor)|can (?:lead to|cause)|dangerous"
 )
@@ -99,17 +101,27 @@ def is_unsafe_advice(text):
 _SENTENCE_SPLIT = re.compile(r"((?<=[.!?;])[ \t]+|\n+)")
 # Phần còn lại ít hơn số từ này thì thay cả câu trả lời bằng SAFE_REPLACEMENT.
 MIN_KEPT_WORDS = 12
-# Lọc thêm, chỉ dùng cho bản nháp ĐÃ bị chặn: câu nói "điều chỉnh liều" mà không nhắc người có chuyên môn.
-# is_unsafe_advice không bắt mẫu này, vì "hãy hỏi bác sĩ để điều chỉnh liều insulin" rất phổ biến và an toàn
-# (thêm vào bộ phát hiện thì 115/1146 bản nháp benchmark đổi kết quả). Trước đây cả bản nháp bị thay nên câu
-# "hãy ... điều chỉnh liều insulin nếu cần" (qwen2.5:3b, 2026-11-15) không bao giờ hiện; giữ phần còn lại thì phải lọc.
-_DOSE_ADJUST = re.compile(rf"\b(?:điều chỉnh|chỉnh) liều\b(?:\W+\w+){{0,4}}?\W+{_DRUG}\b|\b(?:điều chỉnh|chỉnh) liều {_DRUG}\b")
-_CLINICIAN = re.compile(r"bác sĩ|chuyên gia|dược sĩ|y tá|nhân viên y tế|chỉ định|phác đồ|\bdoctor\b")
+# Câu nói "điều chỉnh liều" + tên thuốc mà không nhắc người có chuyên môn (qwen2.5:3b, 2026-11-15:
+# "hãy theo dõi lượng đường ... và điều chỉnh liều insulin nếu cần"). KHÔNG nằm trong is_unsafe_advice: so khớp từ
+# không phân biệt được ai là người chỉnh liều, đưa vào bộ phát hiện thì 115/1146 bản nháp benchmark đổi kết quả,
+# hầu hết là câu an toàn ("hãy hỏi bác sĩ để điều chỉnh liều"). Vì độ chính xác thấp nên cách xử lý phải rẻ:
+# - bản nháp bình thường: giữ câu, thêm DOSE_NOTE (cờ dose_adjust_note);
+# - bản nháp đã bị chặn: bỏ luôn câu đó (strip_unsafe strict), vì trước đây cả bản nháp bị thay.
+_DOSE_ADJUST = re.compile(rf"\b(?:điều chỉnh|chỉnh) liều\b(?:\W+\w+){{0,4}}?\W+{_DRUG}\b")
+# "họ" gần như luôn chỉ bác sĩ ở câu trước ("Họ có thể điều chỉnh liều thuốc...")
+_CLINICIAN = re.compile(r"bác sĩ|chuyên gia|dược sĩ|y tá|nhân viên y tế|chỉ định|phác đồ|chỉ dẫn y tế|\bhọ\b|\bdoctor\b")
+DOSE_NOTE = "Lưu ý: chỉ điều chỉnh liều thuốc hoặc insulin theo hướng dẫn của bác sĩ điều trị, đừng tự thay đổi liều."
 
 
 def _self_dose_adjust(sentence):
     s = _norm(sentence)
-    return bool(_DOSE_ADJUST.search(s)) and not _CLINICIAN.search(s) and not _NEGATION.search(s)
+    return bool(_DOSE_ADJUST.search(s)) and not (
+        _CLINICIAN.search(s) or _NEGATION.search(s) or _CAUTION.search(s) or "không tự" in s)
+
+
+def mentions_self_dose_adjust(text):
+    """True nếu có câu gợi ý người dùng tự điều chỉnh liều mà không nhắc bác sĩ (xem _DOSE_ADJUST)."""
+    return any(_self_dose_adjust(seg) for seg in _SENTENCE_SPLIT.split(text)[::2] if seg.strip())
 
 
 def strip_unsafe(text, strict=False):
@@ -250,6 +262,9 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, lab
     if is_unsafe_advice(draft):
         flags.append("unsafe_advice_blocked")
         text = remove_unsafe(draft)
+    elif mentions_self_dose_adjust(draft):
+        flags.append("dose_adjust_note")
+        text += "\n\n" + DOSE_NOTE
     q = _norm(question)
     if diagnosed:
         flags.append("diagnosed_followup")

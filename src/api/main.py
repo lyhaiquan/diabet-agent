@@ -165,6 +165,15 @@ class AppointmentIn(BaseModel):
     note: str | None = Field(default=None, max_length=300)
 
 
+class TargetsIn(BaseModel):
+    """Mục tiêu đường huyết riêng do bác sĩ đặt. Đơn vị theo `unit` (mặc định mmol/L)."""
+    pre_meal_low: float = Field(gt=0, description="Cận dưới lúc đói / trước ăn")
+    pre_meal_high: float = Field(gt=0, description="Cận trên lúc đói / trước ăn")
+    post_meal_max: float = Field(gt=0, description="Mức tối đa 1–2 giờ sau ăn")
+    unit: Literal["mmol/L", "mg/dL"] = "mmol/L"
+    note: str | None = Field(default=None, max_length=200, description="vd tên bác sĩ, ngày dặn")
+
+
 class QuestionIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
 
@@ -190,11 +199,28 @@ def _patient_out(store, parts, patient):
                      "note": "Ước tính từ 21 câu hỏi lối sống (BRFSS); không có ý nghĩa với người đã chẩn đoán."}}
 
 
-def _reading_out(r):
+def _targets_of(store, patient_id):
+    return journal.resolve_targets(store.get_targets(patient_id))
+
+
+def _targets_out(store, patient_id):
+    row = store.get_targets(patient_id)
+    t = journal.resolve_targets(row)
+    mmol = (lambda v: round(journal.to_mmol(v), 1))
+    return {"custom": t["custom"], "pre_meal_mmol": [mmol(t["pre"][0]), mmol(t["pre"][1])],
+            "post_meal_max_mmol": mmol(t["post"]), "hypo_mmol": 3.9,
+            "note": row["note"] if row else None, "updated_at": row["updated_at"] if row else None,
+            "source": "bác sĩ điều trị (người dùng tự nhập)" if t["custom"] else journal.SOURCE,
+            "default": {"pre_meal_mmol": [mmol(journal.PRE_MEAL_TARGET[0]), mmol(journal.PRE_MEAL_TARGET[1])],
+                        "post_meal_max_mmol": mmol(journal.POST_MEAL_MAX)},
+            "limits_mmol": {k: [mmol(lo), mmol(hi)] for k, (lo, hi) in journal.TARGET_LIMITS.items()}}
+
+
+def _reading_out(r, targets=None):
     out = {"id": r["id"], "kind": r["kind"], "measured_at": journal.to_vn(r["measured_at"]).isoformat(),
            "note": r["note"]}
     if r["kind"] == "glucose":
-        st = journal.classify_glucose(r["value"], r["context"])
+        st = journal.classify_glucose(r["value"], r["context"], targets)
         out.update(mgdl=round(r["value"], 1), mmol=round(journal.to_mmol(r["value"]), 1), unit=r["unit"],
                    context=r["context"], context_text=journal.CONTEXTS.get(r["context"]),
                    status=st, status_text=journal.STATUS_TEXT[st])
@@ -394,8 +420,9 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
         when = _when(body.measured_at, now_of(request))
         rid = store.add_reading(patient["id"], "glucose", mgdl, when, unit=body.unit, context=body.context,
                                 note=(body.note or "").strip() or None)
-        return {"reading": _reading_out(store.get_reading(rid)),
-                **journal.describe_glucose(mgdl, body.context, body.unit)}
+        targets = _targets_of(store, patient["id"])
+        return {"reading": _reading_out(store.get_reading(rid), targets),
+                **journal.describe_glucose(mgdl, body.context, body.unit, targets)}
 
     @app.post("/patients/{patient_id}/readings/bp", status_code=201, tags=["nhật ký"])
     def add_bp(body: BpIn, request: Request, patient=Depends(owned_patient), store: Store = Depends(get_store)):
@@ -427,7 +454,8 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
                       store: Store = Depends(get_store)):
         start = now_of(request).date() - timedelta(days=days - 1)
         rows = [r for r in store.list_readings(patient["id"], kind) if journal._day(r) >= start]
-        return [_reading_out(r) for r in reversed(rows)]
+        targets = _targets_of(store, patient["id"])
+        return [_reading_out(r, targets) for r in reversed(rows)]
 
     @app.delete("/patients/{patient_id}/readings/{reading_id}", status_code=204, tags=["nhật ký"])
     def delete_reading(reading_id: int, patient=Depends(owned_patient), store: Store = Depends(get_store)):
@@ -442,14 +470,16 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
         """Màn hình Hôm nay: cảnh báo từ lần đo 24 giờ qua, nhắc nhở, số liệu 14 ngày."""
         now = now_of(request)
         readings = store.list_readings(patient["id"])
-        s = journal.summarize_glucose(readings, 14, now)
+        targets = _targets_of(store, patient["id"])
+        s = journal.summarize_glucose(readings, 14, now, targets)
         glu = journal.glucose_rows(readings)
         hba1c = [r for r in _labs_out(store, patient["id"]) if r["test"] == "hba1c"]
         appt = store.get_appointment(patient["id"])
         return {"date": now.date().isoformat(), "name": patient["name"],
                 "alerts": _messages(journal.alerts(readings, now=now)),
-                "reminders": _messages(journal.reminders(readings, appt, now=now)),
-                "last_glucose": _reading_out(glu[-1]) if glu else None,
+                "reminders": _messages(journal.reminders(readings, appt, now=now, targets=targets)),
+                "last_glucose": _reading_out(glu[-1], targets) if glu else None,
+                "targets": _targets_out(store, patient["id"]),
                 "in_target_pct_14d": s["in_target_pct"],
                 "fasting_mean_mmol_14d": round(journal.to_mmol(s["by_context"]["fasting"]["mean_mgdl"]), 1)
                 if "fasting" in s["by_context"] else None,
@@ -461,7 +491,7 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
                 store: Store = Depends(get_store)):
         now = now_of(request)
         readings = store.list_readings(patient["id"])
-        g = journal.summarize_glucose(readings, days, now)
+        g = journal.summarize_glucose(readings, days, now, _targets_of(store, patient["id"]))
         to_mmol = (lambda v: None if v is None else round(journal.to_mmol(v), 1))
         return {
             "days": days,
@@ -475,9 +505,31 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             "weight": journal.weight_change(readings, days, now),
             "series": [{"t": t.isoformat(), "mmol": round(journal.to_mmol(v), 1), "context": c}
                        for t, v, c in journal.daily_series(readings, days, now)],
-            "targets": {"pre_meal_mmol": [4.4, 7.2], "post_meal_max_mmol": 10.0, "hypo_mmol": 3.9,
-                        "source": journal.SOURCE},
+            "targets": _targets_out(store, patient["id"]),
         }
+
+    # -- mục tiêu riêng --
+    @app.get("/patients/{patient_id}/targets", tags=["nhật ký"])
+    def get_targets(patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        """Mục tiêu đường huyết đang áp dụng: mục tiêu riêng nếu đã đặt, không thì mục tiêu chung ADA 2024."""
+        return _targets_out(store, patient["id"])
+
+    @app.put("/patients/{patient_id}/targets", tags=["nhật ký"])
+    def set_targets(body: TargetsIn, patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        """Đặt mục tiêu riêng theo lời bác sĩ. Ngưỡng hạ đường huyết (3,9) và rất cao (13,9) không đổi."""
+        lo, hi, post = (round(journal.to_mgdl(v, body.unit), 1)
+                        for v in (body.pre_meal_low, body.pre_meal_high, body.post_meal_max))
+        err = journal.validate_targets(lo, hi, post)
+        if err:
+            raise HTTPException(422, err)
+        store.set_targets(patient["id"], lo, hi, post, (body.note or "").strip() or None)
+        return _targets_out(store, patient["id"])
+
+    @app.delete("/patients/{patient_id}/targets", tags=["nhật ký"])
+    def clear_targets(patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        """Bỏ mục tiêu riêng, quay về mục tiêu chung."""
+        store.clear_targets(patient["id"])
+        return _targets_out(store, patient["id"])
 
     # -- xét nghiệm --
     @app.get("/patients/{patient_id}/labs", tags=["xét nghiệm"])

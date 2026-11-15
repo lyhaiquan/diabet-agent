@@ -1,0 +1,16 @@
+# Thư viện cho ảnh Docker của dịch vụ API (tập con của requirements.txt: không có Streamlit, pytest, công cụ huấn luyện).
+# torch được cài riêng trong Dockerfile từ kho bánh xe CPU.
+fastapi
+uvicorn
+python-multipart
+pydantic
+numpy
+# predictor_ms.joblib được lưu bằng scikit-learn 1.8: giữ đúng bản để nạp lại không cảnh báo lệch phiên bản
+scikit-learn==1.8.0
+joblib
+sentence-transformers
+transformers
+pypdf
+matplotlib
+networkx
+reportlab

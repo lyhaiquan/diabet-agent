@@ -5,6 +5,7 @@ import { GlucoseChart } from "@/components/GlucoseChart";
 import { GlucoseForm } from "@/components/GlucoseForm";
 import { VoiceReading } from "@/components/VoiceReading";
 import { ErrorText, Notices } from "@/components/Notice";
+import { Reminders } from "@/components/Reminders";
 import { api, fmtDate, fmtMmol, fmtTime, type Summary, type Today } from "@/lib/api";
 import { usePatient } from "@/lib/session";
 
@@ -61,7 +62,10 @@ export default function TodayPage() {
             <div className="stat">
               <div className="label">TB lúc đói</div>
               <div className="value">{fmtMmol(today.fasting_mean_mmol_14d)}</div>
-              <div className="sub">mục tiêu 4,4–7,2</div>
+              <div className="sub">
+                {today.targets.custom ? "bác sĩ đặt " : "mục tiêu "}
+                {fmtMmol(today.targets.pre_meal_mmol[0])}–{fmtMmol(today.targets.pre_meal_mmol[1])}
+              </div>
             </div>
             <div className="stat">
               <div className="label">HbA1c gần nhất</div>
@@ -71,16 +75,19 @@ export default function TodayPage() {
           </div>
           <section className="card">
             {summary.series.length ? (
-              <GlucoseChart series={summary.series} days={14} endDate={today.date} />
+              <GlucoseChart series={summary.series} days={14} endDate={today.date} targets={today.targets} />
             ) : (
               <p className="muted">Chưa có lần đo nào. Ghi lần đầu ở ô phía trên.</p>
             )}
           </section>
         </>
       )}
+      <Reminders patientId={patient.id} />
       <p className="disclaimer">
-        Nhắc nhở chỉ hiện khi bạn mở ứng dụng. Mục tiêu tham khảo theo ADA Standards of Care 2024; bác sĩ có thể đặt mục
-        tiêu riêng cho bạn. DiaCare không thay thế bác sĩ.
+        {today?.targets.custom
+          ? "Đang so với mục tiêu bạn nhập theo lời bác sĩ (đổi ở trang Tái khám)."
+          : "Mục tiêu tham khảo theo ADA Standards of Care 2024; nếu bác sĩ dặn mục tiêu khác, nhập ở trang Tái khám."}{" "}
+        DiaCare không thay thế bác sĩ.
       </p>
     </>
   );

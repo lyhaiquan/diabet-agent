@@ -230,3 +230,25 @@ def test_journal_and_visit_pages(user_env):
     assert not at.exception
     pdf = at.session_state["visit_pdf"]
     assert pdf[0] == 1 and pdf[1].startswith(b"%PDF")
+
+
+def test_visit_page_sets_and_resets_custom_targets(user_env):
+    at = create_patient(new_app().run(), page="Tái khám")
+    assert any("mục tiêu chung (ADA 2024)" in c.value for c in at.caption)
+    at.number_input(key="tg_lo").set_value(3.0)   # thấp hơn ngưỡng hạ đường huyết: bị từ chối
+    next(b for b in at.button if b.label == "Lưu mục tiêu").click()
+    at.run()
+    assert any("3,9" in e.value for e in at.error) and open_store().get_targets(1) is None
+    at.number_input(key="tg_lo").set_value(5.0)
+    at.number_input(key="tg_hi").set_value(8.3)
+    at.number_input(key="tg_post").set_value(11.0)
+    at.text_input(key="tg_note").set_value("BS Minh")
+    next(b for b in at.button if b.label == "Lưu mục tiêu").click()
+    at.run()
+    assert not at.exception
+    row = open_store().get_targets(1)
+    assert row["pre_lo"] == pytest.approx(90.0) and row["pre_hi"] == pytest.approx(149.4) and row["note"] == "BS Minh"
+    assert any("mục tiêu bác sĩ đặt: trước ăn 5,0 mmol/L–8,3 mmol/L" in c.value for c in at.caption)
+    next(b for b in at.button if b.label == "Dùng lại mục tiêu chung").click()
+    at.run()
+    assert open_store().get_targets(1) is None

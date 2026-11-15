@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Context, SeriesPoint } from "@/lib/api";
+import { fmtMmol, type Context, type SeriesPoint, type Targets } from "@/lib/api";
 
 const COLORS: Record<Context, string> = {
   fasting: "#2563eb",
@@ -18,8 +18,13 @@ const NAMES: Record<Context, string> = {
   random: "bất kỳ",
 };
 
-/** Biểu đồ đường huyết (mmol/L) theo thời gian; dải xanh = mục tiêu trước ăn 4,4–7,2. Không dùng thư viện. */
-export function GlucoseChart({ series, days, endDate }: { series: SeriesPoint[]; days: number; endDate: string }) {
+type Props = { series: SeriesPoint[]; days: number; endDate: string; targets?: Pick<Targets, "pre_meal_mmol" | "post_meal_max_mmol"> };
+
+/** Biểu đồ đường huyết (mmol/L) theo thời gian; dải xanh = mục tiêu trước ăn (mặc định 4,4–7,2, hoặc mục tiêu
+ *  bác sĩ đặt). Không dùng thư viện. */
+export function GlucoseChart({ series, days, endDate, targets }: Props) {
+  const [lo, hi] = targets?.pre_meal_mmol ?? [4.4, 7.2];
+  const post = targets?.post_meal_max_mmol ?? 10;
   // Vẽ theo đúng bề rộng thật của khung để chữ trên trục không bị co nhỏ trên điện thoại
   const box = useRef<HTMLElement>(null);
   const [W, setW] = useState(640);
@@ -50,14 +55,14 @@ export function GlucoseChart({ series, days, endDate }: { series: SeriesPoint[];
     <figure style={{ margin: 0 }} ref={box}>
       <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img"
            aria-label={`Biểu đồ đường huyết ${days} ngày, ${series.length} lần đo`}>
-        <rect className="band" x={L} width={W - L - R} y={y(7.2)} height={y(4.4) - y(7.2)} />
+        <rect className="band" x={L} width={W - L - R} y={y(hi)} height={y(lo) - y(hi)} />
         {ticksY.map((v) => (
           <g key={v}>
             <line className="grid" x1={L} x2={W - R} y1={y(v)} y2={y(v)} strokeWidth={0.6} />
             <text x={L - 6} y={y(v) + 4} textAnchor="end">{v}</text>
           </g>
         ))}
-        <line x1={L} x2={W - R} y1={y(10)} y2={y(10)} stroke="#ea580c" strokeDasharray="5 4" strokeWidth={1} />
+        <line x1={L} x2={W - R} y1={y(post)} y2={y(post)} stroke="#ea580c" strokeDasharray="5 4" strokeWidth={1} />
         <line x1={L} x2={W - R} y1={y(3.9)} y2={y(3.9)} stroke="#2563eb" strokeDasharray="2 3" strokeWidth={1} />
         {ticksX.map((t) => (
           <text key={t} x={x(t)} y={H - 8} textAnchor="middle">{label(t)}</text>
@@ -76,8 +81,8 @@ export function GlucoseChart({ series, days, endDate }: { series: SeriesPoint[];
         })}
       </svg>
       <figcaption className="legend">
-        <span><i className="dot" style={{ background: "var(--target-band)", border: "1px solid var(--ok)" }} />mục tiêu trước ăn 4,4–7,2</span>
-        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" stroke="#ea580c" strokeDasharray="5 4" strokeWidth="2" /></svg>sau ăn &lt; 10,0</span>
+        <span><i className="dot" style={{ background: "var(--target-band)", border: "1px solid var(--ok)" }} />mục tiêu trước ăn {fmtMmol(lo)}–{fmtMmol(hi)}</span>
+        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" stroke="#ea580c" strokeDasharray="5 4" strokeWidth="2" /></svg>sau ăn &lt; {fmtMmol(post)}</span>
         <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" stroke="#2563eb" strokeDasharray="2 3" strokeWidth="2" /></svg>hạ đường huyết &lt; 3,9</span>
         {used.map((c) => (
           <span key={c}><i className="dot" style={{ background: COLORS[c] }} />{NAMES[c]}</span>

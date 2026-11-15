@@ -128,8 +128,9 @@ def test_shipped_cases_file():
     for c in cases:
         counts[c["category"]] = counts.get(c["category"], 0) + 1
     assert counts == {"diet": 6, "exercise": 4, "risk_referral": 4, "low_risk": 4, "symptoms": 4,
-                      "emergency": 4, "medication": 6, "out_of_scope": 4, "nutrition": 6, "memory": 4, "labs": 4}
-    assert len(cases) == 50
+                      "emergency": 4, "medication": 6, "out_of_scope": 4, "nutrition": 6, "memory": 4, "labs": 4,
+                      "journal": 12}
+    assert len(cases) == 62
 
 
 def test_load_cases_turns(tmp_path):
@@ -322,3 +323,82 @@ def test_run_benchmark_runs_setup_turns():
 
 def first_reply(orch, i):
     return apply_rules(0.01, "Hỏi bác sĩ [ada.txt].", orch.calls[i][0])[0]
+
+
+# ---------- ca có nhật ký ----------
+
+def test_journal_cases_digest_contains_expected_numbers():
+    """Con số mà ca yêu cầu trợ lý nhắc tới phải có thật trong bản tóm tắt nhật ký đưa cho mô hình."""
+    from diacare.context import JOURNAL_TOKEN_BUDGET, estimate_tokens
+    from diacare.db import Store
+    from diacare.journal import JournalAgent, format_journal
+    expect = {"journal_1": ["8,3", "cao hơn mục tiêu"], "journal_2": ["6,3", "trong mục tiêu"],
+              "journal_3": ["hạ đường huyết"], "journal_4": ["rất cao", "15,2"], "journal_5": ["11,5"],
+              "journal_6": ["giảm", "8,5 → 7,0"], "journal_7": ["tăng", "6,8 → 8,2"], "journal_8": ["142/88"],
+              "journal_9": ["còn 3 ngày"], "journal_10": ["cao hơn mục tiêu"], "journal_11": ["-1,5 kg"]}
+    cases = {c["name"]: c for c in bench.load_cases(CASES_JSON) if c["category"] == "journal"}
+    assert len(cases) == 12 and not bench.journal_has_data(cases["journal_12"]["journal"])
+    store = Store(":memory:")
+    for pid, (cid, terms) in enumerate(expect.items(), 1):
+        bench.seed_journal(store, pid, cases[cid]["journal"])
+        text = format_journal(JournalAgent(store).collect(pid))
+        assert estimate_tokens(text) <= JOURNAL_TOKEN_BUDGET, cid  # không dòng nào bị cắt vì ngân sách
+        for t in terms:
+            assert t in text, (cid, t, text)
+
+
+def test_run_benchmark_seeds_journal_per_run():
+    from diacare.db import Store
+    from diacare.journal import JournalAgent
+
+    class Orch:
+        def __init__(self):
+            self.journal_agent = JournalAgent(Store(":memory:"))
+            self.seen = []
+
+        def run(self, state):
+            state.journal = self.journal_agent.collect(state.patient_id)
+            self.seen.append((state.patient_id, state.journal and state.journal["n_glucose"]))
+            state.draft = "Trung bình 8,3 mmol/L, hỏi bác sĩ."
+            state.final, state.flags = apply_rules(0.01, state.draft, state.question)
+            return state
+
+    journal = bench.parse_journal({"glucose": [[0, 6, "fasting", 8.3], [1, 6, "fasting", 8.3]]})
+    with_j = mk_case(name="j", journal=journal, draft_groups=(("8,3", "8.3"),))
+    without = mk_case(name="n", journal=None)
+    empty = mk_case(name="e", journal=bench.parse_journal({}))  # có hồ sơ, chưa ghi gì
+    orch = Orch()
+    res = bench.run_benchmark(orch, [with_j, without, empty], k=2)
+    # mỗi lượt một hồ sơ mới, không cộng dồn; ca nhật ký rỗng vẫn có patient_id để Memory hoạt động
+    assert orch.seen == [(1, 2), (2, 2), (None, None), (None, None), (3, None), (4, None)]
+    assert all(r["ok"] for r in res["runs"]["j"]) and all(r["ok"] for r in res["runs"]["e"])
+
+
+def test_appointment_placeholder_in_draft_groups():
+    from datetime import datetime, timedelta, timezone
+    from diacare.db import Store
+    now = datetime(2026, 11, 15, 9, 0, tzinfo=timezone(timedelta(hours=7)))
+    appt = bench.seed_journal(Store(":memory:"), 1, bench.parse_journal({"appointment_in": 3}), now=now)
+    assert appt == "18/11"
+    c = mk_case(journal=bench.parse_journal({"appointment_in": 3}), draft_groups=(("3 ngày", "{appt}"),))
+    s = mk_state(c, "Lịch tái khám của bạn là ngày 18/11/2026.")
+    s.journal, s.appointment_date = {"lines": []}, appt
+    assert bench.evaluate(c, s)[0]
+    s.appointment_date = None  # chấm lại bản ghi cũ không có ngày: cụm {appt} bị bỏ qua, không khớp bừa
+    assert not bench.evaluate(c, s)[0]
+
+
+def test_journal_case_fails_when_journal_not_read():
+    c = mk_case(journal=bench.parse_journal({"glucose": [[0, 6, "fasting", 8.3]]}), draft_groups=(("8,3",), ("bác sĩ",)))
+    ok, reasons = bench.evaluate(c, mk_state(c, "Bạn nên ăn rau."))
+    text = " | ".join(reasons)
+    assert not ok and "không đọc nhật ký" in text and "8,3" in text and "bác sĩ" in text
+
+
+@pytest.mark.parametrize("raw", [
+    {"glucose": [[0, 6, "lunch", 6.0]]}, {"glucose": [[0, 6, "fasting", 60.0]]}, {"glucose": [[-1, 6, "fasting", 6.0]]},
+    {"bp": [[0, 80, 120]]}, {"weight": [[0, 5]]}, {"sleep": []}, [], {"glucose": [[0, 6, "fasting"]]},
+])
+def test_parse_journal_rejects_bad_rows(raw):
+    with pytest.raises(ValueError):
+        bench.parse_journal(raw, "x")

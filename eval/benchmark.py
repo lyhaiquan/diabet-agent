@@ -30,6 +30,7 @@ def _parse(argv):
     p.add_argument("--kb", default=None)
     p.add_argument("--features", default=None,
                    help="all | v1 | danh sách cách nhau dấu phẩy (mặc định: env DIACARE_FEATURES, rồi all)")
+    p.add_argument("--category", nargs="+", default=None, help="chỉ chạy các nhóm ca này (vd: journal)")
     p.add_argument("--out", default=None)
     p.add_argument("--predictor-metrics", default=str(DEFAULT_METRICS))
     return p.parse_args(argv)
@@ -56,6 +57,10 @@ def main(argv=None):
 
     features = parse_features(args.features)
     cases = bench.load_cases(args.cases)
+    if args.category:
+        cases = [c for c in cases if c["category"] in args.category]
+        if not cases:
+            raise SystemExit(f"không có ca nào thuộc nhóm: {', '.join(args.category)}")
     embed_fn = make_embed_fn(embed_kind)  # tạo một lần cho cả tiến trình
     results, warnings = {}, []
     for model in models:

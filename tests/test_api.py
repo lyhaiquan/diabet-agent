@@ -371,3 +371,49 @@ def test_chat_reads_journal(client):
                       headers=auth).json()
     step = next(s for s in out["steps"] if s["agent"] == "Journal")
     assert "1 lần đo đường huyết" in step["detail"]
+
+
+def test_targets_default_custom_reset(client):
+    auth = register(client)
+    pid = new_patient(client, auth)
+    t = client.get(f"/patients/{pid}/targets", headers=auth).json()
+    assert not t["custom"] and t["pre_meal_mmol"] == [4.4, 7.2] and t["post_meal_max_mmol"] == 10.0
+    r = client.post(f"/patients/{pid}/readings/glucose", json={"value": 7.8, "context": "fasting"}, headers=auth).json()
+    assert r["status"] == "above_target"
+
+    bad = client.put(f"/patients/{pid}/targets", headers=auth,
+                     json={"pre_meal_low": 3.0, "pre_meal_high": 7.2, "post_meal_max": 10.0})
+    assert bad.status_code == 422 and "3,9" in bad.json()["detail"]
+    t = client.put(f"/patients/{pid}/targets", headers=auth,
+                   json={"pre_meal_low": 5.0, "pre_meal_high": 8.3, "post_meal_max": 11.0, "note": "BS Minh"}).json()
+    assert t["custom"] and t["pre_meal_mmol"] == [5.0, 8.3] and t["note"] == "BS Minh"
+    assert t["default"]["pre_meal_mmol"] == [4.4, 7.2]
+
+    # số đo cũ được xếp lại theo mục tiêu mới; số đo mới báo "mục tiêu bác sĩ đặt"
+    rows = client.get(f"/patients/{pid}/readings", headers=auth).json()
+    assert rows[0]["status"] == "in_target"
+    r = client.post(f"/patients/{pid}/readings/glucose", json={"value": 8.0, "context": "fasting"}, headers=auth).json()
+    assert r["status"] == "in_target" and "mục tiêu bác sĩ đặt 5,0 mmol/L–8,3 mmol/L" in r["message"]
+    today = client.get(f"/patients/{pid}/today", headers=auth).json()
+    assert today["in_target_pct_14d"] == 100 and today["targets"]["custom"]
+    assert client.get(f"/patients/{pid}/summary", headers=auth).json()["targets"]["pre_meal_mmol"] == [5.0, 8.3]
+    # mg/dL cũng nhận
+    t = client.put(f"/patients/{pid}/targets", headers=auth,
+                   json={"pre_meal_low": 90, "pre_meal_high": 140, "post_meal_max": 190, "unit": "mg/dL"}).json()
+    assert t["pre_meal_mmol"] == [5.0, 7.8]
+    # hạ đường huyết không đổi theo mục tiêu riêng
+    r = client.post(f"/patients/{pid}/readings/glucose", json={"value": 3.5, "context": "fasting"}, headers=auth).json()
+    assert r["status"] == "hypo_1"
+
+    t = client.delete(f"/patients/{pid}/targets", headers=auth).json()
+    assert not t["custom"] and t["pre_meal_mmol"] == [4.4, 7.2]
+
+
+def test_targets_are_private_to_owner(client):
+    auth = register(client)
+    pid = new_patient(client, auth)
+    other = register(client, "khac@example.com")
+    assert client.get(f"/patients/{pid}/targets", headers=other).status_code == 404
+    assert client.put(f"/patients/{pid}/targets", headers=other,
+                      json={"pre_meal_low": 5.0, "pre_meal_high": 8.3, "post_meal_max": 11.0}).status_code == 404
+    assert client.get(f"/patients/{pid}/targets").status_code == 401

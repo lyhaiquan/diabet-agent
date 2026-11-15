@@ -96,7 +96,7 @@ function GlucoseTab({ pid, days }: { pid: number; days: number }) {
         <section className="card">
           {g.n ? (
             <>
-              <GlucoseChart series={summary.series} days={days} endDate={today} />
+              <GlucoseChart series={summary.series} days={days} endDate={today} targets={summary.targets} />
               <p className="small muted" style={{ marginTop: 10 }}>
                 {g.n} lần đo trong {g.days_measured}/{days} ngày · {g.in_target_pct}% trong mục tiêu · hạ đường huyết {g.hypo} lần
                 · rất cao {g.very_high} lần

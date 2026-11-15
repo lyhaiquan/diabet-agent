@@ -25,7 +25,9 @@ def make_llm(kind=None, model=None, num_ctx=None):
         return DemoLLM()
     model = model or os.environ.get("DIACARE_MODEL") or "qwen2.5:3b"
     num_ctx = int(num_ctx or os.environ.get("DIACARE_NUM_CTX") or DEFAULT_NUM_CTX)
-    return OllamaLLM(model=model, num_ctx=num_ctx)
+    # DIACARE_OLLAMA_URL: địa chỉ gốc của Ollama khi không chạy cùng máy (vd http://ollama:11434 trong Docker Compose)
+    base = (os.environ.get("DIACARE_OLLAMA_URL") or "http://localhost:11434").rstrip("/")
+    return OllamaLLM(model=model, num_ctx=num_ctx, url=base + "/api/chat")
 
 
 def make_embed_fn(kind=None):

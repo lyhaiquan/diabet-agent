@@ -223,3 +223,61 @@ def test_journal_reaches_advisor_prompt(tmp_path):
     # nhật ký quá dài: cắt bớt dòng cuối cho vừa ngân sách
     state.journal = {**state.journal, "lines": state.journal["lines"] + ["- " + "x" * 300] * 5}
     assert estimate_tokens(build_context("advisor", state)["journal_text"]) <= JOURNAL_TOKEN_BUDGET
+
+
+# ---- mục tiêu riêng do bác sĩ đặt ----
+
+CUSTOM = journal.resolve_targets({"pre_lo": 90.0, "pre_hi": 150.0, "post_max": 200.0})
+
+
+def test_custom_targets_change_classification_but_not_safety_thresholds():
+    assert journal.classify_glucose(140, "fasting") == "above_target"
+    assert journal.classify_glucose(140, "fasting", CUSTOM) == "in_target"
+    assert journal.classify_glucose(85, "fasting", CUSTOM) == "below_target"
+    assert journal.classify_glucose(190, "after_meal", CUSTOM) == "in_target"
+    assert journal.classify_glucose(190, "after_meal") == "above_target"
+    # hạ đường huyết và rất cao không phụ thuộc mục tiêu riêng
+    assert journal.classify_glucose(65, "fasting", CUSTOM) == "hypo_1"
+    assert journal.classify_glucose(50, "after_meal", CUSTOM) == "hypo_2"
+    assert journal.classify_glucose(260, "after_meal", CUSTOM) == "very_high"
+    assert journal.target_text("fasting", CUSTOM) == "mục tiêu bác sĩ đặt 5,0 mmol/L–8,3 mmol/L"
+    assert journal.target_text("fasting") == "mục tiêu 4,4 mmol/L–7,2 mmol/L"
+
+
+@pytest.mark.parametrize("lo,hi,post,ok", [
+    (80, 130, 180, True), (90, 150, 200, True), (70, 90, 140, True),
+    (60, 130, 180, False),    # cận dưới thấp hơn ngưỡng hạ đường huyết
+    (80, 200, 220, False),    # cận trên trước ăn quá cao
+    (80, 130, 250, False),    # sau ăn chạm mức "rất cao"
+    (120, 130, 180, False),   # khoảng quá hẹp
+    (80, 160, 150, False),    # sau ăn thấp hơn trước ăn
+    (None, 130, 180, False),
+])
+def test_validate_targets(lo, hi, post, ok):
+    assert (journal.validate_targets(lo, hi, post) is None) == ok
+
+
+def test_digest_and_streak_use_custom_targets():
+    rows = [reading(mmol(8.0), "fasting", at=NOW - timedelta(days=d)) for d in range(3)]
+    assert journal.high_streak(rows, NOW) and not journal.high_streak(rows, NOW, targets=CUSTOM)
+    default = journal.format_journal(journal.journal_digest(rows, now=NOW))
+    custom = journal.format_journal(journal.journal_digest(rows, now=NOW, targets=CUSTOM))
+    assert "cao hơn mục tiêu (4,4–7,2 mmol/L); 0/3" in default and "mục tiêu chung ADA 2024" in default
+    assert "trong mục tiêu (5,0–8,3 mmol/L); 3/3" in custom and "mục tiêu riêng mà bác sĩ đã đặt" in custom
+    assert "3 ngày liền" not in custom
+
+
+def test_journal_agent_reads_targets_from_store():
+    from diacare.db import Store
+    store = Store(":memory:")
+    pid = store.save_patient("A", {})
+    store.add_reading(pid, "glucose", mmol(8.0), NOW, context="fasting")
+    agent = journal.JournalAgent(store, now=NOW)
+    assert not agent.collect(pid)["custom_targets"]
+    store.set_targets(pid, 90, 150, 200, note="BS Minh")
+    store.set_targets(pid, 90, 155, 200)  # ghi đè, không tạo dòng thứ hai
+    assert store.get_targets(pid)["pre_hi"] == 155 and store.get_targets(pid)["note"] is None
+    d = agent.collect(pid)
+    assert d["custom_targets"] and any("trong mục tiêu (5,0–8,6 mmol/L)" in x for x in d["lines"])
+    store.clear_targets(pid)
+    assert store.get_targets(pid) is None and not agent.collect(pid)["custom_targets"]

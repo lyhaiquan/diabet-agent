@@ -1,0 +1,7 @@
+A = journal_off/qwen2.5:3b
+B = journal_on/qwen2.5:3b
+Số ca chung: 12 (đạt = đạt mọi lượt)
+  cả hai đạt: 0 | chỉ A đạt: 1 | chỉ B đạt: 6 | cả hai trượt: 5
+  McNemar chính xác, hai phía: p = 0.1250  (chưa đủ bằng chứng là khác nhau)
+  chỉ A đạt: journal_12
+  chỉ B đạt: journal_2, journal_3, journal_4, journal_6, journal_7, journal_11

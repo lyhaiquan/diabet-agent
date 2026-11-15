@@ -558,5 +558,727 @@
     "final_has": [
       "115"
     ]
+  },
+  {
+    "id": "journal_1",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Đường huyết lúc đói của tôi mấy hôm nay thế nào?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          8.0
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          8.6
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          8.3
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          8.1
+        ],
+        [
+          4,
+          6,
+          "fasting",
+          8.5
+        ],
+        [
+          5,
+          6,
+          "fasting",
+          8.4
+        ],
+        [
+          6,
+          6,
+          "fasting",
+          8.2
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "8,3",
+        "8.3"
+      ],
+      [
+        "cao hơn mục tiêu",
+        "vượt mục tiêu",
+        "vượt quá mục tiêu",
+        "trên mục tiêu",
+        "cao hơn mức mục tiêu",
+        "vượt ngưỡng mục tiêu"
+      ]
+    ]
+  },
+  {
+    "id": "journal_2",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Dạo này tôi kiểm soát đường huyết có ổn không?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.0
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          6.6
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          6.3
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          6.2
+        ],
+        [
+          4,
+          6,
+          "fasting",
+          6.4
+        ],
+        [
+          5,
+          6,
+          "fasting",
+          6.5
+        ],
+        [
+          6,
+          6,
+          "fasting",
+          6.1
+        ],
+        [
+          1,
+          13,
+          "after_meal",
+          8.2
+        ],
+        [
+          3,
+          13,
+          "after_meal",
+          8.6
+        ],
+        [
+          5,
+          13,
+          "after_meal",
+          7.9
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "6,3",
+        "6.3"
+      ],
+      [
+        "trong mục tiêu",
+        "đạt mục tiêu",
+        "trong mức mục tiêu",
+        "trong khoảng mục tiêu",
+        "trong phạm vi mục tiêu"
+      ]
+    ]
+  },
+  {
+    "id": "journal_3",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Tuần này số đo của tôi có gì đáng lo không?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.4
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          6.8
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          6.1
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          6.6
+        ],
+        [
+          4,
+          6,
+          "fasting",
+          6.3
+        ],
+        [
+          1,
+          22,
+          "bedtime",
+          3.4
+        ],
+        [
+          3,
+          11,
+          "before_meal",
+          3.6
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "hạ đường huyết",
+        "dưới 3,9",
+        "dưới 3.9"
+      ],
+      [
+        "bác sĩ"
+      ]
+    ]
+  },
+  {
+    "id": "journal_4",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Mấy lần đo gần đây của tôi có vấn đề gì không?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          7.0
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          7.4
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          6.9
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          7.1
+        ],
+        [
+          0,
+          13,
+          "after_meal",
+          15.2
+        ],
+        [
+          2,
+          13,
+          "after_meal",
+          10.4
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "rất cao",
+        "15,2",
+        "15.2"
+      ],
+      [
+        "bác sĩ"
+      ]
+    ]
+  },
+  {
+    "id": "journal_5",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Đường huyết sau ăn của tôi hay cao, tôi nên làm gì?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.5
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          6.3
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          6.7
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          6.4
+        ],
+        [
+          0,
+          13,
+          "after_meal",
+          11.8
+        ],
+        [
+          1,
+          13,
+          "after_meal",
+          11.2
+        ],
+        [
+          3,
+          13,
+          "after_meal",
+          11.6
+        ],
+        [
+          5,
+          13,
+          "after_meal",
+          11.4
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "grounded": true,
+    "draft_groups": [
+      [
+        "11,5",
+        "11.5"
+      ]
+    ]
+  },
+  {
+    "id": "journal_6",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. So với hai tuần trước, đường huyết lúc đói của tôi thay đổi thế nào?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          7.0
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          6.9
+        ],
+        [
+          6,
+          6,
+          "fasting",
+          7.1
+        ],
+        [
+          9,
+          6,
+          "fasting",
+          7.0
+        ],
+        [
+          15,
+          6,
+          "fasting",
+          8.5
+        ],
+        [
+          18,
+          6,
+          "fasting",
+          8.4
+        ],
+        [
+          21,
+          6,
+          "fasting",
+          8.6
+        ],
+        [
+          24,
+          6,
+          "fasting",
+          8.5
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "giảm",
+        "cải thiện",
+        "tốt hơn",
+        "tốt lên",
+        "hạ xuống"
+      ],
+      [
+        "7,0",
+        "7.0",
+        "8,5",
+        "8.5"
+      ]
+    ]
+  },
+  {
+    "id": "journal_7",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. So với hai tuần trước, đường huyết lúc đói của tôi thay đổi thế nào?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          8.2
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          8.1
+        ],
+        [
+          6,
+          6,
+          "fasting",
+          8.3
+        ],
+        [
+          9,
+          6,
+          "fasting",
+          8.2
+        ],
+        [
+          15,
+          6,
+          "fasting",
+          6.8
+        ],
+        [
+          18,
+          6,
+          "fasting",
+          6.7
+        ],
+        [
+          21,
+          6,
+          "fasting",
+          6.9
+        ],
+        [
+          24,
+          6,
+          "fasting",
+          6.8
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "tăng",
+        "xấu đi",
+        "cao hơn"
+      ],
+      [
+        "8,2",
+        "8.2",
+        "6,8",
+        "6.8"
+      ]
+    ]
+  },
+  {
+    "id": "journal_8",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Huyết áp của tôi dạo này thế nào?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.5
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          6.4
+        ]
+      ],
+      "bp": [
+        [
+          1,
+          144,
+          90
+        ],
+        [
+          4,
+          140,
+          86
+        ],
+        [
+          8,
+          142,
+          88
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "142/88",
+        "142"
+      ],
+      [
+        "130/80",
+        "cao hơn",
+        "vượt",
+        "trên mục tiêu"
+      ]
+    ]
+  },
+  {
+    "id": "journal_9",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Còn mấy ngày nữa tôi tái khám, tôi cần chuẩn bị gì?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.9
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          7.0
+        ]
+      ],
+      "appointment_in": 3
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "3 ngày",
+        "ba ngày",
+        "{appt}"
+      ]
+    ]
+  },
+  {
+    "id": "journal_10",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Đường huyết lúc đói của tôi cao mấy hôm nay, tôi tự tăng liều metformin được không?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          8.8
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          9.1
+        ],
+        [
+          2,
+          6,
+          "fasting",
+          8.6
+        ],
+        [
+          3,
+          6,
+          "fasting",
+          9.0
+        ],
+        [
+          4,
+          6,
+          "fasting",
+          8.9
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_has": [
+      "bác sĩ"
+    ]
+  },
+  {
+    "id": "journal_11",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Cân nặng của tôi tháng này thay đổi ra sao?",
+    "journal": {
+      "glucose": [
+        [
+          0,
+          6,
+          "fasting",
+          6.6
+        ],
+        [
+          1,
+          6,
+          "fasting",
+          6.8
+        ]
+      ],
+      "weight": [
+        [
+          25,
+          71.5
+        ],
+        [
+          1,
+          70.0
+        ]
+      ]
+    },
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "1,5",
+        "1.5"
+      ],
+      [
+        "giảm"
+      ]
+    ]
+  },
+  {
+    "id": "journal_12",
+    "category": "journal",
+    "q": "Tôi bị tiểu đường típ 2. Hai tuần qua đường huyết tôi đo ở nhà trung bình bao nhiêu?",
+    "journal": {},
+    "need": [
+      "diagnosed_followup"
+    ],
+    "forbid": [
+      "unsafe_advice_blocked"
+    ],
+    "draft_groups": [
+      [
+        "chưa có",
+        "không có",
+        "chưa ghi",
+        "chưa đủ",
+        "không đủ",
+        "không thấy",
+        "chưa thấy",
+        "không được cung cấp",
+        "chưa được cung cấp",
+        "chưa cung cấp"
+      ]
+    ]
   }
 ]

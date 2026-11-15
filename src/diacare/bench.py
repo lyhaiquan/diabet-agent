@@ -3,16 +3,18 @@ import itertools
 import json
 import math
 import time
+from datetime import timedelta
 from pathlib import Path
 
 from diacare.context import CHARS_PER_TOKEN
+from diacare.journal import CONTEXTS, now_vn, to_mgdl, validate_bp, validate_glucose, validate_weight
 from diacare.metrics import pass_at_k, pass_hat_k, summarize_usage
 from diacare.rules import DISCLAIMER, is_unsafe_advice, validate_profile
 from diacare.samples import HIGH_RISK, LOW_RISK
 from diacare.state import State
 
 CATEGORIES = ("diet", "exercise", "risk_referral", "low_risk", "symptoms", "emergency",
-              "medication", "out_of_scope", "nutrition", "memory", "labs")
+              "medication", "out_of_scope", "nutrition", "memory", "labs", "journal")
 MAX_FAILURE_ROWS = 30
 EXCERPT_CHARS = 200
 
@@ -39,6 +41,8 @@ def evaluate(case, state):
     banned = sorted(case["forbid"] & flags)
     if banned:
         reasons.append("có cờ bị cấm: " + ", ".join(banned))
+    if journal_has_data(case.get("journal")) and not getattr(state, "journal", None):
+        reasons.append("không đọc nhật ký")
     if case["grounded"] and not cited(state):
         reasons.append("không trích nguồn đã truy xuất")
     if is_unsafe_advice(state.draft):
@@ -50,12 +54,90 @@ def evaluate(case, state):
     any_terms = tuple(case.get("draft_has_any", ()))
     if any_terms and not any(t in draft for t in any_terms):
         reasons.append("bản nháp thiếu một trong các cụm: " + " / ".join(any_terms))
+    appt = getattr(state, "appointment_date", None)  # "{appt}" trong ca = ngày tái khám dd/mm của lượt chạy
+    for group in case.get("draft_groups", ()):  # mỗi nhóm cần ít nhất một cụm
+        group = [t.replace("{appt}", appt or "") for t in group if appt or "{appt}" not in t]
+        if not any(t in draft for t in group):
+            reasons.append("bản nháp thiếu một trong các cụm: " + " / ".join(group))
     missing = [t for t in case["final_has"] if t not in state.final]
     if missing:
         reasons.append("câu trả lời cuối thiếu cụm: " + ", ".join(missing))
     if DISCLAIMER not in state.final:
         reasons.append("thiếu disclaimer")
     return not reasons, reasons
+
+
+def rescore_record(case, rec, nutrition=True):
+    """Chấm lại offline một lượt đã lưu bằng bộ lọc thuốc và tiêu chí HIỆN TẠI (không gọi LLM).
+    Trả (đạt?, lý do, cờ, câu trả lời cuối). Dùng cho eval/rescore.py và eval/compare.py."""
+    from types import SimpleNamespace
+    from diacare.rules import SAFE_REPLACEMENT
+    flags = [x for x in rec["flags"] if x != "unsafe_advice_blocked"]
+    final = rec["final"]
+    if is_unsafe_advice(rec["draft"]):
+        flags.append("unsafe_advice_blocked")
+    elif final.startswith(SAFE_REPLACEMENT):  # trước đây bị chặn nhầm: trả lại bản nháp
+        final = rec["draft"] + final[len(SAFE_REPLACEMENT):]
+    state = SimpleNamespace(flags=flags, draft=rec["draft"], final=final,
+                            docs=[{"source": s} for s in rec["sources"]], nutrition=nutrition or None,
+                            journal=rec.get("journal"), appointment_date=rec.get("appointment_date"))
+    ok, reasons = evaluate(case, state)
+    return ok, reasons, flags, final
+
+
+# ---------- nhật ký gieo sẵn cho ca "journal" ----------
+
+def parse_journal(raw, cid="?"):
+    """Nhật ký của một ca, thời gian tính lùi từ lúc chạy để ca không bị cũ:
+    {"glucose": [[số ngày trước, giờ, thời điểm đo, mmol/L], ...], "bp": [[ngày trước, tâm thu, tâm trương], ...],
+     "weight": [[ngày trước, kg], ...], "appointment_in": số ngày nữa tới lịch tái khám}."""
+    if not isinstance(raw, dict) or set(raw) - {"glucose", "bp", "weight", "appointment_in"}:
+        raise ValueError(f"ca {cid}: journal phải là đối tượng với glucose / bp / weight / appointment_in")
+    out = {"glucose": [], "bp": [], "weight": [], "appointment_in": raw.get("appointment_in")}
+    try:
+        for d, hour, ctx, mmol in raw.get("glucose", ()):
+            if ctx not in CONTEXTS or validate_glucose(mmol, "mmol/L")[1] or not 0 <= int(hour) <= 23 or d < 0:
+                raise ValueError
+            out["glucose"].append((int(d), int(hour), ctx, float(mmol)))
+        for d, sys_, dia in raw.get("bp", ()):
+            if validate_bp(sys_, dia) or d < 0:
+                raise ValueError
+            out["bp"].append((int(d), float(sys_), float(dia)))
+        for d, kg in raw.get("weight", ()):
+            if validate_weight(kg) or d < 0:
+                raise ValueError
+            out["weight"].append((int(d), float(kg)))
+        if out["appointment_in"] is not None:
+            out["appointment_in"] = int(out["appointment_in"])
+    except (TypeError, ValueError):
+        raise ValueError(f"ca {cid}: journal có dòng không hợp lệ") from None
+    return out  # {} hợp lệ: người dùng có hồ sơ nhưng chưa ghi gì (trợ lý phải nói là chưa có số liệu)
+
+
+def journal_has_data(journal):
+    return bool(journal) and bool(
+        journal["glucose"] or journal["bp"] or journal["weight"] or journal["appointment_in"] is not None)
+
+
+def seed_journal(store, patient_id, journal, now=None):
+    """Ghi nhật ký của ca vào store cho patient_id (đường huyết lưu mg/dL như ứng dụng).
+    Trả ngày tái khám dạng dd/mm (None nếu ca không có lịch) để chấm cụm "{appt}"."""
+    now = now or now_vn()
+
+    def at(days_ago, hour):
+        return (now - timedelta(days=days_ago)).replace(hour=hour, minute=0, second=0, microsecond=0)
+
+    for d, hour, ctx, mmol in journal["glucose"]:
+        store.add_reading(patient_id, "glucose", to_mgdl(mmol, "mmol/L"), at(d, hour), unit="mmol/L", context=ctx)
+    for d, sys_, dia in journal["bp"]:
+        store.add_reading(patient_id, "bp", sys_, at(d, 8), value2=dia, unit="mmHg")
+    for d, kg in journal["weight"]:
+        store.add_reading(patient_id, "weight", kg, at(d, 7), unit="kg")
+    if journal["appointment_in"] is not None:
+        day = (now + timedelta(days=journal["appointment_in"])).date()
+        store.set_appointment(patient_id, day)
+        return f"{day:%d/%m}"
+    return None
 
 
 # ---------- nạp bộ ca ----------
@@ -99,14 +181,16 @@ def load_cases(path):
             profile = dict(profile)
         else:
             raise ValueError(f"ca {cid}: profile phải là 'low', 'high' hoặc dict 21 đặc trưng")
+        journal = parse_journal(raw["journal"], cid) if raw.get("journal") is not None else None
         cases.append({
-            "name": cid, "category": category, "profile": profile, "q": q,
+            "name": cid, "journal": journal, "category": category, "profile": profile, "q": q,
             "setup_turns": setup_turns,
             "need": set(raw.get("need", ())), "forbid": set(raw.get("forbid", ())),
             "grounded": bool(raw.get("grounded", False)),
             "draft_has": tuple(raw.get("draft_has", ())),
             "draft_has_any": tuple(raw.get("draft_has_any", ())),
             "final_has": tuple(raw.get("final_has", ())),
+            "draft_groups": tuple(tuple(g) for g in raw.get("draft_groups", ())),
         })
     return cases
 
@@ -138,7 +222,9 @@ def percentile(values, q):
 
 def run_benchmark(orch, cases, k, clock=time.perf_counter):
     runs, info = {}, {}
-    patient_ids = itertools.count(1)  # mỗi lượt chạy ca nhiều lượt dùng một patient_id mới: sự kiện không rò rỉ
+    # mỗi lượt chạy ca nhiều lượt / có nhật ký dùng một patient_id mới: sự kiện và số đo không rò rỉ sang ca khác
+    patient_ids = itertools.count(1)
+    journal_store = getattr(getattr(orch, "journal_agent", None), "store", None)
     for case in cases:
         cid = case["name"]
         info[cid] = {"category": case.get("category", ""), "q": case["q"]}
@@ -147,7 +233,11 @@ def run_benchmark(orch, cases, k, clock=time.perf_counter):
             start = clock()
             try:
                 setup = case.get("setup_turns") or ()
-                patient_id, history = (next(patient_ids) if setup else None), []
+                journal = case.get("journal")
+                patient_id, history = (next(patient_ids) if setup or journal is not None else None), []
+                appt = None
+                if journal and journal_store is not None:  # tắt tính năng journal thì ca chạy như không có nhật ký
+                    appt = seed_journal(journal_store, patient_id, journal)
                 for turn in setup:
                     prior = orch.run(State(question=turn, profile=dict(case["profile"]),
                                            history=history, patient_id=patient_id))
@@ -156,10 +246,12 @@ def run_benchmark(orch, cases, k, clock=time.perf_counter):
                     start = clock()  # chỉ đo lượt cuối
                 state = orch.run(State(question=case["q"], profile=dict(case["profile"]),
                                        history=history, patient_id=patient_id))
+                state.appointment_date = appt
                 ok, reasons = evaluate(case, state)
                 rec = {"ok": ok, "reasons": reasons, "flags": list(state.flags),
                        "usage": dict(state.usage or {}), "draft": state.draft, "final": state.final,
-                       "sources": [d["source"] for d in state.docs]}
+                       "sources": [d["source"] for d in state.docs],
+                       "journal": bool(getattr(state, "journal", None)), "appointment_date": appt}
             except Exception as exc:
                 rec = {"ok": False, "reasons": [f"exception: {type(exc).__name__}"], "flags": [],
                        "usage": {}, "draft": "", "final": "", "sources": []}

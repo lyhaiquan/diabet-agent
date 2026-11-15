@@ -97,3 +97,11 @@ def test_hybrid_feature_selects_retriever_mode(tmp_path):
     assert build_orchestrator(features="hybrid", **kw).retriever.mode == "hybrid"
     assert build_orchestrator(features="v1", **kw).retriever.mode == "dense"
     assert build_orchestrator(features="all", **kw).retriever.mode == "hybrid"
+
+
+def test_ollama_url_from_env(monkeypatch):
+    from diacare.factory import make_llm
+    monkeypatch.delenv("DIACARE_OLLAMA_URL", raising=False)
+    assert make_llm("ollama").url == "http://localhost:11434/api/chat"
+    monkeypatch.setenv("DIACARE_OLLAMA_URL", "http://ollama:11434/")
+    assert make_llm("ollama").url == "http://ollama:11434/api/chat"

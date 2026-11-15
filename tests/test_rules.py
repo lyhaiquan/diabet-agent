@@ -324,3 +324,44 @@ def test_dose_adjust_alone_not_blocked():
     text = "Hãy liên hệ bác sĩ để điều chỉnh liều insulin. Ăn nhiều rau xanh và đi bộ mỗi ngày nhé."
     final, flags = apply_rules(0.1, text)
     assert "unsafe_advice_blocked" not in flags and text in final
+
+
+# ---------- lời nhắc khi bản nháp gợi ý tự điều chỉnh liều (không bị chặn) ----------
+
+@pytest.mark.parametrize("text", [
+    "Nếu bạn đang sử dụng insulin, hãy theo dõi lượng đường trong khẩu phần ăn và điều chỉnh liều insulin nếu cần.",
+    "Nếu bạn tăng cường hoạt động thể chất, bạn có thể cần điều chỉnh liều lượng metformin để tránh hạ đường huyết.",
+    "Đếm carbs trong mỗi bữa ăn sẽ giúp bạn điều chỉnh liều lượng insulin phù hợp.",
+])
+def test_self_dose_adjust_gets_note_but_keeps_draft(text):
+    from diacare.rules import DOSE_NOTE
+    final, flags = apply_rules(0.1, text)
+    assert "dose_adjust_note" in flags and "unsafe_advice_blocked" not in flags
+    assert text in final and DOSE_NOTE in final
+    assert not is_unsafe_advice(final)
+
+
+@pytest.mark.parametrize("text", [
+    "Hãy liên hệ bác sĩ để điều chỉnh liều insulin.",
+    "Bác sĩ sẽ khám cho bạn. Họ có thể điều chỉnh liều lượng thuốc hoặc đề xuất phương pháp khác.",
+    "Việc điều chỉnh liều thuốc mà không có chỉ dẫn y tế có thể gây ra rủi ro.",
+    "Không tự điều chỉnh liều insulin.",
+    "Ăn nhiều rau xanh và điều chỉnh khẩu phần cơm.",
+])
+def test_clinician_led_dose_adjust_has_no_note(text):
+    final, flags = apply_rules(0.1, text)
+    assert "dose_adjust_note" not in flags and "Lưu ý: chỉ điều chỉnh liều" not in final
+
+
+# Câu thật của qwen2.5:3b ở ca journal_10 (benchmark nhật ký 2026-11-15): nhắc lại câu hỏi, không phải lời khuyên.
+@pytest.mark.parametrize("text", [
+    "Tôi hiểu bạn đang muốn hỏi về việc tăng liều metformin khi đường huyết lúc đói cao.",
+    "Tôi hiểu rằng bạn đang tự đo đường huyết và có ý định tăng liều metformin.",
+])
+def test_restating_the_question_is_not_unsafe(text):
+    assert not is_unsafe_advice(text)
+
+
+def test_intent_wording_does_not_hide_real_advice():
+    assert is_unsafe_advice("Bạn nên tăng liều metformin lên gấp đôi.")
+    assert is_unsafe_advice("Đường huyết cao thì cứ tăng liều insulin thêm 2 đơn vị.")

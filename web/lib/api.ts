@@ -60,6 +60,18 @@ export type Lab = {
   created_at: string;
 };
 export type Appointment = { id: number; date: string; place: string | null; note: string | null } | null;
+/** Mục tiêu đường huyết đang áp dụng (mmol/L): riêng do bác sĩ đặt (custom) hoặc chung theo ADA 2024. */
+export type Targets = {
+  custom: boolean;
+  pre_meal_mmol: [number, number];
+  post_meal_max_mmol: number;
+  hypo_mmol: number;
+  note: string | null;
+  updated_at: string | null;
+  source: string;
+  default: { pre_meal_mmol: [number, number]; post_meal_max_mmol: number };
+  limits_mmol: { pre_lo: [number, number]; pre_hi: [number, number]; post_max: [number, number] };
+};
 export type Today = {
   date: string;
   name: string;
@@ -70,6 +82,7 @@ export type Today = {
   fasting_mean_mmol_14d: number | null;
   latest_hba1c: Lab | null;
   appointment: Appointment;
+  targets: Targets;
 };
 export type SeriesPoint = { t: string; mmol: number; context: Context };
 export type Summary = {
@@ -86,7 +99,7 @@ export type Summary = {
   bp: { n: number; systolic: number; diastolic: number; above_target: number } | null;
   weight: { first: number; last: number; delta: number; n: number } | null;
   series: SeriesPoint[];
-  targets: { pre_meal_mmol: [number, number]; post_meal_max_mmol: number; hypo_mmol: number; source: string };
+  targets: Targets;
 };
 export type Question = { id: number; text: string; done: boolean; created_at: string };
 export type Focus = { event_id: number | null; action: string; label: string; rated?: "up" | "down" | null } | null;
@@ -213,6 +226,11 @@ export const api = {
     fd.append("file", file);
     return json<{ imported: unknown[]; labs: Lab[] }>(`/patients/${pid}/labs/file`, { method: "POST", body: fd });
   },
+
+  targets: (pid: number) => json<Targets>(`/patients/${pid}/targets`),
+  setTargets: (pid: number, b: { pre_meal_low: number; pre_meal_high: number; post_meal_max: number; note?: string }) =>
+    put<Targets>(`/patients/${pid}/targets`, b),
+  clearTargets: (pid: number) => json<Targets>(`/patients/${pid}/targets`, { method: "DELETE" }),
 
   appointment: (pid: number) => json<Appointment>(`/patients/${pid}/appointment`),
   setAppointment: (pid: number, date: string, place: string) =>

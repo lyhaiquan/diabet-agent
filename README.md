@@ -154,7 +154,7 @@ Mở `http://localhost:8000/docs` để xem và thử mọi endpoint. Bấm **Au
 |---|---|
 | Tài khoản | `POST /auth/register`, `POST /auth/token` (OAuth2 password flow, trả JWT), `GET /me` |
 | Hồ sơ | `GET/POST /patients`, `GET/PATCH /patients/{id}`, `GET/DELETE /patients/{id}/memories` |
-| Nhật ký | `POST /patients/{id}/readings/glucose`, `.../bp`, `.../weight`; `GET .../readings`, `DELETE .../readings/{rid}`, `GET .../today`, `GET .../summary?days=14` |
+| Nhật ký | `POST /patients/{id}/readings/glucose`, `.../bp`, `.../weight`; `GET .../readings`, `DELETE .../readings/{rid}`, `GET .../today`, `GET .../summary?days=14`, `GET/PUT/DELETE .../targets` (mục tiêu riêng do bác sĩ đặt) |
 | Xét nghiệm | `GET/POST /patients/{id}/labs` (gõ chữ), `POST .../labs/file` (ảnh, PDF; tối đa 10 MB) |
 | Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `POST .../questions/{qid}/done`, `GET .../visit-report.pdf` |
 | Tư vấn | `POST /patients/{id}/chat` (JSON, hoặc `"stream": true` để nhận luồng SSE), `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` (👍/👎 cho agent RL) |
@@ -164,7 +164,8 @@ Luồng SSE của `/chat` gửi lần lượt các sự kiện:
 - `session`: mã phiên.
 - `step`: từng agent vừa chạy xong.
 - `token`: phần chữ mới, đã qua bộ lọc an toàn.
-- `done`: kết quả cuối. Giao diện phải thay phần chữ đang hiện bằng `answer`, vì Rules có thể sửa bản nháp.
+- `done`: kết quả cuối. Giao diện phải thay phần chữ đang hiện bằng `answer`, vì Rules có thể sửa bản nháp: bỏ câu
+  khuyên đổi thuốc (giữ phần còn lại), hoặc thêm lời nhắc "chỉ điều chỉnh liều theo bác sĩ".
 
 Bảo mật:
 
@@ -186,10 +187,14 @@ Trong `web/` có giao diện cho người bệnh, ưu tiên màn hình điện t
 
 - Đăng nhập, đăng ký.
 - Tạo hồ sơ theo dõi. Một tài khoản theo dõi được cho nhiều người thân.
-- **Hôm nay**: cảnh báo, ghi đường huyết, số liệu và biểu đồ 14 ngày.
+- **Hôm nay**: cảnh báo, ghi đường huyết, số liệu và biểu đồ 14 ngày, cài giờ nhắc đo.
+  Nhắc đo là thông báo của trình duyệt: chọn tối đa 4 mốc giờ, tới giờ mà 2 giờ trước đó chưa có số đo thì nhắc.
+  Chỉ hoạt động khi DiaCare đang mở trên trình duyệt (tab nền cũng được); chưa phải thông báo đẩy.
 - **Nhật ký**: đường huyết; huyết áp và cân nặng; xét nghiệm, có chụp ảnh phiếu.
 - **Tư vấn**: chữ hiện dần qua SSE, có nút 👍/👎 cho agent RL.
-- **Tái khám**: lịch hẹn, câu hỏi cho bác sĩ, tải PDF.
+- **Tái khám**: lịch hẹn, mục tiêu đường huyết riêng do bác sĩ đặt, câu hỏi cho bác sĩ, tải PDF.
+  Mặc định so với mục tiêu chung ADA 2024 (trước ăn 4,4–7,2; sau ăn dưới 10,0 mmol/L). Nhập mục tiêu riêng thì mọi
+  thống kê, biểu đồ, PDF và trợ lý Tư vấn đều dùng mục tiêu đó. Ngưỡng hạ đường huyết (3,9) không đổi.
 
 ```bash
 uvicorn api.main:app --app-dir src --port 8000   # cửa sổ 1: API (mất khoảng 30 giây để nạp mô hình)
@@ -202,6 +207,23 @@ API đặt ở cổng khác thì chép `web/.env.example` thành `web/.env.local
 Next.js 16.4, React 19.3, TypeScript 5.9. Ngoài các gói đó không cài thêm thư viện nào; biểu đồ tự vẽ bằng SVG.
 Token đăng nhập lưu trong `localStorage` của trình duyệt. Cách này đủ cho đồ án; bản chạy thật nên chuyển sang
 cookie `HttpOnly`.
+
+### Chạy bằng Docker Compose
+
+```bash
+docker compose up --build        # web http://localhost:3000, API http://localhost:8000/docs
+```
+
+Ba dịch vụ: `ollama` (tự tải `qwen2.5:3b`, khoảng 1,9 GB ở lần đầu), `api`, `web`. Dữ liệu người dùng nằm trong
+volume `diacare-data`; `docker compose down` không xoá, `docker compose down -v` mới xoá.
+
+- Đổi model: `DIACARE_MODEL=qwen2.5:7b docker compose up --build`.
+- Chạy thử không cần mô hình ngôn ngữ: `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up --build api web`.
+- Có GPU NVIDIA: bỏ dấu `#` ở khối `deploy` của dịch vụ `ollama`.
+- Khoá ký token tự sinh vào volume; muốn tự đặt thì khai báo `DIACARE_API_SECRET` trong tệp `.env`.
+
+Cấu hình đã qua `docker compose config`, nhưng các ảnh **chưa được dựng và chạy thử** (cần Docker Desktop và tải
+khoảng 3 GB). Nếu dựng lỗi, hãy báo lại kèm log.
 
 ### Giọng nói
 
@@ -256,6 +278,7 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_LLM` | `ollama` | `ollama` hoặc `demo` |
 | `DIACARE_MODEL` | `qwen2.5:3b` | tên model Ollama |
 | `DIACARE_NUM_CTX` | `4096` | cửa sổ context gửi cho Ollama |
+| `DIACARE_OLLAMA_URL` | `http://localhost:11434` | địa chỉ Ollama khi không chạy cùng máy (Docker Compose đặt `http://ollama:11434`) |
 | `DIACARE_EMBED` | `sbert` | `sbert` hoặc `hash` (demo) |
 | `DIACARE_MIN_SCORE` | `0.2` (sbert), `0` (hash) | ngưỡng điểm truy xuất |
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
@@ -341,7 +364,7 @@ python tools/train_rl.py           # chính sách khởi động -> models/rl_po
 AUC gần như giữ nguyên; xác suất đáng tin hơn hẳn. Ngưỡng mức nguy cơ: thấp < 0,10, cao ≥ 0,30.
 Pima (kiểm tra ngoài, 4/21 chỉ số): AUC 0,724 mới, 0,739 cũ. Mô hình triệu chứng UCI 529 (251 người sau khi bỏ 269 dòng trùng): AUC 0,948.
 
-**Benchmark hội thoại** (`eval/cases.json`, hiện có 50 ca thuộc 11 nhóm). Mỗi ca chạy k lần và chấm trên bản nháp thật
+**Benchmark hội thoại** (`eval/cases.json`, hiện có 62 ca thuộc 12 nhóm). Mỗi ca chạy k lần và chấm trên bản nháp thật
 của LLM: có trích nguồn đã truy xuất, không khuyên đổi thuốc, nhắc bác sĩ, đúng các cờ.
 
 - **Pass@k**: ca đạt ít nhất 1/k lần.
@@ -358,9 +381,27 @@ Lần chạy ablation trên Kaggle (T4, `qwen2.5:7b`, 46 ca × 3 lượt), đã 
 Nhóm `memory` tăng từ 0.25 lên 1.00. Mức chung tăng nhưng khoảng tin cậy còn chồng nhau. Phân tích đầy đủ ở
 `docs/results/2026-11-05_kaggle_run3_ablation/README.md`. Bản sửa Nutrition agent và 4 ca xét nghiệm mới chưa được đo lại.
 
+Kiểm định McNemar theo ca (`eval/compare.py`, một ca đạt khi đạt cả 3 lượt) cho thấy các mức tăng này **chưa có ý
+nghĩa thống kê** với 46 ca: v1 so với v2 $p = 0{,}73$, v2 so với all $p = 0{,}38$, v1 so với all $p = 0{,}27$.
+Khác biệt duy nhất có ý nghĩa là qwen2.5:7b so với 14b trên 50 ca: 17 ca chỉ 7b đạt, 3 ca chỉ 14b đạt, $p = 0{,}003$.
+
+**Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
+nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
+
+| Cấu hình | Pass@3 | Pass^3 | Đạt từng lượt (Wilson 95%) |
+|---|---|---|---|
+| có agent Journal (`default`) | 0,92 | 0,50 | 0,78 [0,62; 0,88] |
+| không Journal (`v2,kg,rl`) | 0,08 | 0,08 | 0,08 [0,03; 0,22] |
+
+6 ca chỉ đạt khi có Journal, 1 ca chỉ đạt khi không có (McNemar theo ca $p = 0{,}125$: với 12 ca thì chưa đạt mức 0,05, dù tỉ lệ đạt từng lượt là 28/36 so với 3/36). Các ca mô hình 3B còn
+trượt khi đã có số liệu: quên trích nguồn, không nhắc số ngày tới lịch tái khám, tự đưa mục tiêu huyết áp khác với
+nhật ký. Kết quả ở `docs/results/2026-11-15_journal_3b/`.
+
 ```bash
 python eval/benchmark.py --models qwen2.5:7b --k 3 --num-ctx 4096
+python eval/benchmark.py --category journal --k 3                 # chỉ nhóm ca nhật ký
 python eval/rescore.py docs/results/2026-11-05_kaggle_run3_ablation
+python eval/compare.py A/results.json B/results.json --rescore    # kiểm định McNemar giữa hai cấu hình
 python -m pytest -q
 ```
 

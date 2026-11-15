@@ -37,3 +37,21 @@ def test_summarize_usage():
 def test_summarize_usage_empty():
     assert summarize_usage([], 2.5) == {}
     assert summarize_usage([{}, {"seconds": 1.0}, None], 2.5) == {}
+
+
+def test_mcnemar_exact():
+    from diacare.metrics import mcnemar_exact
+    assert mcnemar_exact(0, 0) == 1.0
+    assert mcnemar_exact(3, 3) == 1.0
+    assert mcnemar_exact(0, 5) == 2 * 0.5 ** 5          # 0,0625
+    assert abs(mcnemar_exact(1, 9) - 22 / 1024) < 1e-12  # 2 * (C(10,0)+C(10,1)) / 2^10
+    assert mcnemar_exact(9, 1) == mcnemar_exact(1, 9)
+
+
+def test_paired_outcomes_uses_all_runs_and_common_cases():
+    from diacare.metrics import paired_outcomes
+    a = {"x": [True, True], "y": [True, False], "z": [True, True], "only_a": [True]}
+    b = {"x": [True, True], "y": [True, True], "z": [False, False], "only_b": [True]}
+    r = paired_outcomes(a, b)
+    assert (r["n_cases"], r["both"], r["only_a"], r["only_b"], r["neither"]) == (3, 1, 1, 1, 0)
+    assert r["only_a_cases"] == ["z"] and r["only_b_cases"] == ["y"] and r["p_value"] == 1.0

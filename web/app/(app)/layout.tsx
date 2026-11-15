@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ErrorText } from "@/components/Notice";
+import { ReminderScheduler } from "@/components/Reminders";
 import { api } from "@/lib/api";
 import { SessionProvider, useSession } from "@/lib/session";
 
@@ -96,6 +97,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </nav>
       {/* key: đổi hồ sơ thì các trang tải lại dữ liệu từ đầu */}
       <main className="shell" key={patient.id}>{children}</main>
+      <ReminderScheduler patientId={patient.id} patientName={patient.name} />
     </>
   );
 }

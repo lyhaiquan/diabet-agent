@@ -7,12 +7,10 @@ Chạy:  python eval/rescore.py docs/results/2026-11-05_kaggle_run3_ablation
 import json
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from diacare.bench import aggregate, evaluate, load_cases  # noqa: E402
-from diacare.rules import SAFE_REPLACEMENT, is_unsafe_advice  # noqa: E402
+from diacare.bench import aggregate, load_cases, rescore_record  # noqa: E402
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -25,16 +23,7 @@ for f in ("v1", "v2", "all"):
     for cid, rs in res["runs"].items():
         new = []
         for r in rs:
-            flags = [x for x in r["flags"] if x != "unsafe_advice_blocked"]
-            final = r["final"]
-            if is_unsafe_advice(r["draft"]):
-                flags.append("unsafe_advice_blocked")
-            elif final.startswith(SAFE_REPLACEMENT):
-                final = r["draft"] + final[len(SAFE_REPLACEMENT):]
-            st = SimpleNamespace(flags=flags, draft=r["draft"], final=final,
-                                 docs=[{"source": s} for s in r["sources"]],
-                                 nutrition=(f != "v1") or None)
-            ok, reasons = evaluate(cases[cid], st)
+            ok, reasons, flags, final = rescore_record(cases[cid], r, nutrition=(f != "v1"))
             new.append(dict(r, ok=ok, reasons=reasons, flags=flags, final=final))
         runs[cid] = new
     agg = aggregate({"runs": runs, "cases": cases, "k": res["k"]})
