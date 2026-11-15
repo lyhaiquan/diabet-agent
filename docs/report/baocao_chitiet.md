@@ -1,6 +1,6 @@
 ---
 title: "BÁO CÁO CHI TIẾT DỰ ÁN DIACARE-MAS"
-subtitle: "Hệ đa tác tử hỗ trợ tư vấn phòng ngừa tiểu đường: thiết kế, cài đặt, triển khai và đánh giá"
+subtitle: "Hệ đa tác tử hỗ trợ phòng ngừa và tự theo dõi đái tháo đường: thiết kế, cài đặt, triển khai và đánh giá"
 author: "Lý Hải Quân - B23DCCN676 - Nhóm lớp 05"
 date: "Học viện Công nghệ Bưu chính Viễn thông - Tháng 11/2026"
 lang: vi
@@ -15,16 +15,20 @@ toc-title: "Mục lục"
 
 ## 1.1. Dự án là gì
 
-DiaCare-MAS là một trợ lý trò chuyện bằng tiếng Việt về phòng ngừa và chăm sóc bệnh tiểu đường. Người dùng tạo hồ sơ sức khỏe, có thể nhập kết quả xét nghiệm, rồi đặt câu hỏi như "tôi nên ăn gì", "nước tiểu có kiến bâu có sao không", "HbA1c 6,8% là cao hay thấp". Hệ trả lời bằng một mô hình ngôn ngữ lớn chạy cục bộ, có trích nguồn tài liệu, và luôn kèm lời nhắc tham khảo bác sĩ.
+DiaCare-MAS là một trợ lý bằng tiếng Việt cho người bệnh đái tháo đường típ 2, dùng **giữa hai lần tái khám**. Người bệnh ghi đường huyết, huyết áp, cân nặng mỗi ngày (gõ hoặc nói); ứng dụng so với mục tiêu điều trị, cảnh báo khi hạ đường huyết hay chỉ số rất cao, nhắc lịch khám, và lập bản tóm tắt một trang để mang tới bác sĩ. Người bệnh cũng hỏi được như "tôi nên ăn gì", "HbA1c 6,8% là cao hay thấp", "mấy hôm nay đường huyết của tôi thế nào". Trợ lý trả lời bằng một mô hình ngôn ngữ lớn chạy cục bộ, dựa trên nhật ký của chính người đó và tài liệu y khoa có trích nguồn, và luôn kèm lời nhắc tham khảo bác sĩ.
 
-Bên trong, câu trả lời không do một mô hình duy nhất tạo ra. Mười tác tử (agent) chia nhau công việc: một agent nhớ thông tin bệnh nhân, một agent đọc xét nghiệm, một mạng nơ-ron dự đoán nguy cơ, một agent tìm tài liệu, một agent tra đồ thị tri thức, một agent tra dinh dưỡng, một agent học tăng cường chọn trọng tâm tư vấn và học từ phản hồi của người dùng, một agent cắt ngữ cảnh, mô hình ngôn ngữ viết bản nháp, và một agent luật kiểm tra trước khi trả lời. Một Orchestrator điều phối cả mười. Trong mười bước đó, chỉ một bước gọi mô hình ngôn ngữ; các bước còn lại là code có test.
+Dự án bắt đầu là một trợ lý trò chuyện về **phòng ngừa** (người chưa mắc bệnh hỏi về nguy cơ). Ở phiên bản V4, hướng sản phẩm chuyển sang **tự theo dõi** cho người đã được chẩn đoán, vì đây là nhu cầu lặp lại hằng ngày, còn câu hỏi về nguy cơ thường chỉ hỏi một lần. Phần phòng ngừa vẫn giữ nguyên cho người chưa chẩn đoán.
+
+Bên trong, câu trả lời không do một mô hình duy nhất tạo ra. Mười một tác tử (agent) chia nhau công việc: một agent nhớ thông tin bệnh nhân, một agent đọc xét nghiệm, một agent đọc nhật ký tự theo dõi, một mạng nơ-ron dự đoán nguy cơ, một agent tìm tài liệu, một agent tra đồ thị tri thức, một agent tra dinh dưỡng, một agent học tăng cường chọn trọng tâm tư vấn và học từ phản hồi của người dùng, một agent cắt ngữ cảnh, mô hình ngôn ngữ viết bản nháp, và một agent luật kiểm tra trước khi trả lời. Một Orchestrator điều phối cả mười một. Trong mười một bước đó, chỉ một bước gọi mô hình ngôn ngữ; các bước còn lại là code có test.
+
+Phần AI được đóng gói thành một **dịch vụ API** (FastAPI) có tài khoản và phân quyền. Có hai giao diện gọi vào: giao diện **web Next.js** ưu tiên điện thoại cho người bệnh, và giao diện Streamlit giữ lại cho nhà phát triển xem từng agent chạy.
 
 Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** và không được dùng để chẩn đoán.
 
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
-- Ngôn ngữ: Python 3.14. Giao diện Streamlit, mô hình ngôn ngữ qua Ollama, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
-- Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng ADA và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 62 commit, 28 tệp test với 491 test tự động, bộ benchmark 50 ca.
+- Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
+- Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
+- Quy mô lúc viết báo cáo: 68 commit, 31 tệp test với 562 test tự động, bộ benchmark 50 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -42,6 +46,11 @@ Dự án được xây theo từng phiên bản:
 | V3.1 | Đồ thị tri thức bật mặc định, ghép bằng chứng gen chung từ PrimeKG, thử nghiệm RGCN trên Kaggle, khung "Đồ thị tri thức đã dùng" trên giao diện |
 | V3.2 | Agent RL viết lại thành contextual bandit học từ 👍/👎 của người dùng, bật mặc định, khởi động trên phân bố BRFSS thật, có mặt nạ an toàn, ghi propensity và đánh giá SNIPS |
 | V3.3 | Predictor học từ nhiều nguồn (BRFSS 2015, BRFSS 2023, NHANES), hiệu chỉnh xác suất, ngưỡng nguy cơ mới, kiểm tra ngoài trên Pima, mô hình triệu chứng từ UCI 529 |
+| V4 | Chuyển hướng sản phẩm sang tự theo dõi: nhật ký đường huyết, huyết áp, cân nặng so với mục tiêu ADA 2024; cảnh báo và nhắc nhở; bản tóm tắt PDF mang đi khám; chế độ người dùng và chế độ nhà phát triển |
+| V4.1 | Dịch vụ API FastAPI: tài khoản, mật khẩu scrypt, JWT, mỗi tài khoản chỉ thấy hồ sơ của mình, chat trả về JSON hoặc luồng SSE |
+| V4.2 | Giao diện web Next.js cho điện thoại: Hôm nay, Nhật ký, Tư vấn, Tái khám |
+| V4.3 | Giọng nói: nói số đo và câu hỏi (PhoWhisper-small), đọc to câu trả lời bằng giọng của máy |
+| V4.4 | Agent Journal: trợ lý Tư vấn đọc nhật ký 14 ngày của người dùng |
 
 ## 1.3. Mục tiêu và phạm vi
 
@@ -54,10 +63,14 @@ Mục tiêu chức năng:
 5. Tra thành phần dinh dưỡng các món ăn Việt.
 6. Chuyển người dùng đi khám khi có dấu hiệu nguy cơ, triệu chứng hoặc cấp cứu.
 7. Với mỗi yếu tố nguy cơ người dùng nhắc tới, cho biết tài liệu nói gì, dữ liệu đo được gì và hai nguồn có khớp nhau không.
+8. Cho người đã chẩn đoán ghi số đo hằng ngày, so với mục tiêu điều trị, cảnh báo khi cần, và mang bản tóm tắt tới bác sĩ.
+9. Trả lời câu hỏi dựa trên nhật ký của chính người hỏi.
+10. Dùng được trên điện thoại, bằng giọng nói cho người lớn tuổi ngại gõ chữ.
 
 Mục tiêu phi chức năng:
 
 - **An toàn**: không bao giờ hiển thị lời khuyên tự ý thay đổi thuốc hoặc insulin.
+- **Riêng tư**: mỗi tài khoản chỉ thấy hồ sơ của mình; âm thanh giọng nói không được lưu.
 - **Quan sát được**: mọi lượt trả lời đều xem lại được từng bước, số token, thời gian.
 - **Chạy được trên phần cứng miễn phí**: máy cá nhân có GPU 4 GB, hoặc GPU T4 của Kaggle.
 - **Kiểm thử được**: mọi phần không phải mô hình ngôn ngữ đều có unit test.
@@ -70,9 +83,9 @@ Ngoài phạm vi: chẩn đoán, kê đơn, câu hỏi y khoa không liên quan 
 
 ![Kiến trúc DiaCare-MAS. Khung nét đứt là harness (phần code bao quanh mô hình). Số trên mũi tên là thứ tự Orchestrator gọi các agent.](figs/c6_kien_truc.png){width=100%}
 
-Kiến trúc theo mẫu orchestrator-worker. Orchestrator giữ một đối tượng trạng thái `State` cho mỗi lượt hỏi, gọi lần lượt mười agent, mỗi agent đọc phần trạng thái nó cần và ghi kết quả vào đó. Các tài nguyên nằm ngoài khung harness: cơ sở dữ liệu SQLite, tệp mô hình đã huấn luyện, kho tài liệu, đồ thị tri thức (Neo4j hoặc tệp), chính sách học tăng cường, bảng dinh dưỡng và máy chủ Ollama.
+Kiến trúc theo mẫu orchestrator-worker. Orchestrator giữ một đối tượng trạng thái `State` cho mỗi lượt hỏi, gọi lần lượt mười một agent, mỗi agent đọc phần trạng thái nó cần và ghi kết quả vào đó. Các tài nguyên nằm ngoài khung harness: cơ sở dữ liệu SQLite (cả nhật ký tự theo dõi), tệp mô hình đã huấn luyện, kho tài liệu, đồ thị tri thức (Neo4j hoặc tệp), chính sách học tăng cường, bảng dinh dưỡng và máy chủ Ollama.
 
-Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định cả mười agent đều chạy; chỉ chế độ truy hồi lai BM25 của Retriever là tắt (lý do ở mục 3.6). Agent bị tắt thì Orchestrator bỏ qua, không ảnh hưởng các agent còn lại.
+Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định cả mười một agent đều chạy; chỉ chế độ truy hồi lai BM25 của Retriever là tắt (lý do ở mục 3.6). Agent bị tắt thì Orchestrator bỏ qua, không ảnh hưởng các agent còn lại.
 
 ## 2.2. Vì sao là pipeline cố định chứ không phải vòng lặp agent
 
@@ -84,7 +97,7 @@ Kiểu agent phổ biến hiện nay cho mô hình tự quyết định gọi c�
 2. Những việc cần chính xác tuyệt đối (đổi đơn vị xét nghiệm, so ngưỡng, tính nguy cơ) được làm bằng code có test, không giao cho mô hình.
 3. Agent kiểm tra an toàn phải luôn chạy cuối cùng. Trong vòng lặp tự do, mô hình có thể kết thúc mà không qua bước kiểm tra.
 
-Kết quả là trong mười bước chỉ một bước gọi mô hình ngôn ngữ (Advisor). Bước tóm tắt lịch sử của Memory cũng gọi mô hình, nhưng chỉ khi hội thoại dài quá ngân sách và chỉ cho phần chưa tóm tắt (mục 3.3).
+Kết quả là trong mười một bước chỉ một bước gọi mô hình ngôn ngữ (Advisor). Bước tóm tắt lịch sử của Memory cũng gọi mô hình, nhưng chỉ khi hội thoại dài quá ngân sách và chỉ cho phần chưa tóm tắt (mục 3.3).
 
 ## 2.3. Luồng xử lý một câu hỏi
 
@@ -93,22 +106,37 @@ Lấy ví dụ người dùng có hồ sơ nguy cơ cao, đã nhập phiếu xé
 1. **Orchestrator** kiểm tra hồ sơ hợp lệ, kiểm tra đây không phải câu chào.
 2. **Memory** trích sự kiện mới từ câu hỏi (không có), nhớ lại các sự kiện cũ của bệnh nhân.
 3. **Lab** lấy kết quả mới nhất đã lưu (HbA1c 8,5%, đường huyết lúc đói 180 mg/dL, OGTT 182 mg/dL) và xếp mức: hai chỉ số ở ngưỡng tiểu đường, một chỉ số ở mức tiền tiểu đường.
-4. **Predictor** chạy mô hình đa nguồn trên 21 chỉ số hồ sơ: 66,7%, mức cao.
-5. **Retriever** tìm được 4 đoạn tài liệu từ MedlinePlus và WHO.
-6. **Graph** không thấy yếu tố nguy cơ nào trong câu hỏi (câu này nói về triệu chứng), nên không thêm gì.
-7. **Nutrition** nhận ra đây không phải câu hỏi dinh dưỡng, bỏ qua.
-8. **RL** thấy xét nghiệm ở ngưỡng tiểu đường và câu hỏi có triệu chứng, nên mặt nạ an toàn buộc chọn trọng tâm "khám và xét nghiệm xác nhận sớm", không thăm dò.
-9. **Context** ghép ngữ cảnh cho Advisor, khoảng 1.000 token trên cửa sổ 4.096.
-10. **Advisor** gọi Ollama, nhận bản nháp từng đoạn và đẩy lên giao diện theo từng câu đã qua kiểm tra.
-11. **Rules** kiểm tra bản nháp, gắn ba cờ `high_risk_referral`, `lab_diabetes_range`, `symptom_referral` kèm ba ghi chú chuyển khám, rồi thêm lời nhắc bác sĩ.
+4. **Journal** không thấy nhật ký tự theo dõi nào (người này chưa được chẩn đoán, chưa ghi số đo), nên không thêm gì.
+5. **Predictor** chạy mô hình đa nguồn trên 21 chỉ số hồ sơ: 66,7%, mức cao.
+6. **Retriever** tìm được 4 đoạn tài liệu từ MedlinePlus và WHO.
+7. **Graph** không thấy yếu tố nguy cơ nào trong câu hỏi (câu này nói về triệu chứng), nên không thêm gì.
+8. **Nutrition** nhận ra đây không phải câu hỏi dinh dưỡng, bỏ qua.
+9. **RL** thấy xét nghiệm ở ngưỡng tiểu đường và câu hỏi có triệu chứng, nên mặt nạ an toàn buộc chọn trọng tâm "khám và xét nghiệm xác nhận sớm", không thăm dò.
+10. **Context** ghép ngữ cảnh cho Advisor, khoảng 1.000 token trên cửa sổ 4.096.
+11. **Advisor** gọi Ollama, nhận bản nháp từng đoạn và đẩy lên giao diện theo từng câu đã qua kiểm tra.
+12. **Rules** kiểm tra bản nháp, gắn ba cờ `high_risk_referral`, `lab_diabetes_range`, `symptom_referral` kèm ba ghi chú chuyển khám, rồi thêm lời nhắc bác sĩ.
+
+Với một người đã chẩn đoán và đã ghi nhật ký, bước 4 đưa thêm vào ngữ cảnh khoảng 8–10 dòng tóm tắt 14 ngày (mục 3.13), còn kết quả của Predictor bị ẩn khỏi giao diện vì mức nguy cơ mắc bệnh không còn ý nghĩa với người đã mắc.
 
 Toàn bộ các bước được ghi vào vết thực thi và lưu trong cơ sở dữ liệu. Nếu người dùng hỏi tiếp "Tôi bị béo phì và huyết áp cao, có dễ bị tiểu đường không?", bước Graph nhận ra hai yếu tố `OBESITY` và `HIGH_BP` và thêm một khối tri thức khoảng 210 token vào ngữ cảnh; bước RL không còn bị mặt nạ an toàn nên chọn theo chính sách đã học. Dưới câu trả lời, người dùng có thể bấm 👍/👎 cho trọng tâm mà RL đã chọn.
+
+## 2.4. Các lớp triển khai
+
+![Các lớp triển khai. Web Next.js gọi dịch vụ API qua HTTP kèm token; Streamlit gọi thẳng Orchestrator trong cùng tiến trình. Nhận dạng giọng nói và nhật ký là các endpoint của API, không phải agent trong pipeline.](figs/c8_trien_khai.png){width=100%}
+
+Pipeline mười một agent ở trên chỉ là phần lõi. Bao quanh nó có ba lớp:
+
+1. **Dịch vụ API** (`src/api/`, FastAPI, 32 endpoint). Phần nặng (Predictor, Retriever, mô hình ngôn ngữ, đồ thị) được dựng một lần khi khởi động; mỗi request mở một kết nối SQLite riêng ở chế độ WAL. Các endpoint chia sáu nhóm: tài khoản, hồ sơ, nhật ký, xét nghiệm, tái khám, tư vấn; thêm `/transcribe` cho giọng nói. Chi tiết ở mục 6.2.
+2. **Giao diện web Next.js** (`web/`) cho người bệnh, ưu tiên điện thoại, chỉ nói chuyện với API (mục 5.6).
+3. **Giao diện Streamlit** (`src/app.py`) có bốn trang cho người dùng và các trang cho nhà phát triển (mục 5). Streamlit không đi qua API mà gọi thẳng Orchestrator, nên dùng được khi không bật API.
+
+Cách chia này giữ đúng nguyên tắc ở mục 2.2: mọi phép tính cần chính xác (so mục tiêu, đổi đơn vị, đọc số nói bằng chữ) nằm trong code Python có test và dùng chung cho cả hai giao diện; giao diện chỉ hiển thị.
 
 # 3. Thiết kế chi tiết từng thành phần
 
 ## 3.1. Trạng thái dùng chung
 
-`State` (tệp `state.py`) là một dataclass chứa mọi thứ của một lượt hỏi: câu hỏi, hồ sơ, lịch sử, mức nguy cơ, tài liệu, tri thức từ đồ thị (`kg`), trọng tâm do RL chọn (`rl`), kết quả dinh dưỡng, bộ nhớ, xét nghiệm, bản nháp, câu trả lời cuối, cờ, số token đã dùng và vết thực thi. Các agent không gọi nhau trực tiếp mà chỉ đọc ghi trên `State`, nên thêm hay bỏ một agent không làm ảnh hưởng các agent khác.
+`State` (tệp `state.py`) là một dataclass chứa mọi thứ của một lượt hỏi: câu hỏi, hồ sơ, lịch sử, mức nguy cơ, tài liệu, tri thức từ đồ thị (`kg`), trọng tâm do RL chọn (`rl`), kết quả dinh dưỡng, bộ nhớ, xét nghiệm, tóm tắt nhật ký tự theo dõi (`journal`), bản nháp, câu trả lời cuối, cờ, số token đã dùng và vết thực thi. Các agent không gọi nhau trực tiếp mà chỉ đọc ghi trên `State`, nên thêm hay bỏ một agent không làm ảnh hưởng các agent khác.
 
 ## 3.2. Orchestrator
 
@@ -427,22 +455,24 @@ Tệp `context.py`. Hàm `build_context(agent, state)` trả về lát ngữ c�
 | `SYSTEM_RESERVE_TOKENS` | 250 | lời dặn hệ thống và nhãn |
 | `HISTORY_TOKEN_BUDGET` | 800 | lịch sử hội thoại, lấy từ mới đến cũ |
 | `MEMORY_TOKEN_BUDGET` | 150 | bộ nhớ dài hạn |
+| `JOURNAL_TOKEN_BUDGET` | 260 | nhật ký tự theo dõi đã tóm tắt |
 | `KG_TOKEN_BUDGET` | 300 | tri thức từ đồ thị, tối đa 3 yếu tố |
 | `RL_TOKEN_BUDGET` | 120 | trọng tâm tư vấn do RL chọn |
 | `CHARS_PER_TOKEN` | 4,0 | hệ số ước lượng; đo thật trên Kaggle khoảng 4,6 |
 
-Phần còn lại được chia theo thứ tự ưu tiên: bộ nhớ, xét nghiệm, bảng dinh dưỡng, tri thức đồ thị, trọng tâm RL, rồi tài liệu truy hồi cho tới khi hết chỗ. Khối đồ thị vượt ngân sách thì bỏ bớt dòng cuối, không cắt giữa dòng. Ước lượng dùng 4,0 ký tự mỗi token, thấp hơn số đo thật, nên luôn dư chứ không thiếu. Nếu số token vào thực tế vượt 90% cửa sổ, hệ gắn cờ `context_near_limit` để cảnh báo câu trả lời có thể bị cắt.
+Phần còn lại được chia theo thứ tự ưu tiên: bộ nhớ, xét nghiệm, nhật ký, bảng dinh dưỡng, tri thức đồ thị, trọng tâm RL, rồi tài liệu truy hồi cho tới khi hết chỗ. Khối nhật ký và khối đồ thị vượt ngân sách thì bỏ bớt dòng cuối, không cắt giữa dòng; dòng của nhật ký được xếp từ quan trọng (đường huyết, hạ đường huyết) tới ít quan trọng (cân nặng, lịch khám). Ước lượng dùng 4,0 ký tự mỗi token, thấp hơn số đo thật, nên luôn dư chứ không thiếu. Nếu số token vào thực tế vượt 90% cửa sổ, hệ gắn cờ `context_near_limit` để cảnh báo câu trả lời có thể bị cắt.
 
 Agent Rules chỉ nhận mức nguy cơ, bản nháp, câu hỏi, cờ đã chẩn đoán và xét nghiệm. Predictor chỉ nhận hồ sơ.
 
 ## 3.11. Advisor và mô hình ngôn ngữ
 
-Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống, lịch sử hội thoại, rồi khối bộ nhớ, khối xét nghiệm, mức nguy cơ (chỉ dạng chữ), bảng dinh dưỡng, khối tri thức đồ thị `[kg]`, trọng tâm RL, tài liệu có nhãn nguồn và cuối cùng là câu hỏi (đặt cuối để nằm sát chỗ mô hình bắt đầu viết). Lời dặn hệ thống yêu cầu:
+Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống, lịch sử hội thoại, rồi khối bộ nhớ, khối xét nghiệm, khối nhật ký tự theo dõi, mức nguy cơ (chỉ dạng chữ), bảng dinh dưỡng, khối tri thức đồ thị `[kg]`, trọng tâm RL, tài liệu có nhãn nguồn và cuối cùng là câu hỏi (đặt cuối để nằm sát chỗ mô hình bắt đầu viết). Lời dặn hệ thống yêu cầu:
 
 - chỉ dùng tài liệu được cung cấp, trích nguồn dạng `[tên_tệp]`, nói rõ khi tài liệu không đủ;
 - không kê đơn, không hướng dẫn thay đổi liều thuốc hoặc insulin;
 - không nêu nguy cơ dạng phần trăm;
-- khi có xét nghiệm: giải thích so với ngưỡng, trích `[ada_2024]`, nói rõ không phải chẩn đoán.
+- khi có xét nghiệm: giải thích so với ngưỡng, trích `[ada_2024]`, nói rõ không phải chẩn đoán;
+- khi có nhật ký: nêu con số cụ thể, giữ nguyên nhận định có sẵn (cao hơn, thấp hơn, trong mục tiêu) thay vì tự so lại, không suy ra liều thuốc, và khuyên báo bác sĩ khi có hạ đường huyết hoặc chỉ số rất cao.
 
 Lớp `OllamaLLM` gọi `/api/chat` với nhiệt độ 0,2, `num_ctx` 4.096 và `num_predict` 512. Giới hạn `num_predict` được thêm sau khi lần chạy Kaggle thứ hai gặp câu trả lời viết mãi tới hết thời gian chờ. Khi có `on_token`, lớp này bật chế độ stream và đọc từng dòng JSON của Ollama. Lớp `DemoLLM` là mô hình giả, trích nguyên đoạn tài liệu đầu tiên, dùng cho test và chạy thử giao diện không cần GPU.
 
@@ -475,13 +505,77 @@ Danh sách cờ:
 
 **Lọc khi stream.** Lớp `SafeStream` gom các đoạn chữ của mô hình cho tới dấu kết thúc câu, kiểm tra cả câu, và chỉ đẩy lên giao diện những câu an toàn. Gặp câu nguy hiểm thì dừng hiển thị. Câu trả lời cuối vẫn do Rules quyết định, nên streaming không làm thay đổi kết luận an toàn nào.
 
+## 3.13. Journal: nhật ký tự theo dõi
+
+Tệp `journal.py` (thống kê, cảnh báo, nhắc nhở và `JournalAgent`), `visit_report.py` (bản tóm tắt PDF).
+
+### So với mục tiêu điều trị, không so với ngưỡng chẩn đoán
+
+Agent Lab (mục 3.4) đối chiếu xét nghiệm với **ngưỡng chẩn đoán**: đường huyết lúc đói từ 126 mg/dL là ở ngưỡng tiểu đường. Với người đã được chẩn đoán, phép so đó không còn ích gì. Nhật ký vì vậy so số đo tại nhà với **mục tiêu kiểm soát** chung cho người lớn không mang thai của ADA 2024 (mục 6 về đường huyết, mục 10 về huyết áp):
+
+| Chỉ số | Mức | Ngưỡng |
+|---|---|---|
+| Đường huyết lúc đói, trước ăn | trong mục tiêu | 4,4–7,2 mmol/L (80–130 mg/dL) |
+| Đường huyết 1–2 giờ sau ăn, trước ngủ, bất kỳ | trong mục tiêu | dưới 10,0 mmol/L (180 mg/dL) |
+| Đường huyết mọi thời điểm | hạ đường huyết mức 1 / mức 2 | dưới 3,9 / dưới 3,0 mmol/L (70 / 54 mg/dL) |
+| Đường huyết mọi thời điểm | rất cao, nhắc đo lại và báo bác sĩ | từ 13,9 mmol/L (250 mg/dL) |
+| Huyết áp | trong mục tiêu | dưới 130/80 mmHg |
+| Huyết áp | rất cao, nhắc báo bác sĩ ngay | từ 180/120 mmHg |
+
+Mọi giao diện đều ghi rõ đây là mục tiêu chung và bác sĩ có thể đặt mục tiêu riêng. Mức "rất cao" chỉ để nhắc, không phải chẩn đoán.
+
+### Ghi số đo
+
+Số đo được lưu ở mg/dL, giao diện hiện mmol/L (đơn vị máy đo ở Việt Nam thường dùng). Hàm kiểm tra loại bỏ số không hợp lý: đường huyết ngoài 20–600 mg/dL, huyết áp tâm thu ngoài 60–260, tâm trương lớn hơn tâm thu, cân nặng ngoài 20–300 kg. Lỗi hay gặp nhất là gõ 120 nhưng để đơn vị mmol/L (thành 2.160 mg/dL); hệ báo người dùng kiểm tra lại đơn vị thay vì lưu. Thời điểm đo được ghi bù được nhưng không được ở tương lai. Ngày tính theo giờ Việt Nam (UTC+7), và mọi hàm nhận tham số `now=` để test với một mốc thời gian cố định.
+
+### Cảnh báo và nhắc nhở
+
+Cảnh báo xét các lần đo trong 24 giờ qua, mỗi loại hiện một lần, mới nhất trước: hạ đường huyết nặng (ăn ngay 15 g đường nhanh, gọi 115 nếu lơ mơ), hạ đường huyết (quy tắc 15–15), đường huyết rất cao (đo lại, không tự tăng liều thuốc), huyết áp rất cao (ngồi nghỉ rồi đo lại, đi cấp cứu nếu kèm đau ngực hay yếu tay chân). Nhắc nhở gồm: hôm nay chưa đo; lúc đói hoặc trước ăn cao hơn mục tiêu ở mọi ngày có đo trong 3 ngày qua; lịch tái khám còn dưới 7 ngày, là hôm nay, hoặc đã qua. Nhắc nhở chỉ hiện khi người dùng mở ứng dụng; hệ chưa gửi thông báo khi ứng dụng đóng.
+
+### Bản tóm tắt mang đi khám
+
+`build_visit_pdf` dựng một trang A4 bằng reportlab cho 14, 28 hoặc 90 ngày gần nhất: bảng đường huyết theo thời điểm đo, biểu đồ có dải mục tiêu, huyết áp và cân nặng, xét nghiệm đã nhập, thuốc người bệnh tự khai, và các câu muốn hỏi bác sĩ. Phông DejaVu được nhúng để giữ dấu tiếng Việt; mọi chuỗi do người dùng nhập đều được thoát ký tự trước khi đưa vào trang.
+
+![Bản tóm tắt PDF một trang, dữ liệu mẫu 28 ngày.](figs/c8_pdf_taikham.png){width=85%}
+
+### Agent Journal: cho trợ lý đọc nhật ký
+
+Trước V4.4, trang Tư vấn không biết người hỏi đã ghi những gì, nên câu "mấy hôm nay đường huyết của tôi thế nào" chỉ nhận được lời khuyên chung chung. `JournalAgent.collect(patient_id)` chạy sau Lab và trả về một bản tóm tắt 14 ngày gồm:
+
+- số lần đo, số ngày có đo, phần trăm trong mục tiêu;
+- với từng thời điểm đo: trung bình, nhận định so với mục tiêu, số lần trong mục tiêu, thấp nhất, cao nhất;
+- số lần hạ đường huyết và rất cao; xu hướng lúc đói so với 14 ngày trước đó; cờ "cao 3 ngày liền"; lần đo gần nhất;
+- huyết áp trung bình, thay đổi cân nặng trong 30 ngày, lịch tái khám sắp tới.
+
+Agent chỉ đưa con số đã tổng hợp, không đưa từng lần đo, để vừa ngân sách 260 token. Người chưa ghi gì thì agent trả về rỗng và bước này không thêm gì vào ngữ cảnh.
+
+**Vì sao ghi sẵn nhận định.** Bản đầu tiên chỉ đưa con số kèm mục tiêu, ví dụ "lúc đói: trung bình 7,8 mmol/L; mục tiêu 4,4–7,2". Thử với qwen2.5:3b, mô hình kết luận 7,8 là "dưới mục tiêu". Bản hiện tại viết sẵn "trung bình 7,8 mmol/L, cao hơn mục tiêu (4,4–7,2 mmol/L)", và lời dặn hệ thống yêu cầu giữ nguyên nhận định. Đây là cùng nguyên tắc với mục 2.2: phép so sánh số làm bằng code, mô hình chỉ diễn đạt. Kết quả thử nghiệm ở mục 7.5.
+
+## 3.14. Giọng nói
+
+Tệp `speech.py` (máy chủ) và `web/lib/voice.ts` (trình duyệt). Giọng nói nhắm tới người lớn tuổi ngại gõ chữ trên điện thoại.
+
+**Ghi âm.** Trình duyệt ghi micro bằng Web Audio, ghép các khung lại, đổi tần số lấy mẫu về 16 kHz bằng `OfflineAudioContext`, rồi tự đóng gói thành tệp WAV PCM 16 bit. Nhờ vậy máy chủ không cần ffmpeg để giải mã các định dạng nén. Mỗi lần ghi tối đa 60 giây. Lần đầu bấm micro, ứng dụng hiện thông báo rằng âm thanh được gửi lên máy chủ, chuyển thành chữ rồi xoá ngay, không lưu tệp; người dùng phải đồng ý mới ghi.
+
+**Nhận dạng.** Endpoint `POST /transcribe` nhận tệp tối đa 4 MB, kiểm tra định dạng, từ chối đoạn dưới 0,3 giây hoặc im lặng, rồi chạy PhoWhisper-small của VinAI (mô hình Whisper được tinh chỉnh cho tiếng Việt, giấy phép BSD-3) trên CPU. Mô hình được nạp ở lần gọi đầu và chạy thử một đoạn ngắn để làm nóng. Giải mã chùm (beam search) mất khoảng 6 giây cho một câu ngắn; chuyển sang giải mã tham lam (`num_beams=1`) còn khoảng 2,3 giây mà không thấy khác biệt trên các câu số đo đã thử.
+
+**Đọc số đo từ câu nói.** Whisper trả về chữ, thường viết số bằng chữ: "đường huyết lúc đói sáu phẩy tám". Hàm `words_to_numbers` đổi các cách nói số tiếng Việt sang chữ số ("một trăm linh năm", "bảy rưỡi", "hai mươi lăm", "mốt", "tư"), rồi `parse_spoken_reading` tìm một trong ba loại số đo (huyết áp "X trên Y", đường huyết, cân nặng) và đoán thời điểm đo từ các từ "lúc đói", "sau ăn", "trước khi ngủ". Kết quả **chỉ là đề xuất**: giao diện hiện chữ nghe được và số đo đề xuất, người dùng phải bấm xác nhận mới lưu.
+
+Có một trường hợp hệ cố ý không tự chọn. Câu "đường huyết sáu tám" không nói đơn vị: có thể là 68 mg/dL (đang hạ đường huyết) hoặc 6,8 mmol/L (bình thường). Đoán sai theo chiều nào cũng nguy hiểm, nên với số nguyên từ 20 tới 99 không kèm đơn vị, giao diện đưa ra cả hai lựa chọn để người dùng bấm.
+
+**Đọc to.** Câu trả lời của trang Tư vấn được đọc bằng `speechSynthesis` của trình duyệt với giọng tiếng Việt có sẵn trên máy, tốc độ 0,95. Chỉ đọc câu trả lời cuối đã qua Rules, không đọc bản nháp đang stream; tên tệp nguồn và ký hiệu markdown được bỏ trước khi đọc. Máy không có giọng tiếng Việt thì ứng dụng hướng dẫn cách cài.
+
 # 4. Cơ sở dữ liệu
 
-SQLite, tệp `db.py`. Chín bảng:
+SQLite, tệp `db.py`. Mười ba bảng:
 
 | Bảng | Nội dung | Cột chính |
 |---|---|---|
-| `patients` | hồ sơ bệnh nhân | `name`, `profile_json` |
+| `users` | tài khoản đăng nhập (V4.1) | `email`, `password_hash`, `name` |
+| `patients` | hồ sơ bệnh nhân | `name`, `profile_json`, `user_id` |
+| `readings` | nhật ký tự đo (V4) | `patient_id`, `kind` (glucose, bp, weight), `value`, `value2`, `unit`, `context`, `measured_at`, `note` |
+| `appointments` | lịch tái khám; lịch mới thay lịch cũ nhưng lịch cũ vẫn giữ | `patient_id`, `date`, `place`, `note` |
+| `doctor_questions` | câu muốn hỏi bác sĩ | `patient_id`, `text`, `done` |
 | `sessions` | phiên hội thoại | `patient_id` |
 | `messages` | tin nhắn | `session_id`, `role`, `content` |
 | `memories` | sự kiện dài hạn | `patient_id`, `kind`, `content`, `active` |
@@ -493,11 +587,18 @@ SQLite, tệp `db.py`. Chín bảng:
 
 Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê và Hoạt động agent. Cột `trace_json` được thêm ở V2.2, cột `messages.rl_event_id` ở V3.2 (nối câu trả lời với quyết định RL, để chấm và để phạt lặp); khi mở một cơ sở dữ liệu cũ, hệ tự thêm các cột này bằng `ALTER TABLE`. Song song với SQLite, mỗi lượt chạy còn được ghi một dòng JSON vào `logs/runs.jsonl`.
 
+Cột `patients.user_id` nối hồ sơ với tài khoản: một tài khoản theo dõi được nhiều người (ví dụ con theo dõi cho bố mẹ), và mọi truy vấn của API đều lọc theo tài khoản đang đăng nhập. Số đo được lưu kèm `measured_at` (thời điểm đo, người dùng ghi bù được) tách khỏi `created_at` (lúc ghi), có chỉ mục theo `(patient_id, measured_at)` để thống kê 14 ngày đọc nhanh. Khi chạy dưới API, cơ sở dữ liệu được bật chế độ WAL để nhiều request đọc trong lúc một request ghi.
+
 Nơi lưu thứ hai là **Neo4j**, dùng cho đồ thị tri thức khi đặt `DIACARE_KG=neo4j` (mục 3.7). Neo4j chạy trong container Docker riêng `diacare-neo4j`, cổng 7475 cho Neo4j Browser và 7688 cho bolt; dữ liệu nằm ở thư mục `neo4j_data/`. Mật khẩu được sinh ngẫu nhiên khi tạo container và lưu trong `neo4j.local.json`, tệp này không đưa lên repo. SQLite giữ dữ liệu của người dùng; Neo4j chỉ giữ tri thức chung, không có thông tin bệnh nhân nào.
 
 # 5. Giao diện
 
-Giao diện Streamlit (`src/app.py`) có bốn trang chọn bằng nút radio. Không dùng tab vì ô nhập chat của Streamlit chỉ ghim được xuống đáy màn hình khi nằm ở cấp ngoài cùng.
+Hệ có hai giao diện. Giao diện web Next.js (mục 5.6) dành cho người bệnh. Giao diện Streamlit (`src/app.py`) có hai chế độ, chọn bằng nút gạt "Chế độ nhà phát triển" ở thanh bên hoặc biến `DIACARE_DEV=1`:
+
+- **Chế độ người dùng** (mặc định): bốn trang Hôm nay, Nhật ký, Tư vấn, Tái khám (mục 5.5). Không hiện log agent, đồ thị hay số token.
+- **Chế độ nhà phát triển**: thêm các trang Hoạt động agent, Lịch sử, Thống kê, và dưới mỗi câu trả lời hiện huy hiệu, nguồn, các bước agent, đồ thị tri thức đã dùng, chi tiết kỹ thuật (mục 5.1–5.4).
+
+Các trang chọn bằng nút radio. Không dùng tab vì ô nhập chat của Streamlit chỉ ghim được xuống đáy màn hình khi nằm ở cấp ngoài cùng. Hồ sơ đánh dấu "đã được bác sĩ chẩn đoán" thì không hiện mức nguy cơ mắc bệnh.
 
 ## 5.1. Thanh bên
 
@@ -527,7 +628,7 @@ Khi người dùng gửi câu hỏi, một khung trạng thái hiện từng bư
 
 ## 5.3. Trang Hoạt động agent
 
-![Sơ đồ động phát lại một lượt chạy từ log, đang ở bước 6/10 (Nutrition).](figs/c6_ui_flow_dang_chay.png){width=100%}
+![Sơ đồ động phát lại một lượt chạy từ log, đang ở bước 6/10 (Nutrition). Ảnh chụp trước khi có agent Journal.](figs/c6_ui_flow_dang_chay.png){width=100%}
 
 Trang này đọc vết thực thi đã lưu và phát lại thành sơ đồ động: chấm sáng đi từ Orchestrator tới từng agent theo thứ tự thật, agent đã xong có dấu kiểm và số mili giây, Advisor gõ dần bản nháp, Rules hiện cờ. Có nút phát lại, dừng, chọn tốc độ. Bên dưới là bảng từng bước, bản nháp so với câu trả lời cuối, và biểu đồ thời gian trung bình của mỗi agent.
 
@@ -536,6 +637,28 @@ Sơ đồ là một trang HTML với SVG và JavaScript thuần (tệp `flowviz.
 ## 5.4. Trang Lịch sử và Thống kê
 
 Lịch sử liệt kê mọi lượt chạy: thời gian, câu hỏi, mức nguy cơ, cờ, nguồn, lỗi. Thống kê hiển thị số lượt, số lỗi, token vào và ra trung bình, thời gian trung bình, biểu đồ tần suất các cờ, và khối "Agent học tăng cường": số quyết định, số phản hồi, phần thưởng trung bình đã nhận, ước lượng SNIPS của chính sách hiện tại, phần thưởng theo từng trọng tâm.
+
+## 5.5. Các trang tự theo dõi trên Streamlit
+
+- **Hôm nay**: cảnh báo và nhắc nhở ở đầu trang, ô ghi đường huyết (số lớn, chọn thời điểm đo bằng nút bấm), bốn ô số liệu 14 ngày (lần đo gần nhất, phần trăm trong mục tiêu, trung bình lúc đói, HbA1c gần nhất) và biểu đồ.
+- **Nhật ký**: ba thẻ đường huyết, huyết áp và cân nặng, xét nghiệm; chọn khoảng 7, 14, 30 hoặc 90 ngày; bảng thống kê theo thời điểm đo; danh sách từng lần đo có nút xoá.
+- **Tái khám**: đặt lịch hẹn, ghi câu muốn hỏi bác sĩ, tải bản tóm tắt PDF.
+
+Lưu số đo dùng hàm callback của nút bấm chứ không xử lý sau khi bấm. Lý do: Streamlit chạy lại toàn trang từ trên xuống, nên nếu lưu ở giữa trang thì phần nhắc nhở ở đầu trang đã vẽ xong với dữ liệu cũ và vẫn báo "hôm nay bạn chưa đo".
+
+## 5.6. Giao diện web Next.js
+
+Thư mục `web/`, Next.js 16.4 với App Router, React 19.3, TypeScript 5.9. Ngoài ba gói đó không dùng thư viện nào: biểu đồ đường huyết tự vẽ bằng SVG và co theo bề rộng màn hình, kiểu dáng viết bằng CSS thuần với biến màu cho cả chế độ sáng và tối. Giao diện ưu tiên điện thoại: thanh điều hướng bốn mục ở đáy màn hình, nút và ô nhập cao ít nhất 44 px, chữ số đo lớn.
+
+Luồng sử dụng: đăng ký hoặc đăng nhập; lần đầu tạo hồ sơ theo dõi (một tài khoản tạo được nhiều hồ sơ, chọn ở thanh trên cùng); rồi dùng bốn trang giống bản Streamlit. Token JWT được giữ trong `localStorage`. Trang Tư vấn đọc luồng SSE của API bằng `fetch` (vì `EventSource` không gửi được yêu cầu POST kèm token), hiện từng agent đang chạy, hiện chữ dần, rồi thay bằng câu trả lời cuối đã qua Rules.
+
+![Trang Hôm nay trên điện thoại (dữ liệu mẫu): nhắc nhở, nút "Nói số đo", ô ghi đường huyết, số liệu và biểu đồ 14 ngày.](figs/c8_web_homnay.png){height=20cm}
+
+![Trang Nhật ký: biểu đồ, bảng theo thời điểm đo và danh sách từng lần đo có nhãn so với mục tiêu (phần đầu trang).](figs/c8_web_nhatky.png){height=17cm}
+
+![Trang Tái khám: lịch hẹn, câu hỏi cho bác sĩ, tải bản tóm tắt PDF.](figs/c8_web_taikham.png){height=17cm}
+
+![Trang Tư vấn: trợ lý trả lời theo nhật ký 14 ngày của người dùng (qwen2.5:3b), phần đầu câu trả lời. Câu trả lời dùng đúng các con số nhưng vẫn có lỗi: đoạn thứ hai gán lần đo 11,8 mmol/L sau ăn cho "lúc đói" (mục 7.5).](figs/c8_web_tuvan.png){height=19cm}
 
 # 6. Triển khai
 
@@ -551,19 +674,55 @@ Mô hình đã huấn luyện có sẵn trong `models/`. Muốn huấn luyện l
 
 Với GPU 4 GB (RTX 3050 Ti), mô hình 3B nằm gọn trong bộ nhớ GPU; mô hình 7B phải chạy một phần trên CPU nên chậm. Chế độ demo (`DIACARE_LLM=demo`, `DIACARE_EMBED=hash`) chạy được không cần Ollama.
 
-Các biến môi trường chính: `DIACARE_LLM`, `DIACARE_MODEL`, `DIACARE_NUM_CTX`, `DIACARE_EMBED`, `DIACARE_MIN_SCORE`, `DIACARE_KB`, `DIACARE_DB`, `DIACARE_LOG`, `DIACARE_KG` (`memory` hoặc `neo4j`), `DIACARE_RL_EPSILON` (tỉ lệ thăm dò, mặc định 0,1), `DIACARE_PREDICTOR` (`multisource` mặc định hoặc `v1`), và `DIACARE_FEATURES`:
+Các biến môi trường chính: `DIACARE_LLM`, `DIACARE_MODEL`, `DIACARE_NUM_CTX`, `DIACARE_EMBED`, `DIACARE_MIN_SCORE`, `DIACARE_KB`, `DIACARE_DB`, `DIACARE_LOG`, `DIACARE_KG` (`memory` hoặc `neo4j`), `DIACARE_RL_EPSILON` (tỉ lệ thăm dò, mặc định 0,1), `DIACARE_PREDICTOR` (`multisource` mặc định hoặc `v1`), `DIACARE_DEV` (mở chế độ nhà phát triển của Streamlit), và `DIACARE_FEATURES`:
 
 | Giá trị | Agent được bật |
 |---|---|
-| không đặt, hoặc `default` | nutrition, memory, labs, kg, rl |
-| `v2` | nutrition, memory, labs (nhãn cũ, không KG, không RL; giữ để so sánh benchmark) |
+| không đặt, hoặc `default` | nutrition, memory, labs, kg, rl, journal |
+| `v2` | nutrition, memory, labs (nhãn cũ, không KG, không RL, không journal; giữ để so sánh benchmark) |
 | `all` hoặc `v3` | thêm hybrid |
 | `v1` | tắt hết |
-| danh sách | ví dụ `v2,kg,rl` |
+| danh sách | ví dụ `v2,kg,rl,journal` |
 
-Trên Windows có sẵn các tệp bấm đúp: `chay_local.bat` (giao diện với Ollama, đủ mười agent, đồ thị tri thức trong bộ nhớ), `chay_cli.bat` (chat trong terminal), `chay_kg.bat` (bật thêm Neo4j trong Docker và cho Graph agent đọc từ đó). Huấn luyện lại chính sách khởi động: `python tools/build_rl_states.py` (cần tệp BRFSS) rồi `python tools/train_rl.py`.
+Thêm `journal` vào mặc định không làm thay đổi kết quả benchmark cũ: các ca benchmark không có nhật ký nên agent Journal không thêm gì vào ngữ cảnh.
 
-## 6.2. Chạy trên Kaggle
+Dịch vụ API và giao diện web chạy ở hai cửa sổ:
+
+```bash
+uvicorn api.main:app --app-dir src --port 8000      # API, khoảng 30 giây để nạp mô hình
+cd web && npm install && npm run dev                 # web ở http://localhost:3000
+```
+
+Biến riêng của API: `DIACARE_API_SECRET` (khoá ký token, ít nhất 32 ký tự; không đặt thì hệ tự sinh một lần vào `data/api_secret.key`, tệp này không lên repo), `DIACARE_CORS` (các origin được gọi API, mặc định `http://localhost:3000`), `DIACARE_ASR` (`demo` để thay PhoWhisper bằng bộ nhận dạng giả khi test), `HF_HOME` (thư mục lưu mô hình giọng nói, khoảng 970 MB). Web đọc địa chỉ API từ `NEXT_PUBLIC_API_URL`.
+
+Trên Windows có sẵn các tệp bấm đúp: `chay_local.bat` (giao diện với Ollama, đủ mười một agent, đồ thị tri thức trong bộ nhớ), `chay_cli.bat` (chat trong terminal), `chay_kg.bat` (bật thêm Neo4j trong Docker và cho Graph agent đọc từ đó). Huấn luyện lại chính sách khởi động: `python tools/build_rl_states.py` (cần tệp BRFSS) rồi `python tools/train_rl.py`.
+
+## 6.2. Dịch vụ API
+
+Tệp `src/api/main.py` (ứng dụng), `src/api/security.py` (mật khẩu và token). Hàm `create_app(db_path, parts, secret, clock, ...)` dựng ứng dụng; các tham số cho phép test truyền cơ sở dữ liệu tạm, mô hình ngôn ngữ giả và đồng hồ cố định. Tài liệu tương tác ở `/docs` (Swagger), có nút Authorize dùng luồng OAuth2 password.
+
+| Nhóm | Endpoint chính |
+|---|---|
+| Tài khoản | `POST /auth/register`, `POST /auth/token`, `GET /me` |
+| Hồ sơ | `GET/POST /patients`, `GET/PATCH /patients/{id}`, `GET/DELETE .../memories` |
+| Nhật ký | `POST .../readings/glucose`, `.../bp`, `.../weight`; `GET/DELETE .../readings`, `GET .../today`, `GET .../summary?days=14` |
+| Xét nghiệm | `GET/POST .../labs` (văn bản), `POST .../labs/file` (ảnh, PDF, tối đa 10 MB) |
+| Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `GET .../visit-report.pdf` |
+| Tư vấn | `POST .../chat`, `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` |
+| Giọng nói | `POST /transcribe` |
+
+**Bảo mật.** Chỉ dùng thư viện chuẩn của Python, không thêm gói ngoài:
+
+- Mật khẩu băm bằng scrypt (`hashlib.scrypt`) với muối ngẫu nhiên, lưu dạng `scrypt$n$r$p$muối$băm` để đổi tham số sau này mà không làm hỏng mật khẩu cũ. So sánh bằng hàm thời gian hằng.
+- Token là JWT HS256 tự viết khoảng 40 dòng, hạn 7 ngày. Bộ giải mã chỉ nhận đúng `alg` là HS256 (chặn kiểu tấn công `alg: none`), bắt buộc có `sub` và `exp`, so chữ ký bằng `hmac.compare_digest`.
+- Mỗi tài khoản chỉ thấy hồ sơ của mình. Hồ sơ của người khác trả về 404 chứ không phải 403, để không lộ rằng hồ sơ đó tồn tại.
+- Khoá ký được đọc khi ứng dụng khởi động chứ không phải lúc import, để test và công cụ tạo tài liệu import được ứng dụng mà không cần khoá.
+
+**Chat qua SSE.** Với `"stream": true`, `/chat` trả về luồng sự kiện: `session` (mã phiên), `step` (mỗi agent vừa xong), `token` (phần chữ mới đã qua `SafeStream`), rồi `done` (kết quả cuối) hoặc `error`. Giao diện phải thay phần chữ đang hiện bằng câu trả lời trong `done`, vì Rules có thể thay cả bản nháp. Các lượt chat chạy lần lượt dưới một khoá, vì Ollama trên một GPU cũng chỉ trả lời từng câu một và agent RL cần cập nhật mô hình tuần tự.
+
+**Mỗi request một kết nối.** Phần nặng (`Parts`: Predictor, Retriever, mô hình ngôn ngữ, đồ thị, chính sách RL khởi động) dựng một lần. Các agent có trạng thái (Memory, Lab, Journal, RL) được dựng lại cho từng lượt bằng `orchestrator_from_parts` và gắn với kết nối SQLite của request đó, nên không có trạng thái dùng chung giữa các request.
+
+## 6.3. Chạy trên Kaggle
 
 Hai notebook được sinh tự động bằng script và đẩy lên bằng Kaggle CLI:
 
@@ -578,13 +737,17 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 
 ## 7.1. Unit test
 
-491 test chạy bằng `pytest` trong khoảng một phút rưỡi, không cần GPU hay mạng. Phân bố theo tệp test (đã tính tham số hoá): memory 86, rules 86, nutrition 67, labs 31, orchestrator 27, bench 24, retriever 17, eval 17, kg 16, rl 14, app 11, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, benchmark CLI 4, kb 4, predictor 5, advisor 3, flowviz 3, retrieval eval 3, model 1.
+562 test chạy bằng `pytest` trong khoảng một phút, không cần GPU, mạng hay mô hình giọng nói (một test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j). Phân bố theo tệp test (đã tính tham số hoá): rules 87, memory 86, nutrition 67, labs 31, orchestrator 27, journal 24, bench 24, speech 23, api 19, retriever 17, eval 17, kg 16, app 15, rl 14, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
 Test của bộ nhớ kiểm tra thêm: tắt thông tin thuốc khi người dùng nói đã ngừng (và không tắt khi đó là câu hỏi hay nói về người thân), dùng lại bản tóm tắt đã lưu mà không gọi mô hình, tóm tắt tăng dần khi lịch sử dài thêm, và bỏ qua bản tóm tắt có dấu nhận dạng không khớp.
 
 Test của agent RL kiểm tra: phân bố trạng thái đúng tổng 253.680 người, phần thưởng tiên nghiệm nằm trong $[-1, 1]$, chính sách khởi động hơn các mốc trên trạng thái mới, mặt nạ an toàn giữ "khám sớm" kể cả khi thăm dò 100%, propensity ghi đúng, 👍 làm tăng và 👎 làm giảm điểm của chính sách đã phát hành, mỗi phản hồi chỉ học một lần và còn nguyên sau khi mở lại, người dùng mô phỏng kéo được chính sách đi, và phạt lặp đọc được hành động lượt trước từ cơ sở dữ liệu.
+
+Test của nhật ký dùng một mốc thời gian cố định và kiểm tra: phân loại theo mục tiêu (không theo ngưỡng chẩn đoán), đổi đơn vị và bắt lỗi gõ 120 với đơn vị mmol/L, thống kê theo thời điểm đo, so sánh hai kỳ, cờ "cao 3 ngày liền", cảnh báo chỉ lấy 24 giờ gần nhất, nhắc lịch khám, bản PDF đọc lại được bằng pypdf và có đủ các mục, bản tóm tắt cho Journal có nhận định đúng (kể cả hạ đường huyết lúc trước khi ngủ), và khối nhật ký bị cắt dòng khi vượt ngân sách.
+
+Test của API dùng `TestClient` với mô hình giả và đồng hồ cố định: đăng ký, đăng nhập, token hết hạn, token sai chữ ký, `alg: none`; người này không đọc được hồ sơ người kia (404); ghi và đọc số đo, từ chối số đo ở tương lai và sai đơn vị; chat dạng JSON và dạng SSE (đúng thứ tự sự kiện); chat lưu bộ nhớ vào đúng cơ sở dữ liệu; Journal xuất hiện trong các bước khi đã có nhật ký; phản hồi chỉ chấm được một lần; PDF trả đúng kiểu tệp. Test của giọng nói kiểm tra giải mã WAV (đổi tần số, gộp kênh, từ chối đoạn quá ngắn, im lặng, quá dài), đọc số bằng chữ, và trường hợp "sáu tám" phải trả về hai lựa chọn.
 
 Test giao diện dùng `streamlit.testing.v1.AppTest` với mô hình giả: tạo bệnh nhân, chat, nhập xét nghiệm, kiểm tra huy hiệu, chuyển trang, xem trang Hoạt động agent. Nhiều test được viết từ chính những lỗi gặp phải: câu "tiểu đường" không được tạo bảng dinh dưỡng, câu chào không được hiện nguy cơ, cơ sở dữ liệu cũ phải tự thêm các cột mới.
 
@@ -623,6 +786,21 @@ Tên model là biến môi trường `DIACARE_MODEL`; đổi model không cần 
 
 Sau mỗi lần đổi model nên chạy lại bộ benchmark và đọc các ca bị chặn hoặc bị trượt trước khi dùng.
 
+## 7.5. Thử trợ lý đọc nhật ký
+
+Agent Journal **chưa có trong bộ benchmark** 50 ca, vì các ca không có nhật ký. Phần này ghi lại các lần thử tay với qwen2.5:3b trên máy cá nhân (GPU 4 GB), cùng một bệnh nhân mẫu: 23 lần đo đường huyết trong 14 ngày (lúc đói trung bình 7,2 mmol/L, sau ăn 10,1, một lần 3,7 lúc trước khi ngủ), huyết áp, cân nặng, HbA1c 7,4%, lịch khám sau 5 ngày. Câu hỏi: "Mấy hôm nay đường huyết của tôi thế nào, tôi nên làm gì?" và "Đường huyết sau ăn của tôi hay cao, nên làm gì?".
+
+| Quan sát | Số lần | Xử lý |
+|---|---|---|
+| Chỉ đưa con số kèm mục tiêu: mô hình kết luận lúc đói 7,8 mmol/L là "dưới mục tiêu 4,4–7,2" | 1/1 | ghi sẵn nhận định "cao hơn mục tiêu" bằng code; lần chạy lại nói đúng |
+| Dòng "trước khi ngủ" không có nhận định (ADA không có mục tiêu riêng cho thời điểm này): mô hình nói 3,7 mmol/L là "trong mục tiêu" | 1/1 | luôn ghi nhận định, kể cả "hạ đường huyết"; thêm test |
+| Bản nháp có câu kiểu "có thể cần thay đổi hoặc tăng liều thuốc", Rules thay **toàn bộ** câu trả lời bằng câu từ chối | 3/20 | chưa xử lý (xem mục 9) |
+| Gán nhầm số đo sang thời điểm khác (lần 11,8 mmol/L sau ăn bị gọi là "lúc đói") hoặc suy luận nhân quả sai ("cao hơn mục tiêu có thể dẫn tới hạ đường huyết") | 2 lần đọc tay | chưa xử lý |
+
+Ba lần bị chặn trong 20 lượt gồm 2/4 lượt qua API (luồng SSE), 1/8 lượt chạy trực tiếp có stream và 0/8 lượt không stream. Số lượt còn quá ít để nói stream có ảnh hưởng hay không; nhiều khả năng chỉ là dao động ở nhiệt độ 0,2. Điều chắc chắn là rào chắn an toàn hoạt động đúng: không lượt nào để lọt lời khuyên đổi liều lên màn hình. Cái giá là khoảng một phần bảy số lượt người dùng không nhận được thông tin gì từ nhật ký của mình.
+
+Bài học giống mục 2.2: phép so sánh số phải làm bằng code. Mỗi chỗ để mô hình 3B tự so, nó đều có lúc so sai.
+
 
 # 8. Nhật ký lỗi và bài học
 
@@ -651,12 +829,23 @@ Sau mỗi lần đổi model nên chạy lại bộ benchmark và đọc các ca
 | 37% người bị xếp "nguy cơ cao" | Predictor | đếm mức nguy cơ trên BRFSS khi khởi động RL | xác suất chưa hiệu chỉnh do trọng số lớp; hiệu chỉnh isotonic, chọn lại ngưỡng |
 | UCI 529 có 269/520 dòng trùng hệt nhau | dữ liệu | đếm dòng trùng trước khi chia tập | bỏ trùng trước khi kiểm định chéo, nếu không AUC bị thổi phồng |
 | Tệp BRFSS 2023 trong zip có dấu cách cuối tên | dữ liệu | Python báo không thấy tệp | đổi tên, ghi chú trong LINK_DATASET.md |
+| Lưu số đo xong, đầu trang vẫn nhắc "hôm nay chưa đo" | giao diện Streamlit | thử trên trình duyệt | lưu trong callback của nút, trước khi trang vẽ lại |
+| Lời khuyên hạ đường huyết hiện hai lần trên trang Hôm nay | giao diện | thử trên trình duyệt | ô ghi ở trang Hôm nay không lặp lời khuyên đã có trong cảnh báo |
+| Bảng trong bản PDF tràn lề phải | PDF | mở PDF xem | đặt lại độ rộng cột |
+| Import ứng dụng API báo thiếu khoá ký | API | test và công cụ sinh tài liệu không import được | đọc khoá khi ứng dụng khởi động, không đọc lúc import |
+| Ô soạn tin che mất dòng cuối của câu trả lời trên điện thoại | web | chụp màn hình khổ điện thoại | chừa lề cuộn bằng chiều cao ô soạn tin |
+| Nhận dạng một câu ngắn mất 6 giây trên CPU | giọng nói | đo thời gian | giải mã tham lam (`num_beams=1`), còn 2,3 giây |
+| Whisper "bịa" ra câu khi gặp tiếng không phải lời nói | giọng nói | thử bằng micro giả phát âm thanh hình sin | không bao giờ tự lưu; mọi số đo nghe được phải bấm xác nhận |
+| Mô hình 3B nói 7,8 mmol/L là "dưới mục tiêu 4,4–7,2" | Journal | chạy thử với qwen2.5:3b | code ghi sẵn nhận định, mô hình chỉ diễn đạt |
+| 3,7 mmol/L lúc trước khi ngủ bị gọi là "trong mục tiêu" | Journal | đọc bản nháp khi chụp ảnh cho báo cáo | luôn ghi nhận định, kể cả thời điểm không có mục tiêu riêng |
+| Chạy bằng `chay_local.bat` thì agent Journal không chạy | triển khai | rà soát các nơi đặt `DIACARE_FEATURES` | script liệt kê cứng tính năng; thêm `journal` |
 
-Ba bài học rút ra:
+Bốn bài học rút ra:
 
-1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong hai mươi ba lỗi ở bảng, chỉ một lỗi (viết mãi) liên quan trực tiếp tới hành vi của mô hình, và cách sửa vẫn nằm ở harness.
+1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong ba mươi ba lỗi ở bảng, chỉ ba lỗi liên quan trực tiếp tới hành vi của mô hình (viết mãi, Whisper bịa câu, mô hình 3B so số sai), và cách sửa cả ba vẫn nằm ở harness.
 2. **Bộ chấm cũng là code và cũng sai.** Mỗi lần số liệu thay đổi, phải đọc bản nháp thật trước khi kết luận.
 3. **Phải hiểu nghĩa của cạnh trước khi dùng.** Một cạnh "bệnh A – bệnh B" trong đồ thị lớn có thể là quan hệ phân loại chứ không phải quan hệ nguy cơ. Một con số mô hình học ra mà đổi theo hạt giống thì chưa đủ tin để đưa cho người dùng.
+4. **Thử bằng dữ liệu giống thật, đọc từng câu trả lời.** Lỗi "trước khi ngủ 3,7 là trong mục tiêu" lọt qua cả test lẫn lần thử đầu, và chỉ lộ ra khi dựng một bệnh nhân mẫu đủ 14 ngày để chụp ảnh cho báo cáo rồi đọc kỹ câu trả lời.
 
 # 9. Hạn chế và hướng phát triển
 
@@ -667,12 +856,17 @@ Ba bài học rút ra:
 - Benchmark không chấm độ đúng y khoa của phần giải thích.
 - Nhóm câu ngoài chủ đề chỉ đạt khoảng một nửa với mô hình 7B.
 - Bộ ca 50 ca còn nhỏ, khoảng tin cậy rộng.
-- Gộp nhiều nguồn làm xác suất đáng tin hơn hẳn nhưng AUC chỉ nhích nhẹ; trên Pima mô hình mới còn thua mô hình cũ một chút. NHANES thiếu 10/21 chỉ số và BRFSS 2023 thiếu rau quả. Cả ba nguồn chính đều là dữ liệu Mỹ; chưa có dữ liệu người Việt.
+- Gộp nhiều nguồn làm xác suất đáng tin hơn hẳn nhưng AUC chỉ nhích nhẹ; trên Pima mô hình mới còn thua mô hình cũ một chút. NHANES thiếu 10/21 chỉ số và BRFSS 2023 thiếu rau quả. Cả ba nguồn chính đều là dữ liệu Mỹ; chưa có dữ liệu người Việt. Đơn xin bộ WHO STEPS Việt Nam 2015 (có đo đường huyết lúc đói) đã gửi tới kho dữ liệu NCD của WHO và đang chờ duyệt.
 - Đồ thị tri thức và agent RL chưa được đo trên benchmark hội thoại; chưa biết chúng làm câu trả lời tốt hơn bao nhiêu.
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
 - Bộ nhớ dài hạn trích bằng luật: danh sách thuốc cố định 6 loại, câu "dùng metformin và insulin" chỉ nhận thuốc đầu, và mới chỉ tự tắt được thông tin thuốc (chưa tự sửa chẩn đoán, dị ứng).
-- Chưa có đăng nhập: ai mở ứng dụng trên máy cũng xem được hồ sơ, bộ nhớ và lịch sử của mọi bệnh nhân.
+- Dịch vụ API và giao diện web có tài khoản, nhưng giao diện Streamlit vẫn chưa có đăng nhập: ai mở trên máy cũng xem được mọi hồ sơ. Streamlit chỉ nên dùng trên máy của nhà phát triển.
+- Web giữ token trong `localStorage`, đủ cho đồ án; bản chạy thật nên dùng cookie `HttpOnly` và HTTPS. Chưa có đổi mật khẩu, quên mật khẩu, hay giới hạn số lần đăng nhập sai.
+- Nhắc nhở chỉ hiện khi người dùng mở ứng dụng; chưa có thông báo đẩy khi ứng dụng đóng.
+- Khi nhật ký có nhiều chỉ số cao, khoảng 3/20 lượt mô hình 3B chêm câu về đổi liều thuốc và Rules thay toàn bộ câu trả lời bằng câu từ chối (mục 7.5). An toàn, nhưng người dùng mất phần thông tin hữu ích. Mô hình còn gán nhầm số đo sang thời điểm khác. Agent Journal chưa được đo trên benchmark.
+- Mục tiêu điều trị là mục tiêu chung của ADA; chưa cho bác sĩ hoặc người dùng đặt mục tiêu riêng.
+- Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
 
 **Hướng phát triển**
@@ -684,6 +878,9 @@ Ba bài học rút ra:
 5. Tải thêm các tệp NHANES còn thiếu (sức khoẻ tổng quát, rượu bia, bảo hiểm, thu nhập) để lấp 10 chỉ số trống; tìm dữ liệu sàng lọc tiểu đường của Việt Nam để kiểm tra ngoài.
 6. Mở rộng bộ ca và mời người có chuyên môn y khoa chấm một mẫu câu trả lời.
 7. Thu phản hồi thật cho agent RL, đánh giá bằng SNIPS sau khi có đủ vài trăm lượt; thử thăm dò theo cận tin cậy trên (LinUCB) thay cho epsilon-greedy.
+8. Khi Rules chặn một câu đổi liều, chỉ bỏ câu đó và giữ phần còn lại nếu phần còn lại an toàn, thay vì thay toàn bộ câu trả lời; thêm vào benchmark các ca có nhật ký để đo agent Journal.
+9. Khi WHO duyệt bộ STEPS Việt Nam: kiểm tra ngoài Predictor trên người Việt và hiệu chỉnh lại xác suất. Dữ liệu này có giấy phép riêng nên chỉ lưu ngoài repo, không công bố cả dữ liệu dẫn xuất.
+10. Đóng gói API, web và Ollama bằng Docker Compose; thêm thông báo đẩy cho nhắc nhở; cho bác sĩ đặt mục tiêu riêng cho từng người bệnh.
 
 # Tài liệu tham khảo
 
@@ -712,6 +909,11 @@ Ba bài học rút ra:
 23. CDC, Behavioral Risk Factor Surveillance System, 2023 Annual Survey Data.
 24. CDC/NCHS, National Health and Nutrition Examination Survey, các kỳ 2013–2014, 2015–2016, 2017–3/2020.
 25. J. W. Smith và cộng sự, "Using the ADAP Learning Algorithm to Forecast the Onset of Diabetes Mellitus", *Proc. Symposium on Computer Applications in Medical Care*, 1988 (bộ Pima Indians).
+26. A. Radford và cộng sự, "Robust Speech Recognition via Large-Scale Weak Supervision", *ICML*, 2023 (Whisper).
+27. T.-T. Le, L. T. Nguyen, D. Q. Nguyen, "PhoWhisper: Automatic Speech Recognition for Vietnamese", *ICLR Tiny Papers*, 2024.
+28. M. Jones, J. Bradley, N. Sakimura, "JSON Web Token (JWT)", RFC 7519, IETF, 2015.
+29. C. Percival, S. Josefsson, "The scrypt Password-Based Key Derivation Function", RFC 7914, IETF, 2016.
+30. WHO, "STEPwise approach to NCD risk factor surveillance (STEPS)", NCD Microdata Repository.
 26. M. M. F. Islam và cộng sự, "Likelihood Prediction of Diabetes at Early Stage Using Data Mining Techniques", *Computer Vision and Machine Intelligence in Medical Image Analysis*, Springer, 2020 (UCI 529).
 27. B. Zadrozny, C. Elkan, "Transforming Classifier Scores into Accurate Multiclass Probability Estimates", *KDD*, 2002.
 28. F. Pedregosa và cộng sự, "Scikit-learn: Machine Learning in Python", *JMLR*, 12, 2011.

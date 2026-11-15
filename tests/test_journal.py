@@ -195,6 +195,8 @@ def test_journal_digest_summarises_for_advisor():
     assert d["n_glucose"] == 4 and d["hypo"] == 1
     assert "lúc đói (sáng, chưa ăn): trung bình 8,0 mmol/L, cao hơn mục tiêu (4,4–7,2 mmol/L); 0/3" in text
     assert "sau ăn: trung bình 3,5 mmol/L, hạ đường huyết" in text
+    bedtime = journal.journal_digest([reading(mmol(3.7), "bedtime", at=NOW)], now=NOW)
+    assert "trước khi ngủ: trung bình 3,7 mmol/L, hạ đường huyết;" in journal.format_journal(bedtime)
     assert "1 lần dưới 3,9" in text and "3 ngày liền" in text
     assert "140/85" in text and "68,5 kg" in text and "-1,5 kg" in text
     assert "20/11/2026 (còn 7 ngày)" in text

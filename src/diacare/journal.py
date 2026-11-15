@@ -317,7 +317,9 @@ def journal_digest(readings, appointment=None, days=14, now=None):
         for ctx, s in g["by_context"].items():
             # Ghi sẵn nhận định (cao/thấp hơn mục tiêu): mô hình nhỏ hay so sánh số sai nếu để nó tự so
             target = "4,4–7,2" if ctx in PRE_MEAL else ("dưới 10,0" if ctx == "after_meal" else None)
-            verdict = (f", {STATUS_TEXT[classify_glucose(s['mean_mgdl'], ctx)]} ({target} mmol/L)" if target else "")
+            # trước ngủ / bất kỳ: ADA không có mục tiêu riêng nhưng vẫn phải nói rõ hạ đường huyết hay rất cao
+            verdict = f", {STATUS_TEXT[classify_glucose(s['mean_mgdl'], ctx)]}" + (
+                f" ({target} mmol/L)" if target else "")
             n_ok = round(s["in_target_pct"] * s["n"] / 100)
             lines.append(f"  + {CONTEXTS[ctx]}: trung bình {_mmol(s['mean_mgdl'])} mmol/L{verdict}; "
                          f"{n_ok}/{s['n']} lần trong mục tiêu (thấp nhất {_mmol(s['min_mgdl'])}, "

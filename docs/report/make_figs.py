@@ -55,33 +55,35 @@ def architecture():
     zone(ax, 2.55, 1.3, 9.6, 6.5, "HARNESS (code của hệ, không phải mô hình)")
     q = box(ax, 0.2, 4.15, 1.9, 1.0, "Người dùng", "câu hỏi + hồ sơ", "io")
     o = box(ax, 5.85, 4.1, 2.9, 1.1, "Orchestrator", "điều phối tuần tự, ghi trace", "hub", 12)
-    top = [("Memory", "trích & nhớ thông tin"), ("Lab", "ngưỡng ADA · OCR"),
+    top = [("Memory", "trích & nhớ"), ("Lab", "ngưỡng ADA · OCR"), ("Journal", "nhật ký 14 ngày"),
            ("Predictor", "3 nguồn · hiệu chỉnh"), ("Retriever", "RAG · sbert"), ("Graph", "đồ thị tri thức")]
     bot = [("Nutrition", "bảng USDA"), ("RL", "học từ phản hồi"), ("Context", "cắt ngữ cảnh"),
            ("Advisor", "LLM qua Ollama"), ("Rules", "lọc an toàn, gắn cờ")]
+    xt = [2.7 + i * 1.55 for i in range(6)]
     xs = [2.8, 4.65, 6.5, 8.35, 10.2]
-    tb = [box(ax, x, 6.15, 1.65, 0.95, t, s) for x, (t, s) in zip(xs, top)]
+    tb = [box(ax, x, 6.15, 1.45, 0.95, t, s, tsize=10.5) for x, (t, s) in zip(xt, top)]
     bb = [box(ax, x, 2.05, 1.65, 0.95, t, s) for x, (t, s) in zip(xs, bot)]
     for i, b in enumerate(tb):
         arrow(ax, mid(o, "t"), mid(b, "b"), label=str(i + 1), lpos=0.55, loff=(0.13, 0))
     for i, b in enumerate(bb):
-        arrow(ax, mid(o, "b"), mid(b, "t"), label=str(i + 6), lpos=0.55, loff=(0.13, 0))
+        arrow(ax, mid(o, "b"), mid(b, "t"), label=str(i + 7), lpos=0.55, loff=(0.13, 0))
     arrow(ax, mid(q, "r"), mid(o, "l"), label="câu hỏi")
 
     # tai nguyen (ngoai harness): dat ngay tren / duoi agent dung no
-    db = box(ax, 2.8, 8.2, 3.5, 0.85, "SQLite", "bệnh nhân · bộ nhớ · xét nghiệm · log", "data", 10)
-    mdl = box(ax, 6.5, 8.2, 1.65, 0.85, "predictor_ms", "BRFSS · NHANES", "data", 10)
-    kb = box(ax, 8.35, 8.2, 1.65, 0.85, "Kho tài liệu", "MedlinePlus · WHO", "data", 10)
-    kg = box(ax, 10.2, 8.2, 1.65, 0.85, "Neo4j / networkx", "108 nút · PrimeKG", "data", 10)
+    db = box(ax, 2.7, 8.2, 4.55, 0.85, "SQLite", "bệnh nhân · nhật ký · bộ nhớ · xét nghiệm · log", "data", 10)
+    mdl = box(ax, xt[3], 8.2, 1.45, 0.85, "predictor_ms", "BRFSS · NHANES", "data", 9.5)
+    kb = box(ax, xt[4], 8.2, 1.45, 0.85, "Kho tài liệu", "MedlinePlus · WHO", "data", 9.5)
+    kg = box(ax, xt[5], 8.2, 1.45, 0.85, "Neo4j / networkx", "108 nút · PrimeKG", "data", 9.5)
     usda = box(ax, 2.8, 0.25, 1.65, 0.85, "USDA FDC", "bảng dinh dưỡng", "data", 10)
     pol = box(ax, 4.65, 0.25, 1.65, 0.85, "rl_policy · SQLite", "chính sách RL", "data", 10)
     llm = box(ax, 8.35, 0.25, 1.65, 0.85, "Ollama", "qwen2.5 7B / 14B", "data", 10)
     dash = dict(color=LINE, ls="--")
-    arrow(ax, mid(tb[0], "t"), (3.625, 8.2), style="<|-|>", **dash)
-    arrow(ax, mid(tb[1], "t"), (5.475, 8.2), style="<|-|>", **dash)
-    arrow(ax, mid(mdl, "b"), mid(tb[2], "t"), **dash)
-    arrow(ax, mid(kb, "b"), mid(tb[3], "t"), **dash)
-    arrow(ax, mid(kg, "b"), mid(tb[4], "t"), **dash)
+    for b in tb[:2]:
+        arrow(ax, mid(b, "t"), (mid(b, "t")[0], 8.2), style="<|-|>", **dash)
+    arrow(ax, (mid(tb[2], "t")[0], 8.2), mid(tb[2], "t"), **dash)
+    arrow(ax, mid(mdl, "b"), mid(tb[3], "t"), **dash)
+    arrow(ax, mid(kb, "b"), mid(tb[4], "t"), **dash)
+    arrow(ax, mid(kg, "b"), mid(tb[5], "t"), **dash)
     arrow(ax, mid(bb[0], "b"), mid(usda, "t"), style="<|-|>", **dash)
     arrow(ax, mid(pol, "t"), mid(bb[1], "b"), **dash)
     arrow(ax, mid(bb[3], "b"), mid(llm, "t"), style="<|-|>", label="stream token", lpos=0.62, loff=(0.62, 0), **dash)
@@ -112,25 +114,57 @@ def harness():
     a.text(3.2, 0.05, "Số vòng không biết trước; mô hình tự chọn công cụ.", ha="center", fontsize=8.5, color=MUTED)
 
     b.set_title("(b) Pipeline có kiểm soát của DiaCare-MAS", fontsize=11, color=INK, loc="left")
-    steps = ["Memory", "Lab", "Predictor", "Retriever", "Graph", "Nutrition", "RL", "Context", "Advisor", "Rules"]
+    steps = ["Memory", "Lab", "Journal", "Predictor", "Retriever", "Graph",
+             "Nutrition", "RL", "Context", "Advisor", "Rules"]
     prev = None
     for i, s in enumerate(steps):
-        x, y = 0.05 + (i % 5) * 1.28, 3.0 if i < 5 else 1.2
-        bx = box(b, x, y, 1.08, 0.8, s, "LLM" if s == "Advisor" else "code", "hub" if s == "Advisor" else "agent", 9.5)
+        x, y = 0.05 + (i % 6) * 1.06, 3.0 if i < 6 else 1.2
+        bx = box(b, x, y, 0.9, 0.8, s, "LLM" if s == "Advisor" else "code", "hub" if s == "Advisor" else "agent", 8.5)
         if prev is not None:
-            if i == 5:
+            if i == 6:
                 arrow(b, mid(prev, "b"), mid(bx, "t"))
             else:
                 arrow(b, mid(prev, "r"), mid(bx, "l"))
         prev = bx
-    b.text(3.2, 0.35, "Thứ tự cố định; chỉ 1 trong 10 bước gọi LLM. Rules luôn chạy sau cùng.", ha="center",
+    b.text(3.2, 0.35, "Thứ tự cố định; chỉ 1 trong 11 bước gọi LLM. Rules luôn chạy sau cùng.", ha="center",
            fontsize=8.5, color=MUTED)
     fig.tight_layout()
     fig.savefig(FIGS / "c6_harness.png", bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
+def deployment():
+    """Các lớp triển khai: giao diện -> dịch vụ API -> pipeline agent; giọng nói và nhật ký đi qua API."""
+    fig, ax = plt.subplots(figsize=(14.0, 6.4), dpi=200)
+    ax.set_xlim(0, 14.0)
+    ax.set_ylim(0, 6.4)
+    ax.axis("off")
+    fig.patch.set_facecolor("white")
+    web = box(ax, 0.2, 4.2, 2.9, 1.3, "Web Next.js", "điện thoại · máy tính · giọng nói", "io", 11)
+    stl = box(ax, 0.2, 1.4, 2.9, 1.3, "Streamlit", "4 trang người dùng + nhà phát triển", "io", 11)
+    zone(ax, 4.0, 0.5, 5.6, 5.5, "DỊCH VỤ API (FastAPI · src/api)")
+    auth = box(ax, 4.3, 4.35, 2.4, 1.0, "Xác thực", "scrypt · JWT HS256", "agent", 10)
+    jr = box(ax, 6.95, 4.35, 2.4, 1.0, "Nhật ký · Tái khám", "số đo · lịch · PDF", "agent", 10)
+    chat = box(ax, 6.95, 2.65, 2.4, 1.0, "Chat", "JSON hoặc SSE", "hub", 10)
+    asr = box(ax, 4.3, 2.65, 2.4, 1.0, "/transcribe", "PhoWhisper-small · CPU", "agent", 10)
+    lab = box(ax, 4.3, 0.95, 2.4, 1.0, "Xét nghiệm", "văn bản · tệp · OCR", "agent", 10)
+    fb = box(ax, 6.95, 0.95, 2.4, 1.0, "Phản hồi", "thích · không thích → RL", "agent", 10)
+    pipe = box(ax, 10.5, 2.55, 3.2, 1.2, "Orchestrator", "11 agent (hình 2.1)", "hub", 12)
+    db = box(ax, 10.5, 4.6, 3.2, 1.0, "SQLite (WAL)", "mỗi request một kết nối", "data", 10)
+    llm = box(ax, 10.5, 0.6, 3.2, 1.0, "Ollama", "qwen2.5", "data", 10)
+    arrow(ax, mid(web, "r"), (4.0, 4.85), label="HTTPS + Bearer", loff=(0, 0.14))
+    arrow(ax, mid(stl, "r"), (10.5, 2.62), color=LINE, ls="--", label="Streamlit gọi thẳng trong tiến trình",
+          lpos=0.36, loff=(0, 0.2))
+    arrow(ax, mid(chat, "r"), mid(pipe, "l"))
+    arrow(ax, mid(pipe, "t"), mid(db, "b"), style="<|-|>")
+    arrow(ax, mid(pipe, "b"), mid(llm, "t"), style="<|-|>")
+    arrow(ax, mid(jr, "r"), mid(db, "l"), color=LINE, ls="--")
+    fig.savefig(FIGS / "c8_trien_khai.png", bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     architecture()
     harness()
+    deployment()
     print("ok")
