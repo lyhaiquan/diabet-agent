@@ -48,4 +48,4 @@ def test_with_safestream_unsafe_sentence_never_rendered():
         s(piece)
     s.flush()
     assert all("metformin" not in f for f in frames)
-    assert frames[-1] == "Ăn rau.|"
+    assert frames[-1] == "Ăn rau. Đi bộ.|"

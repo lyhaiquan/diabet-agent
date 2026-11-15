@@ -94,13 +94,61 @@ def is_unsafe_advice(text):
     return False
 
 
+# Tách câu để lược bỏ: chỉ cắt sau dấu câu có khoảng trắng theo sau (không cắt "7.8") hoặc ở xuống dòng.
+# Mỗi đoạn is_unsafe_advice xét đều nằm gọn trong một câu ở đây, nên bỏ hết câu không an toàn là đủ.
+_SENTENCE_SPLIT = re.compile(r"((?<=[.!?;])[ \t]+|\n+)")
+# Phần còn lại ít hơn số từ này thì thay cả câu trả lời bằng SAFE_REPLACEMENT.
+MIN_KEPT_WORDS = 12
+# Lọc thêm, chỉ dùng cho bản nháp ĐÃ bị chặn: câu nói "điều chỉnh liều" mà không nhắc người có chuyên môn.
+# is_unsafe_advice không bắt mẫu này, vì "hãy hỏi bác sĩ để điều chỉnh liều insulin" rất phổ biến và an toàn
+# (thêm vào bộ phát hiện thì 115/1146 bản nháp benchmark đổi kết quả). Trước đây cả bản nháp bị thay nên câu
+# "hãy ... điều chỉnh liều insulin nếu cần" (qwen2.5:3b, 2026-11-15) không bao giờ hiện; giữ phần còn lại thì phải lọc.
+_DOSE_ADJUST = re.compile(rf"\b(?:điều chỉnh|chỉnh) liều\b(?:\W+\w+){{0,4}}?\W+{_DRUG}\b|\b(?:điều chỉnh|chỉnh) liều {_DRUG}\b")
+_CLINICIAN = re.compile(r"bác sĩ|chuyên gia|dược sĩ|y tá|nhân viên y tế|chỉ định|phác đồ|\bdoctor\b")
+
+
+def _self_dose_adjust(sentence):
+    s = _norm(sentence)
+    return bool(_DOSE_ADJUST.search(s)) and not _CLINICIAN.search(s) and not _NEGATION.search(s)
+
+
+def strip_unsafe(text, strict=False):
+    """Bỏ các câu khuyên đổi thuốc, giữ nguyên phần còn lại (kể cả xuống dòng). Trả (văn bản, số câu bỏ).
+
+    strict=True: bỏ thêm câu tự điều chỉnh liều (_self_dose_adjust); dùng khi bản nháp đã bị chặn.
+    """
+    parts = _SENTENCE_SPLIT.split(text)
+    segs, seps = parts[::2], parts[1::2] + [""]
+    out, removed = [], 0
+    for seg, sep in zip(segs, seps):
+        if seg.strip() and (is_unsafe_advice(seg) or (strict and _self_dose_adjust(seg))):
+            removed += 1
+            if out:  # gộp hai dấu phân cách quanh câu bị bỏ, giữ cái có nhiều xuống dòng hơn (giữ bố cục danh sách)
+                if sep.count("\n") > out[-1].count("\n"):
+                    out[-1] = sep
+            else:  # câu đầu: giữ khoảng trắng đầu khi ghép nối stream
+                out.append(seg[:len(seg) - len(seg.lstrip())])
+            continue
+        out += [seg, sep]
+    return "".join(out), removed
+
+
+def remove_unsafe(draft):
+    """Câu trả lời đã bỏ phần không an toàn, kèm lời nhắc hỏi bác sĩ; còn quá ít thì thay hẳn."""
+    kept, _ = strip_unsafe(draft, strict=True)
+    kept = re.sub(r"\n{3,}", "\n\n", kept).strip()
+    if len(re.findall(r"\w+", kept)) < MIN_KEPT_WORDS or is_unsafe_advice(kept):
+        return SAFE_REPLACEMENT
+    return f"{kept}\n\n{SAFE_REPLACEMENT}"
+
+
 _SENTENCE_END = ".!?;\n"
 
 
 class SafeStream:
     """Chỉ cho hiện bản nháp đang stream theo từng câu đã qua is_unsafe_advice.
 
-    Gặp câu không an toàn thì dừng hiện (blocked); câu trả lời cuối vẫn do apply_rules quyết định.
+    Câu không an toàn bị bỏ qua (blocked=True), các câu sau vẫn hiện; câu trả lời cuối do apply_rules quyết định.
     emit(text) nhận toàn bộ phần đã được phép hiện.
     """
 
@@ -108,8 +156,6 @@ class SafeStream:
         self.emit, self.buf, self.shown, self.blocked = emit, "", "", False
 
     def __call__(self, piece):
-        if self.blocked:
-            return
         self.buf += piece
         cut = max(self.buf.rfind(c) for c in _SENTENCE_END)
         if cut >= 0:
@@ -117,14 +163,19 @@ class SafeStream:
             self._release(ready)
 
     def flush(self):
-        if self.buf and not self.blocked:
+        if self.buf:
             self._release(self.buf)
         self.buf = ""
 
     def _release(self, text):
         if is_unsafe_advice(text):
             self.blocked = True
-            return
+        if self.blocked:  # từ lúc bị chặn, lọc như remove_unsafe để câu không thoáng hiện rồi mất
+            text, _ = strip_unsafe(text, strict=True)
+            if not text.strip():
+                return
+        if self.shown[-1:] in (" ", "\t"):  # sau câu vừa bị bỏ
+            text = text.lstrip(" \t")
         self.shown += text
         self.emit(self.shown)
 
@@ -198,7 +249,7 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, lab
     text = draft
     if is_unsafe_advice(draft):
         flags.append("unsafe_advice_blocked")
-        text = SAFE_REPLACEMENT
+        text = remove_unsafe(draft)
     q = _norm(question)
     if diagnosed:
         flags.append("diagnosed_followup")

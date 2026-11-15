@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 68 commit, 31 tệp test với 562 test tự động, bộ benchmark 50 ca.
+- Quy mô lúc viết báo cáo: 68 commit, 31 tệp test với 570 test tự động, bộ benchmark 50 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -480,7 +480,7 @@ Lớp `OllamaLLM` gọi `/api/chat` với nhiệt độ 0,2, `num_ctx` 4.096 và
 
 Tệp `rules.py`. Agent làm bốn việc theo thứ tự:
 
-1. **Chặn lời khuyên đổi thuốc.** Câu có động từ kiểu dừng, ngừng, bỏ, giảm liều, tăng liều đứng gần từ chỉ thuốc (insulin, metformin, thuốc) bị coi là nguy hiểm, trừ khi câu có phủ định, là câu cảnh báo, hoặc nói về thuốc lá. Nếu có, toàn bộ bản nháp được thay bằng câu "Mình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. Vui lòng hỏi bác sĩ điều trị của bạn."
+1. **Chặn lời khuyên đổi thuốc.** Câu có động từ kiểu dừng, ngừng, bỏ, giảm liều, tăng liều đứng gần từ chỉ thuốc (insulin, metformin, thuốc) bị coi là nguy hiểm, trừ khi câu có phủ định, là câu cảnh báo, hoặc nói về thuốc lá. Nếu có, Rules chỉ bỏ những câu nguy hiểm, giữ nguyên phần còn lại (cả xuống dòng và đánh số danh sách), rồi thêm câu "Mình không thể đưa ra lời khuyên về việc thay đổi thuốc hoặc insulin. Vui lòng hỏi bác sĩ điều trị của bạn." Câu được tách ở dấu chấm có khoảng trắng theo sau hoặc ở xuống dòng, nên "7.8" không bị cắt đôi; mỗi đoạn mà bộ phát hiện xét đều nằm gọn trong một câu như vậy, nên bỏ hết câu nguy hiểm là đủ. Khi bản nháp đã bị chặn, phần giữ lại còn qua thêm một lớp lọc hẹp: câu có "điều chỉnh liều" đi với tên thuốc mà không nhắc bác sĩ, chuyên gia, dược sĩ hay chỉ định cũng bị bỏ. Lớp này không nằm trong bộ phát hiện chung, vì câu "hãy hỏi bác sĩ để điều chỉnh liều insulin" rất phổ biến; nó chỉ để phần giữ lại không lộ ra câu mà trước đây bị che cùng cả bản nháp. Nếu phần còn lại dưới 12 từ, hoặc vì lý do nào đó vẫn còn câu nguy hiểm, toàn bộ bản nháp được thay bằng câu trên như trước.
 2. **Gắn ghi chú chuyển khám** theo nguy cơ, chẩn đoán, xét nghiệm.
 3. **Nhận diện triệu chứng và cấp cứu** từ câu hỏi, gồm cả cách nói dân gian ("kiến bâu", "đái nhiều", "sụt ký") và câu nói vòng ("vết thương ... không lành", "nước tiểu ... kiến").
 4. **Thêm lời nhắc** "Đây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ."
@@ -489,7 +489,7 @@ Danh sách cờ:
 
 | Cờ | Khi nào bật |
 |---|---|
-| `unsafe_advice_blocked` | bản nháp có lời khuyên thay đổi thuốc, đã bị thay |
+| `unsafe_advice_blocked` | bản nháp có lời khuyên thay đổi thuốc, câu đó đã bị bỏ (hoặc cả bản nháp bị thay) |
 | `high_risk_referral` | nguy cơ cao, chưa nhắc trong phiên hoặc người dùng hỏi về nguy cơ |
 | `diagnosed_followup` | người dùng đã khai được chẩn đoán |
 | `lab_diabetes_range` | có chỉ số ở ngưỡng tiểu đường |
@@ -503,7 +503,7 @@ Danh sách cờ:
 | `context_near_limit` | token vào vượt 90% cửa sổ |
 | `history_summarized` | lịch sử đã được tóm tắt |
 
-**Lọc khi stream.** Lớp `SafeStream` gom các đoạn chữ của mô hình cho tới dấu kết thúc câu, kiểm tra cả câu, và chỉ đẩy lên giao diện những câu an toàn. Gặp câu nguy hiểm thì dừng hiển thị. Câu trả lời cuối vẫn do Rules quyết định, nên streaming không làm thay đổi kết luận an toàn nào.
+**Lọc khi stream.** Lớp `SafeStream` gom các đoạn chữ của mô hình cho tới dấu kết thúc câu, kiểm tra cả câu, và chỉ đẩy lên giao diện những câu an toàn. Gặp câu nguy hiểm thì bỏ qua câu đó và hiện tiếp các câu sau, có áp lớp lọc hẹp như trên để câu không hiện thoáng qua rồi mất. Câu trả lời cuối vẫn do Rules quyết định, nên streaming không làm thay đổi kết luận an toàn nào.
 
 ## 3.13. Journal: nhật ký tự theo dõi
 
@@ -718,7 +718,7 @@ Tệp `src/api/main.py` (ứng dụng), `src/api/security.py` (mật khẩu và 
 - Mỗi tài khoản chỉ thấy hồ sơ của mình. Hồ sơ của người khác trả về 404 chứ không phải 403, để không lộ rằng hồ sơ đó tồn tại.
 - Khoá ký được đọc khi ứng dụng khởi động chứ không phải lúc import, để test và công cụ tạo tài liệu import được ứng dụng mà không cần khoá.
 
-**Chat qua SSE.** Với `"stream": true`, `/chat` trả về luồng sự kiện: `session` (mã phiên), `step` (mỗi agent vừa xong), `token` (phần chữ mới đã qua `SafeStream`), rồi `done` (kết quả cuối) hoặc `error`. Giao diện phải thay phần chữ đang hiện bằng câu trả lời trong `done`, vì Rules có thể thay cả bản nháp. Các lượt chat chạy lần lượt dưới một khoá, vì Ollama trên một GPU cũng chỉ trả lời từng câu một và agent RL cần cập nhật mô hình tuần tự.
+**Chat qua SSE.** Với `"stream": true`, `/chat` trả về luồng sự kiện: `session` (mã phiên), `step` (mỗi agent vừa xong), `token` (phần chữ mới đã qua `SafeStream`), rồi `done` (kết quả cuối) hoặc `error`. Giao diện phải thay phần chữ đang hiện bằng câu trả lời trong `done`, vì Rules có thể bỏ bớt câu hoặc thay cả bản nháp. Các lượt chat chạy lần lượt dưới một khoá, vì Ollama trên một GPU cũng chỉ trả lời từng câu một và agent RL cần cập nhật mô hình tuần tự.
 
 **Mỗi request một kết nối.** Phần nặng (`Parts`: Predictor, Retriever, mô hình ngôn ngữ, đồ thị, chính sách RL khởi động) dựng một lần. Các agent có trạng thái (Memory, Lab, Journal, RL) được dựng lại cho từng lượt bằng `orchestrator_from_parts` và gắn với kết nối SQLite của request đó, nên không có trạng thái dùng chung giữa các request.
 
@@ -737,7 +737,7 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 
 ## 7.1. Unit test
 
-562 test chạy bằng `pytest` trong khoảng một phút, không cần GPU, mạng hay mô hình giọng nói (một test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j). Phân bố theo tệp test (đã tính tham số hoá): rules 87, memory 86, nutrition 67, labs 31, orchestrator 27, journal 24, bench 24, speech 23, api 19, retriever 17, eval 17, kg 16, app 15, rl 14, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+570 test chạy bằng `pytest` trong khoảng một phút, không cần GPU, mạng hay mô hình giọng nói (một test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j). Phân bố theo tệp test (đã tính tham số hoá): rules 95, memory 86, nutrition 67, labs 31, orchestrator 27, journal 24, bench 24, speech 23, api 19, retriever 17, eval 17, kg 16, app 15, rl 14, db 11, factory 11, context 8, graph agent 8, llm 7, cli 6, ocr 6, contracts 5, metrics 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -794,10 +794,14 @@ Agent Journal **chưa có trong bộ benchmark** 50 ca, vì các ca không có n
 |---|---|---|
 | Chỉ đưa con số kèm mục tiêu: mô hình kết luận lúc đói 7,8 mmol/L là "dưới mục tiêu 4,4–7,2" | 1/1 | ghi sẵn nhận định "cao hơn mục tiêu" bằng code; lần chạy lại nói đúng |
 | Dòng "trước khi ngủ" không có nhận định (ADA không có mục tiêu riêng cho thời điểm này): mô hình nói 3,7 mmol/L là "trong mục tiêu" | 1/1 | luôn ghi nhận định, kể cả "hạ đường huyết"; thêm test |
-| Bản nháp có câu kiểu "có thể cần thay đổi hoặc tăng liều thuốc", Rules thay **toàn bộ** câu trả lời bằng câu từ chối | 3/20 | chưa xử lý (xem mục 9) |
+| Bản nháp có câu kiểu "có thể cần thay đổi hoặc tăng liều thuốc", Rules thay **toàn bộ** câu trả lời bằng câu từ chối | 3/20 | Rules chỉ bỏ câu đó (mục 3.12); chạy lại 16 lượt: 1 lượt có câu bị bỏ, phần còn lại giữ nguyên |
 | Gán nhầm số đo sang thời điểm khác (lần 11,8 mmol/L sau ăn bị gọi là "lúc đói") hoặc suy luận nhân quả sai ("cao hơn mục tiêu có thể dẫn tới hạ đường huyết") | 2 lần đọc tay | chưa xử lý |
 
 Ba lần bị chặn trong 20 lượt gồm 2/4 lượt qua API (luồng SSE), 1/8 lượt chạy trực tiếp có stream và 0/8 lượt không stream. Số lượt còn quá ít để nói stream có ảnh hưởng hay không; nhiều khả năng chỉ là dao động ở nhiệt độ 0,2. Điều chắc chắn là rào chắn an toàn hoạt động đúng: không lượt nào để lọt lời khuyên đổi liều lên màn hình. Cái giá là khoảng một phần bảy số lượt người dùng không nhận được thông tin gì từ nhật ký của mình.
+
+Sau đó Rules được sửa để chỉ bỏ câu nguy hiểm. Chạy lại 16 lượt với qwen2.5:3b, một lượt bị chặn vì câu "Điều này có thể bao gồm việc thay đổi thuốc hoặc tăng liều insulin." Đọc phần được giữ lại thì thấy một vấn đề: ý 5 của bản nháp khuyên "hãy theo dõi lượng đường ... và điều chỉnh liều insulin nếu cần". Bộ phát hiện chưa bao giờ bắt câu này. Trước đây nó không hiện ra chỉ vì cả bản nháp bị thay, nên giữ phần còn lại mà không lọc thêm sẽ làm lộ nó.
+
+Thử thêm "điều chỉnh liều" vào bộ phát hiện chung thì 115/1146 bản nháp benchmark cũ đổi kết quả, gần như toàn là câu an toàn kiểu "hãy liên hệ bác sĩ để điều chỉnh liều insulin". Vì vậy bộ phát hiện giữ nguyên (so trên 1162 bản nháp: kết quả trùng hệt bản trước), chỉ thêm lớp lọc hẹp cho phần giữ lại của bản nháp đã bị chặn (mục 3.12). Kết quả trên 8 bản nháp bị chặn (7 từ benchmark, 1 từ lượt chạy này): cả 8 giữ được phần còn lại, không bản nào phải thay toàn bộ; ở bản nháp nhật ký, câu tự điều chỉnh liều bị bỏ cùng câu bị chặn, câu "Nếu bác sĩ thấy cần, họ có thể điều chỉnh liều..." vẫn giữ.
 
 Bài học giống mục 2.2: phép so sánh số phải làm bằng code. Mỗi chỗ để mô hình 3B tự so, nó đều có lúc so sai.
 
@@ -838,11 +842,12 @@ Bài học giống mục 2.2: phép so sánh số phải làm bằng code. Mỗi
 | Whisper "bịa" ra câu khi gặp tiếng không phải lời nói | giọng nói | thử bằng micro giả phát âm thanh hình sin | không bao giờ tự lưu; mọi số đo nghe được phải bấm xác nhận |
 | Mô hình 3B nói 7,8 mmol/L là "dưới mục tiêu 4,4–7,2" | Journal | chạy thử với qwen2.5:3b | code ghi sẵn nhận định, mô hình chỉ diễn đạt |
 | 3,7 mmol/L lúc trước khi ngủ bị gọi là "trong mục tiêu" | Journal | đọc bản nháp khi chụp ảnh cho báo cáo | luôn ghi nhận định, kể cả thời điểm không có mục tiêu riêng |
+| Một câu đổi liều làm Rules thay cả câu trả lời, người dùng mất hết phần đọc nhật ký | Rules | thử trợ lý đọc nhật ký 20 lượt (3 lượt bị thay) | chỉ bỏ câu nguy hiểm; gộp khoảng trắng hai bên để không dính hai ý của danh sách; lọc thêm câu tự điều chỉnh liều vốn trước đây bị che cùng cả bản nháp |
 | Chạy bằng `chay_local.bat` thì agent Journal không chạy | triển khai | rà soát các nơi đặt `DIACARE_FEATURES` | script liệt kê cứng tính năng; thêm `journal` |
 
 Bốn bài học rút ra:
 
-1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong ba mươi ba lỗi ở bảng, chỉ ba lỗi liên quan trực tiếp tới hành vi của mô hình (viết mãi, Whisper bịa câu, mô hình 3B so số sai), và cách sửa cả ba vẫn nằm ở harness.
+1. **Phần lớn lỗi nằm ở harness, không ở mô hình.** Trong ba mươi tư lỗi ở bảng, chỉ ba lỗi liên quan trực tiếp tới hành vi của mô hình (viết mãi, Whisper bịa câu, mô hình 3B so số sai), và cách sửa cả ba vẫn nằm ở harness.
 2. **Bộ chấm cũng là code và cũng sai.** Mỗi lần số liệu thay đổi, phải đọc bản nháp thật trước khi kết luận.
 3. **Phải hiểu nghĩa của cạnh trước khi dùng.** Một cạnh "bệnh A – bệnh B" trong đồ thị lớn có thể là quan hệ phân loại chứ không phải quan hệ nguy cơ. Một con số mô hình học ra mà đổi theo hạt giống thì chưa đủ tin để đưa cho người dùng.
 4. **Thử bằng dữ liệu giống thật, đọc từng câu trả lời.** Lỗi "trước khi ngủ 3,7 là trong mục tiêu" lọt qua cả test lẫn lần thử đầu, và chỉ lộ ra khi dựng một bệnh nhân mẫu đủ 14 ngày để chụp ảnh cho báo cáo rồi đọc kỹ câu trả lời.
@@ -864,7 +869,7 @@ Bốn bài học rút ra:
 - Dịch vụ API và giao diện web có tài khoản, nhưng giao diện Streamlit vẫn chưa có đăng nhập: ai mở trên máy cũng xem được mọi hồ sơ. Streamlit chỉ nên dùng trên máy của nhà phát triển.
 - Web giữ token trong `localStorage`, đủ cho đồ án; bản chạy thật nên dùng cookie `HttpOnly` và HTTPS. Chưa có đổi mật khẩu, quên mật khẩu, hay giới hạn số lần đăng nhập sai.
 - Nhắc nhở chỉ hiện khi người dùng mở ứng dụng; chưa có thông báo đẩy khi ứng dụng đóng.
-- Khi nhật ký có nhiều chỉ số cao, khoảng 3/20 lượt mô hình 3B chêm câu về đổi liều thuốc và Rules thay toàn bộ câu trả lời bằng câu từ chối (mục 7.5). An toàn, nhưng người dùng mất phần thông tin hữu ích. Mô hình còn gán nhầm số đo sang thời điểm khác. Agent Journal chưa được đo trên benchmark.
+- Khi nhật ký có nhiều chỉ số cao, mô hình 3B đôi khi chêm câu về đổi liều thuốc; Rules bỏ câu đó và giữ phần còn lại (mục 7.5). Bộ phát hiện chung vẫn chưa bắt câu "điều chỉnh liều insulin nếu cần" khi người dùng là chủ ngữ, vì thêm mẫu này thì chặn nhầm rất nhiều câu khuyên hỏi bác sĩ; nếu câu đó xuất hiện trong bản nháp không có câu bị chặn nào khác, nó vẫn hiện ra. Mô hình còn gán nhầm số đo sang thời điểm khác. Agent Journal chưa được đo trên benchmark.
 - Mục tiêu điều trị là mục tiêu chung của ADA; chưa cho bác sĩ hoặc người dùng đặt mục tiêu riêng.
 - Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
@@ -878,7 +883,7 @@ Bốn bài học rút ra:
 5. Tải thêm các tệp NHANES còn thiếu (sức khoẻ tổng quát, rượu bia, bảo hiểm, thu nhập) để lấp 10 chỉ số trống; tìm dữ liệu sàng lọc tiểu đường của Việt Nam để kiểm tra ngoài.
 6. Mở rộng bộ ca và mời người có chuyên môn y khoa chấm một mẫu câu trả lời.
 7. Thu phản hồi thật cho agent RL, đánh giá bằng SNIPS sau khi có đủ vài trăm lượt; thử thăm dò theo cận tin cậy trên (LinUCB) thay cho epsilon-greedy.
-8. Khi Rules chặn một câu đổi liều, chỉ bỏ câu đó và giữ phần còn lại nếu phần còn lại an toàn, thay vì thay toàn bộ câu trả lời; thêm vào benchmark các ca có nhật ký để đo agent Journal.
+8. Phân biệt ai điều chỉnh liều (người dùng tự làm hay bác sĩ làm) bằng phân tích cú pháp hoặc một bộ phân loại nhỏ, để bắt được "điều chỉnh liều insulin nếu cần" mà không chặn nhầm; thêm vào benchmark các ca có nhật ký để đo agent Journal.
 9. Khi WHO duyệt bộ STEPS Việt Nam: kiểm tra ngoài Predictor trên người Việt và hiệu chỉnh lại xác suất. Dữ liệu này có giấy phép riêng nên chỉ lưu ngoài repo, không công bố cả dữ liệu dẫn xuất.
 10. Đóng gói API, web và Ollama bằng Docker Compose; thêm thông báo đẩy cho nhắc nhở; cho bác sĩ đặt mục tiêu riêng cho từng người bệnh.
 

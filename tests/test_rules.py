@@ -4,6 +4,7 @@ import pytest
 
 from diacare.rules import (
     DISCLAIMER,
+    SAFE_REPLACEMENT,
     apply_rules,
     is_unsafe_advice,
     risk_band,
@@ -225,8 +226,47 @@ def test_safe_stream_releases_sentences_and_blocks_unsafe():
     for piece in ["Ăn nhiều ", "rau xanh. Bạn nên ", "ngừng uống ", "metformin. Và tập thể dục."]:
         s(piece)
     s.flush()
-    assert shown == ["Ăn nhiều rau xanh."]
+    assert shown == ["Ăn nhiều rau xanh.", "Ăn nhiều rau xanh. Và tập thể dục."]
+    assert all("metformin" not in x for x in shown)
     assert s.blocked
+
+
+def test_safe_stream_no_double_space_after_dropped_tail():
+    from diacare.rules import SafeStream
+    shown = []
+    s = SafeStream(shown.append)
+    s("Ăn rau. Hãy ngừng insulin.")
+    s(" Đi bộ.")
+    assert shown[-1] == "Ăn rau. Đi bộ."
+
+
+LONG_DRAFT = (
+    "Đường huyết lúc đói trung bình 7,0 mmol/L, cao hơn mục tiêu 4,4–7,2 [ada_2024].\n"
+    "- Ăn bữa tối sớm hơn và giảm cơm trắng.\n"
+    "- Bạn có thể giảm liều metformin vào buổi tối.\n"
+    "- Đi bộ 30 phút sau bữa ăn. Ghi lại đường huyết mỗi sáng."
+)
+
+
+def test_unsafe_sentence_removed_rest_kept():
+    final, flags = apply_rules(0.1, LONG_DRAFT, diagnosed=True)
+    assert "unsafe_advice_blocked" in flags
+    assert "metformin" not in final
+    assert "giảm cơm trắng" in final and "Đi bộ 30 phút" in final and "[ada_2024]" in final
+    assert SAFE_REPLACEMENT in final and DISCLAIMER in final
+    assert not is_unsafe_advice(final)
+
+
+def test_strip_unsafe_keeps_decimal_and_layout():
+    from diacare.rules import strip_unsafe
+    kept, n = strip_unsafe("Chỉ số 7.8 mmol/L hơi cao. Nên ngừng insulin.\nĂn rau.")
+    assert n == 1 and kept == "Chỉ số 7.8 mmol/L hơi cao.\nĂn rau."
+
+
+def test_unsafe_mostly_unsafe_replaced_whole():
+    final, _ = apply_rules(0.1, "Ăn rau. Bạn nên ngừng insulin. Và giảm liều metformin.")
+    assert final.startswith(SAFE_REPLACEMENT)
+    assert "Ăn rau" not in final
 
 
 def test_safe_stream_flushes_tail_without_punctuation():
@@ -237,3 +277,50 @@ def test_safe_stream_flushes_tail_without_punctuation():
     assert shown == ["Đi bộ 30 phút."]
     s.flush()
     assert shown[-1] == "Đi bộ 30 phút. Uống đủ nước" and not s.blocked
+
+
+def test_strip_unsafe_keeps_list_breaks():
+    from diacare.rules import strip_unsafe
+    text = "4. Kiểm tra thuốc: hỏi bác sĩ. Điều này có thể bao gồm việc tăng liều insulin.\n\n5. Ăn ít đường."
+    kept, n = strip_unsafe(text)
+    assert n == 1 and kept == "4. Kiểm tra thuốc: hỏi bác sĩ.\n\n5. Ăn ít đường."
+
+
+
+# Bản nháp thật của qwen2.5:3b khi đọc nhật ký (2026-11-15): sau khi chỉ bỏ câu "tăng liều insulin",
+# câu tự điều chỉnh liều ở ý 5 (is_unsafe_advice không bắt) không được lọt ra.
+BLOCKED_JOURNAL_DRAFT = (
+    "Đường huyết sau ăn có 5/8 lần vượt mục tiêu dưới 10,0 mmol/L.\n\n"
+    "1. **Ăn uống**: Dùng carbohydrate phức tạp thay vì đường đơn và ăn đều bữa.\n\n"
+    "4. **Kiểm tra thuốc**: Nếu bác sĩ thấy cần, họ có thể điều chỉnh liều lượng hoặc loại thuốc bạn đang sử dụng. "
+    "Điều này có thể bao gồm việc thay đổi thuốc hoặc tăng liều insulin.\n\n"
+    "5. **Hạn chế đường**: Nếu bạn đang sử dụng insulin, hãy chắc chắn rằng bạn đang theo dõi lượng đường "
+    "trong khẩu phần ăn của mình và điều chỉnh liều insulin nếu cần.\n\n"
+    "6. **Vận động**: Đi bộ 30 phút sau bữa ăn."
+)
+
+
+def test_blocked_draft_also_drops_self_dose_adjustment():
+    final, flags = apply_rules(0.1, BLOCKED_JOURNAL_DRAFT, diagnosed=True)
+    assert "unsafe_advice_blocked" in flags
+    assert "tăng liều insulin" not in final
+    assert "điều chỉnh liều insulin nếu cần" not in final
+    assert "Nếu bác sĩ thấy cần, họ có thể điều chỉnh liều lượng" in final
+    assert "Đi bộ 30 phút" in final and SAFE_REPLACEMENT in final
+    assert "\n\n6. **Vận động**" in final
+
+
+def test_safe_stream_after_block_drops_self_dose_adjustment():
+    from diacare.rules import SafeStream
+    shown = []
+    s = SafeStream(shown.append)
+    s(BLOCKED_JOURNAL_DRAFT)
+    s.flush()
+    assert "điều chỉnh liều insulin nếu cần" not in shown[-1] and "Đi bộ 30 phút" in shown[-1]
+
+
+def test_dose_adjust_alone_not_blocked():
+    # Không có câu bị chặn thì lớp lọc thêm không chạy: bộ phát hiện giữ nguyên như trước.
+    text = "Hãy liên hệ bác sĩ để điều chỉnh liều insulin. Ăn nhiều rau xanh và đi bộ mỗi ngày nhé."
+    final, flags = apply_rules(0.1, text)
+    assert "unsafe_advice_blocked" not in flags and text in final
