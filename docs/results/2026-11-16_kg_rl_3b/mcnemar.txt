@@ -1,0 +1,26 @@
+### v2 vs v2_kg (--rescore)
+A = v2/qwen2.5:3b
+B = v2_kg/qwen2.5:3b
+Số ca chung: 50 (đạt = đạt mọi lượt)
+  cả hai đạt: 16 | chỉ A đạt: 2 | chỉ B đạt: 1 | cả hai trượt: 31
+  McNemar chính xác, hai phía: p = 1.0000  (chưa đủ bằng chứng là khác nhau)
+  chỉ A đạt: diet_5, memory_3
+  chỉ B đạt: risk_referral_3
+
+### v2_kg vs v2_kg_rl (--rescore)
+A = v2_kg/qwen2.5:3b
+B = v2_kg_rl/qwen2.5:3b
+Số ca chung: 50 (đạt = đạt mọi lượt)
+  cả hai đạt: 17 | chỉ A đạt: 0 | chỉ B đạt: 2 | cả hai trượt: 31
+  McNemar chính xác, hai phía: p = 0.5000  (chưa đủ bằng chứng là khác nhau)
+  chỉ B đạt: diet_2, diet_6
+
+### v2 vs v2_kg_rl (--rescore)
+A = v2/qwen2.5:3b
+B = v2_kg_rl/qwen2.5:3b
+Số ca chung: 50 (đạt = đạt mọi lượt)
+  cả hai đạt: 16 | chỉ A đạt: 2 | chỉ B đạt: 3 | cả hai trượt: 29
+  McNemar chính xác, hai phía: p = 1.0000  (chưa đủ bằng chứng là khác nhau)
+  chỉ A đạt: diet_5, memory_3
+  chỉ B đạt: diet_2, diet_6, risk_referral_3
+

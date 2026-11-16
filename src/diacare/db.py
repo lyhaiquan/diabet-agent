@@ -3,6 +3,8 @@ import sqlite3
 import unicodedata
 from datetime import datetime, timezone
 
+from diacare.crypto import cipher_for
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS patients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,8 +144,13 @@ def _key(text):
 
 
 class Store:
-    def __init__(self, path=":memory:", init_schema=True, timeout=10.0):
-        """init_schema=False: chỉ mở kết nối (API mở một kết nối cho mỗi request, schema đã tạo lúc khởi động)."""
+    def __init__(self, path=":memory:", init_schema=True, timeout=10.0, cipher=None):
+        """init_schema=False: chỉ mở kết nối (API mở một kết nối cho mỗi request, schema đã tạo lúc khởi động).
+
+        Các cột chữ chứa thông tin sức khoẻ được mã hoá (diacare.crypto): tên và hồ sơ bệnh nhân, nội dung hội thoại,
+        câu hỏi/bản nháp/câu trả lời trong runs, trí nhớ dài hạn, bản tóm tắt, ghi chú, câu hỏi cho bác sĩ.
+        """
+        self.cipher = cipher or cipher_for(path)
         self.conn = sqlite3.connect(str(path), check_same_thread=False, timeout=timeout)
         self.conn.row_factory = sqlite3.Row
         if init_schema:
@@ -172,19 +179,35 @@ class Store:
     def close(self):
         self.conn.close()
 
+    def _e(self, text):
+        return self.cipher.enc(text)
+
+    def _d(self, value):
+        return self.cipher.dec(value)
+
+    def _row(self, row, *cols):
+        """dict(row) với các cột `cols` đã giải mã."""
+        if row is None:
+            return None
+        out = dict(row)
+        for c in cols:
+            out[c] = self._d(out[c])
+        return out
+
     def save_patient(self, name, profile, user_id=None):
         cur = self.conn.execute(
             "INSERT INTO patients (name, profile_json, created_at, user_id) VALUES (?, ?, ?, ?)",
-            (name, _dumps(profile), _now(), user_id),
+            (self._e(name), self._e(_dumps(profile)), _now(), user_id),
         )
         self.conn.commit()
         return cur.lastrowid
 
     def update_patient(self, patient_id, name=None, profile=None):
         if name is not None:
-            self.conn.execute("UPDATE patients SET name = ? WHERE id = ?", (name, patient_id))
+            self.conn.execute("UPDATE patients SET name = ? WHERE id = ?", (self._e(name), patient_id))
         if profile is not None:
-            self.conn.execute("UPDATE patients SET profile_json = ? WHERE id = ?", (_dumps(profile), patient_id))
+            self.conn.execute("UPDATE patients SET profile_json = ? WHERE id = ?",
+                              (self._e(_dumps(profile)), patient_id))
         self.conn.commit()
 
     # ---------- tài khoản (dịch vụ API) ----------
@@ -222,12 +245,11 @@ class Store:
             " GROUP BY s.id ORDER BY s.id DESC", (patient_id,)).fetchall()
         return [dict(r) for r in rows]
 
-    @staticmethod
-    def _patient(row):
+    def _patient(self, row):
         return {
             "id": row["id"],
-            "name": row["name"],
-            "profile": json.loads(row["profile_json"]),
+            "name": self._d(row["name"]),
+            "profile": json.loads(self._d(row["profile_json"])),
             "created_at": row["created_at"],
         }
 
@@ -254,7 +276,7 @@ class Store:
     def add_message(self, session_id, role, content, rl_event_id=None):
         self.conn.execute(
             "INSERT INTO messages (session_id, role, content, created_at, rl_event_id) VALUES (?, ?, ?, ?, ?)",
-            (session_id, role, content, _now(), rl_event_id),
+            (session_id, role, self._e(content), _now(), rl_event_id),
         )
         self.conn.commit()
 
@@ -268,7 +290,7 @@ class Store:
         ).fetchall()
         out = []
         for r in reversed(rows):
-            m = {"role": r["role"], "content": r["content"]}
+            m = {"role": r["role"], "content": self._d(r["content"])}
             if r["rl_event_id"] is not None:
                 m["rl_event_id"], m["rl_action"] = r["rl_event_id"], r["action"]
             out.append(m)
@@ -325,7 +347,7 @@ class Store:
             "SELECT id, content FROM memories WHERE patient_id = ? AND kind = ?", (patient_id, kind)
         ).fetchall()
         for r in rows:
-            if _key(r["content"]) == _key(content):
+            if _key(self._d(r["content"])) == _key(content):
                 self.conn.execute(
                     "UPDATE memories SET updated_at = ?, active = 1 WHERE id = ?", (_now(), r["id"]))
                 self.conn.commit()
@@ -334,7 +356,7 @@ class Store:
         cur = self.conn.execute(
             "INSERT INTO memories (patient_id, kind, content, source, created_at, updated_at, active)"
             " VALUES (?, ?, ?, ?, ?, ?, 1)",
-            (patient_id, kind, content, source, now, now),
+            (patient_id, kind, self._e(content), source, now, now),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -344,7 +366,7 @@ class Store:
         n = 0
         for r in self.conn.execute("SELECT id, content FROM memories WHERE patient_id = ? AND kind = ? AND active = 1",
                                    (patient_id, kind)).fetchall():
-            if _key(r["content"]) == _key(content):
+            if _key(self._d(r["content"])) == _key(content):
                 self.conn.execute("UPDATE memories SET active = 0, updated_at = ? WHERE id = ?", (_now(), r["id"]))
                 n += 1
         self.conn.commit()
@@ -355,7 +377,7 @@ class Store:
         if active_only:
             sql += " AND active = 1"
         rows = self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()
-        return [{**dict(r), "active": bool(r["active"])} for r in rows]
+        return [{**self._row(r, "content"), "active": bool(r["active"])} for r in rows]
 
     def deactivate_memory(self, memory_id):
         self.conn.execute(
@@ -396,7 +418,7 @@ class Store:
             "INSERT INTO readings (patient_id, kind, value, value2, unit, context, measured_at, note, created_at)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (patient_id, kind, float(value), None if value2 is None else float(value2), unit, context,
-             measured_at, note, _now()))
+             measured_at, self._e(note), _now()))
         self.conn.commit()
         return cur.lastrowid
 
@@ -406,7 +428,7 @@ class Store:
             sql += " AND kind = ?"
             args.append(kind)
         rows = self.conn.execute(sql + " ORDER BY measured_at ASC, id ASC", args).fetchall()
-        return [dict(r) for r in rows]
+        return [self._row(r, "note") for r in rows]
 
     def delete_reading(self, reading_id, patient_id):
         self.conn.execute("DELETE FROM readings WHERE id = ? AND patient_id = ?", (reading_id, patient_id))
@@ -416,14 +438,14 @@ class Store:
         """Lịch tái khám sắp tới; lịch mới thay lịch cũ (giữ lại trong bảng để xem lại)."""
         cur = self.conn.execute(
             "INSERT INTO appointments (patient_id, date, place, note, created_at) VALUES (?, ?, ?, ?, ?)",
-            (patient_id, str(date), place, note, _now()))
+            (patient_id, str(date), self._e(place), self._e(note), _now()))
         self.conn.commit()
         return cur.lastrowid
 
     def get_appointment(self, patient_id):
         row = self.conn.execute(
             "SELECT * FROM appointments WHERE patient_id = ? ORDER BY id DESC LIMIT 1", (patient_id,)).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "place", "note")
 
     # ---------- mục tiêu đường huyết riêng do bác sĩ đặt (mg/dL); không có dòng = mục tiêu chung ----------
     def set_targets(self, patient_id, pre_lo, pre_hi, post_max, note=None):
@@ -431,12 +453,12 @@ class Store:
             "INSERT INTO targets (patient_id, pre_lo, pre_hi, post_max, note, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
             " ON CONFLICT(patient_id) DO UPDATE SET pre_lo = excluded.pre_lo, pre_hi = excluded.pre_hi,"
             " post_max = excluded.post_max, note = excluded.note, updated_at = excluded.updated_at",
-            (patient_id, float(pre_lo), float(pre_hi), float(post_max), note, _now()))
+            (patient_id, float(pre_lo), float(pre_hi), float(post_max), self._e(note), _now()))
         self.conn.commit()
 
     def get_targets(self, patient_id):
         row = self.conn.execute("SELECT * FROM targets WHERE patient_id = ?", (patient_id,)).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "note")
 
     def clear_targets(self, patient_id):
         self.conn.execute("DELETE FROM targets WHERE patient_id = ?", (patient_id,))
@@ -445,25 +467,25 @@ class Store:
     def add_doctor_question(self, patient_id, text):
         cur = self.conn.execute(
             "INSERT INTO doctor_questions (patient_id, text, created_at) VALUES (?, ?, ?)",
-            (patient_id, text.strip(), _now()))
+            (patient_id, self._e(text.strip()), _now()))
         self.conn.commit()
         return cur.lastrowid
 
     def list_doctor_questions(self, patient_id, include_done=False):
         sql = "SELECT * FROM doctor_questions WHERE patient_id = ?" + ("" if include_done else " AND done = 0")
-        return [dict(r) for r in self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()]
+        return [self._row(r, "text") for r in self.conn.execute(sql + " ORDER BY id ASC", (patient_id,)).fetchall()]
 
     def get_doctor_question(self, question_id):
         row = self.conn.execute("SELECT * FROM doctor_questions WHERE id = ?", (question_id,)).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "text")
 
     def get_reading(self, reading_id):
         row = self.conn.execute("SELECT * FROM readings WHERE id = ?", (reading_id,)).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "note")
 
     def get_memory(self, memory_id):
         row = self.conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "content")
 
     def mark_doctor_question(self, question_id, done=True):
         self.conn.execute("UPDATE doctor_questions SET done = ? WHERE id = ?", (int(done), question_id))
@@ -473,7 +495,7 @@ class Store:
         cur = self.conn.execute(
             "INSERT INTO summaries (session_id, upto_message_index, content, created_at, anchor)"
             " VALUES (?, ?, ?, ?, ?)",
-            (session_id, upto_message_index, content, _now(), anchor),
+            (session_id, upto_message_index, self._e(content), _now(), anchor),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -482,7 +504,7 @@ class Store:
         row = self.conn.execute(
             "SELECT * FROM summaries WHERE session_id = ? ORDER BY id DESC LIMIT 1", (session_id,)
         ).fetchone()
-        return dict(row) if row else None
+        return self._row(row, "content")
 
     def log_run(self, session_id, state, error=None):
         cur = self.conn.execute(
@@ -491,12 +513,12 @@ class Store:
             (
                 session_id,
                 _now(),
-                state.question,
+                self._e(state.question),
                 state.risk,
                 _dumps(state.flags),
                 _dumps([d["source"] for d in state.docs]),
-                state.draft,
-                state.final,
+                self._e(state.draft),
+                self._e(state.final),
                 _dumps(state.usage),
                 error,
                 _dumps(getattr(state, "trace", [])),
@@ -512,12 +534,12 @@ class Store:
                 "id": r["id"],
                 "session_id": r["session_id"],
                 "ts": r["ts"],
-                "question": r["question"],
+                "question": self._d(r["question"]),
                 "risk": r["risk"],
                 "flags": json.loads(r["flags_json"] or "[]"),
                 "sources": json.loads(r["sources_json"] or "[]"),
-                "draft": r["draft"],
-                "final": r["final"],
+                "draft": self._d(r["draft"]),
+                "final": self._d(r["final"]),
                 "usage": json.loads(r["usage_json"] or "{}"),
                 "error": r["error"],
                 "trace": json.loads(r["trace_json"] or "[]"),

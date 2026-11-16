@@ -347,3 +347,77 @@ def _trace_orch(streaming=False):
         return text
 
     return Orchestrator(P(), R(), llm if streaming else (lambda messages: "Hãy ăn nhiều rau [ada.txt]."))
+
+
+class _SlowPredictor(FakePredictor):
+    def predict(self, profile):
+        import time
+        time.sleep(0.25)
+        return super().predict(profile)
+
+
+class _SlowRetriever(FakeRetriever):
+    def search(self, query, k=4):
+        import time
+        time.sleep(0.25)
+        return super().search(query, k)
+
+
+class _SlowGraph:
+    def lookup(self, question):
+        import time
+        time.sleep(0.25)
+        return {"backend": "bộ nhớ", "factors": [], "lines": []}
+
+
+class _BrokenGraph:
+    def lookup(self, question):
+        raise ConnectionError("neo4j không chạy")
+
+
+class _BrokenNutrition:
+    def analyze(self, question):
+        raise RuntimeError("bảng món ăn hỏng")
+
+
+def _run(parallel, graph=None, nutrition=None, predictor=None, retriever=None):
+    import time
+    orch = Orchestrator(predictor or _SlowPredictor(0.9), retriever or _SlowRetriever(), lambda m: "Hãy giảm đường [ada.txt].",
+                        graph_agent=graph, nutrition_agent=nutrition, parallel=parallel)
+    t = time.perf_counter()
+    state = orch.run(State(question="Nên ăn gì?", profile=dict(LOW_RISK)))
+    return state, time.perf_counter() - t
+
+
+def test_independent_agents_run_in_parallel():
+    seq, t_seq = _run(False, graph=_SlowGraph())
+    par, t_par = _run(True, graph=_SlowGraph())
+    assert t_seq >= 0.75 and t_par < 0.6          # ba agent 0,25 giây: nối tiếp 0,75 giây, song song khoảng 0,25 giây
+    assert par.final == seq.final and par.flags == seq.flags
+    assert [e["agent"] for e in par.trace] == [e["agent"] for e in seq.trace]   # thứ tự vết không đổi
+    assert all(200 <= e["ms"] < 600 for e in par.trace if e["agent"] in ("Predictor", "Retriever", "Graph"))
+
+
+def test_optional_agent_failure_is_skipped_not_fatal():
+    for parallel in (True, False):
+        state, _ = _run(parallel, graph=_BrokenGraph(), nutrition=_BrokenNutrition(),
+                        predictor=FakePredictor(0.9), retriever=FakeRetriever())
+        assert "system_error" not in state.flags and "giảm đường" in state.final
+        details = {e["agent"]: e["detail"] for e in state.trace}
+        assert "ConnectionError" in details["Graph"] and "RuntimeError" in details["Nutrition"]
+        assert state.kg is None and state.nutrition is None
+
+
+def test_required_agent_failure_is_still_fatal_in_parallel():
+    class Boom(FakeRetriever):
+        def search(self, query, k=4):
+            raise RuntimeError("chỉ mục hỏng")
+    state, _ = _run(True, graph=_SlowGraph(), predictor=FakePredictor(0.9), retriever=Boom())
+    assert state.flags == ["system_error"]
+
+
+def test_parallel_can_be_disabled_by_env(monkeypatch):
+    monkeypatch.setenv("DIACARE_PARALLEL", "0")
+    assert Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "x").parallel is False
+    monkeypatch.delenv("DIACARE_PARALLEL")
+    assert Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "x").parallel is True

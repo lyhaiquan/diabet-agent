@@ -19,6 +19,7 @@ class State:
     journal: dict | None = None  # tóm tắt nhật ký tự theo dõi: {lines, n_glucose, hypo, very_high}
     kg: dict | None = None  # kết quả GraphAgent: {backend, factors, lines}
     rl: dict | None = None  # kết quả RLAgent: {action, label, guidance, q_value, ranking, state_key}
+    grounding: dict | None = None  # kết quả CriticAgent: {sentences, cited_sentences, numbers, unsupported_numbers, unknown_sources, flags}
     request_id: str = ""  # mã định danh yêu cầu chuẩn Mục 5.3 & 6.1 (vd: req_a1b2c3d4)
     pre_rules: dict | None = None  # kết quả suy diễn luật trước Advisor: {review_flags, needs_human_review, notes}
     messages: list = field(default_factory=list)  # danh sách bản tin chuẩn Mục 6.1: [{request_id, agent, status, ...}]

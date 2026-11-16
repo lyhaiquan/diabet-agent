@@ -1,30 +1,325 @@
 [
- {"id": "hypo_symptoms", "q": "Hạ đường huyết có những triệu chứng gì?", "relevant": ["medlineplus_hypoglycemia.txt"], "note": "Mục 'symptoms of hypoglycemia': run rẩy, đổ mồ hôi, chóng mặt."},
- {"id": "hypo_threshold", "q": "Đường huyết dưới bao nhiêu thì gọi là hạ đường huyết?", "relevant": ["medlineplus_hypoglycemia.txt"], "note": "Định nghĩa hypoglycemia: dưới 70 mg/dL (55 nếu không có tiểu đường)."},
- {"id": "hypo_glucagon", "q": "Tôi bị hạ đường huyết nặng thì xử trí thế nào, có cần glucagon không?", "relevant": ["medlineplus_hypoglycemia.txt"], "note": "Mục điều trị hạ đường huyết, glucagon dạng xịt mũi/tiêm."},
- {"id": "hypo_exercise", "q": "Làm sao tránh bị tụt đường huyết khi tập thể dục?", "relevant": ["medlineplus_hypoglycemia.txt"], "note": "Mục phòng ngừa: kiểm tra đường huyết trước/sau vận động, ăn nhẹ."},
- {"id": "diet_foods", "q": "Người bệnh tiểu đường nên ăn những nhóm thực phẩm nào?", "relevant": ["medlineplus_diabetic_diet.txt"], "note": "Mục 'what foods should I eat': rau quả, ngũ cốc nguyên hạt, đạm, sữa ít béo."},
- {"id": "diet_carb_count", "q": "Đếm carbohydrate là gì và vì sao người dùng insulin cần làm vậy?", "relevant": ["medlineplus_diabetic_diet.txt"], "note": "Đoạn 'count carbs to know how much insulin to take' trong bài chế độ ăn."},
- {"id": "diet_limit", "q": "Tôi nên hạn chế đồ ăn thức uống nào để kiểm soát đường huyết?", "relevant": ["medlineplus_diabetic_diet.txt"], "note": "Mục 'foods to limit': đồ ngọt, nước có đường, cơm trắng, đồ chiên."},
- {"id": "diet_alcohol", "q": "Uống rượu bia có ảnh hưởng gì với người tiểu đường?", "relevant": ["medlineplus_diabetic_diet.txt", "medlineplus_hypoglycemia.txt"], "note": "Cồn: giới hạn trong bài chế độ ăn; uống rượu không ăn gây hạ đường huyết trong bài hypoglycemia."},
- {"id": "diet_plan", "q": "Có một thực đơn chuẩn nào hợp với mọi người bệnh tiểu đường không?", "relevant": ["medlineplus_diabetic_diet.txt"], "note": "'There isn't a specific diet or meal plan that works for everybody.'"},
- {"id": "who_prevalence", "q": "Trên thế giới hiện có bao nhiêu người sống chung với bệnh tiểu đường?", "relevant": ["who_diabetes_factsheet.txt"], "note": "Số liệu 830 triệu người năm 2022 chỉ có trong WHO."},
- {"id": "who_deaths", "q": "Mỗi năm bệnh tiểu đường gây ra bao nhiêu ca tử vong?", "relevant": ["who_diabetes_factsheet.txt"], "note": "2,0 triệu ca tử vong trực tiếp năm 2023 (WHO)."},
- {"id": "who_response", "q": "Tổ chức Y tế Thế giới đã làm gì để phòng chống bệnh tiểu đường?", "relevant": ["who_diabetes_factsheet.txt"], "note": "Mục 'WHO response': Global Diabetes Compact, hướng dẫn, giám sát."},
- {"id": "who_complications", "q": "Tiểu đường lâu năm gây biến chứng gì cho mắt, thận và bàn chân?", "relevant": ["who_diabetes_factsheet.txt"], "note": "Biến chứng mù lòa, suy thận, loét bàn chân: chi tiết trong WHO."},
- {"id": "t2_causes", "q": "Nguyên nhân gây ra tiểu đường type 2 là gì?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt"], "note": "Mục 'What causes type 2 diabetes' có ở cả bài type 2 và bài tổng quan."},
- {"id": "t2_risk", "q": "Những ai có nguy cơ cao mắc tiểu đường type 2?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt"], "note": "Danh sách yếu tố nguy cơ (tuổi, thừa cân, tiền sử gia đình) ở cả hai bài."},
- {"id": "t2_insulin_resistance", "q": "Kháng insulin là gì?", "relevant": ["medlineplus_type2_diabetes.txt"], "note": "'Insulin resistance' chỉ được giải thích trong bài type 2."},
- {"id": "a1c", "q": "Xét nghiệm HbA1c dùng để làm gì?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt"], "note": "A1C đo đường huyết trung bình 3 tháng (bài type 2), nhắc tới trong bài tổng quan."},
- {"id": "metformin", "q": "Thuốc metformin dùng để làm gì?", "relevant": ["who_diabetes_factsheet.txt"], "note": "Metformin chỉ xuất hiện trong danh sách thuốc của WHO."},
- {"id": "type1_vs_type2", "q": "Tiểu đường type 1 khác type 2 ở điểm nào?", "relevant": ["medlineplus_diabetes.txt", "who_diabetes_factsheet.txt"], "note": "Hai bài có mục mô tả từng loại."},
- {"id": "gestational", "q": "Tiểu đường thai kỳ là gì và được sàng lọc khi nào?", "relevant": ["medlineplus_diabetes.txt", "who_diabetes_factsheet.txt"], "note": "Mục gestational diabetes: tuần 24-28 (MedlinePlus), sàng lọc trước sinh (WHO)."},
- {"id": "symptoms", "q": "Các dấu hiệu nhận biết bệnh tiểu đường là gì?", "relevant": ["medlineplus_diabetes.txt", "medlineplus_type2_diabetes.txt", "who_diabetes_factsheet.txt"], "note": "Triệu chứng: khát, tiểu nhiều, mệt, mờ mắt - có trong ba bài."},
- {"id": "t2_prevent", "q": "Làm thế nào để phòng ngừa hoặc trì hoãn tiểu đường type 2?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt", "who_diabetes_factsheet.txt"], "note": "Mục phòng ngừa: giảm cân, vận động, ăn lành mạnh (ba bài)."},
- {"id": "t2_treatment", "q": "Điều trị tiểu đường type 2 gồm những biện pháp nào?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt", "who_diabetes_factsheet.txt"], "note": "Lối sống và thuốc: mục treatment ở ba bài."},
- {"id": "monitoring", "q": "Bao lâu thì tôi nên kiểm tra đường huyết một lần?", "relevant": ["medlineplus_type2_diabetes.txt", "medlineplus_diabetes.txt", "medlineplus_hypoglycemia.txt"], "note": "Hỏi nhà cung cấp dịch vụ y tế về tần suất (type 2, tổng quan); kiểm tra hằng ngày (hypoglycemia)."},
- {"id": "off_weather", "q": "Hôm nay thời tiết Hà Nội thế nào?", "relevant": [], "note": "Ngoài chủ đề: thời tiết."},
- {"id": "off_football", "q": "Tối qua đội tuyển Việt Nam đá bóng thắng mấy bàn?", "relevant": [], "note": "Ngoài chủ đề: bóng đá."},
- {"id": "off_pho", "q": "Hướng dẫn tôi cách nấu phở bò ngon tại nhà", "relevant": [], "note": "Ngoài chủ đề: nấu phở (không phải thực đơn tiểu đường)."},
- {"id": "off_gold", "q": "Giá vàng hôm nay là bao nhiêu?", "relevant": [], "note": "Ngoài chủ đề: giá vàng."}
+ {
+  "id": "hypo_symptoms",
+  "q": "Hạ đường huyết có những triệu chứng gì?",
+  "relevant": [
+   "medlineplus_hypoglycemia.txt",
+   "medlineplus_blood_sugar.txt"
+  ],
+  "note": "Mục 'symptoms of hypoglycemia': run rẩy, đổ mồ hôi, chóng mặt. (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "hypo_threshold",
+  "q": "Đường huyết dưới bao nhiêu thì gọi là hạ đường huyết?",
+  "relevant": [
+   "medlineplus_hypoglycemia.txt",
+   "medlineplus_blood_sugar.txt"
+  ],
+  "note": "Định nghĩa hypoglycemia: dưới 70 mg/dL (55 nếu không có tiểu đường). (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "hypo_glucagon",
+  "q": "Tôi bị hạ đường huyết nặng thì xử trí thế nào, có cần glucagon không?",
+  "relevant": [
+   "medlineplus_hypoglycemia.txt"
+  ],
+  "note": "Mục điều trị hạ đường huyết, glucagon dạng xịt mũi/tiêm."
+ },
+ {
+  "id": "hypo_exercise",
+  "q": "Làm sao tránh bị tụt đường huyết khi tập thể dục?",
+  "relevant": [
+   "medlineplus_hypoglycemia.txt"
+  ],
+  "note": "Mục phòng ngừa: kiểm tra đường huyết trước/sau vận động, ăn nhẹ."
+ },
+ {
+  "id": "diet_foods",
+  "q": "Người bệnh tiểu đường nên ăn những nhóm thực phẩm nào?",
+  "relevant": [
+   "medlineplus_diabetic_diet.txt"
+  ],
+  "note": "Mục 'what foods should I eat': rau quả, ngũ cốc nguyên hạt, đạm, sữa ít béo."
+ },
+ {
+  "id": "diet_carb_count",
+  "q": "Đếm carbohydrate là gì và vì sao người dùng insulin cần làm vậy?",
+  "relevant": [
+   "medlineplus_diabetic_diet.txt"
+  ],
+  "note": "Đoạn 'count carbs to know how much insulin to take' trong bài chế độ ăn."
+ },
+ {
+  "id": "diet_limit",
+  "q": "Tôi nên hạn chế đồ ăn thức uống nào để kiểm soát đường huyết?",
+  "relevant": [
+   "medlineplus_diabetic_diet.txt"
+  ],
+  "note": "Mục 'foods to limit': đồ ngọt, nước có đường, cơm trắng, đồ chiên."
+ },
+ {
+  "id": "diet_alcohol",
+  "q": "Uống rượu bia có ảnh hưởng gì với người tiểu đường?",
+  "relevant": [
+   "medlineplus_diabetic_diet.txt",
+   "medlineplus_hypoglycemia.txt"
+  ],
+  "note": "Cồn: giới hạn trong bài chế độ ăn; uống rượu không ăn gây hạ đường huyết trong bài hypoglycemia."
+ },
+ {
+  "id": "diet_plan",
+  "q": "Có một thực đơn chuẩn nào hợp với mọi người bệnh tiểu đường không?",
+  "relevant": [
+   "medlineplus_diabetic_diet.txt"
+  ],
+  "note": "'There isn't a specific diet or meal plan that works for everybody.'"
+ },
+ {
+  "id": "who_prevalence",
+  "q": "Trên thế giới hiện có bao nhiêu người sống chung với bệnh tiểu đường?",
+  "relevant": [
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Số liệu 830 triệu người năm 2022 chỉ có trong WHO."
+ },
+ {
+  "id": "who_deaths",
+  "q": "Mỗi năm bệnh tiểu đường gây ra bao nhiêu ca tử vong?",
+  "relevant": [
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "2,0 triệu ca tử vong trực tiếp năm 2023 (WHO)."
+ },
+ {
+  "id": "who_response",
+  "q": "Tổ chức Y tế Thế giới đã làm gì để phòng chống bệnh tiểu đường?",
+  "relevant": [
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Mục 'WHO response': Global Diabetes Compact, hướng dẫn, giám sát."
+ },
+ {
+  "id": "who_complications",
+  "q": "Tiểu đường lâu năm gây biến chứng gì cho mắt, thận và bàn chân?",
+  "relevant": [
+   "who_diabetes_factsheet.txt",
+   "medlineplus_diabetes_complications.txt",
+   "medlineplus_diabetic_eye.txt",
+   "medlineplus_diabetic_kidney.txt",
+   "medlineplus_diabetic_foot.txt"
+  ],
+  "note": "Biến chứng mù lòa, suy thận, loét bàn chân: chi tiết trong WHO. (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "t2_causes",
+  "q": "Nguyên nhân gây ra tiểu đường type 2 là gì?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt"
+  ],
+  "note": "Mục 'What causes type 2 diabetes' có ở cả bài type 2 và bài tổng quan."
+ },
+ {
+  "id": "t2_risk",
+  "q": "Những ai có nguy cơ cao mắc tiểu đường type 2?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt"
+  ],
+  "note": "Danh sách yếu tố nguy cơ (tuổi, thừa cân, tiền sử gia đình) ở cả hai bài."
+ },
+ {
+  "id": "t2_insulin_resistance",
+  "q": "Kháng insulin là gì?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt"
+  ],
+  "note": "'Insulin resistance' chỉ được giải thích trong bài type 2."
+ },
+ {
+  "id": "a1c",
+  "q": "Xét nghiệm HbA1c dùng để làm gì?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt",
+   "medlineplus_blood_sugar.txt",
+   "medlineplus_prediabetes.txt"
+  ],
+  "note": "A1C đo đường huyết trung bình 3 tháng (bài type 2), nhắc tới trong bài tổng quan. (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "metformin",
+  "q": "Thuốc metformin dùng để làm gì?",
+  "relevant": [
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Metformin chỉ xuất hiện trong danh sách thuốc của WHO."
+ },
+ {
+  "id": "type1_vs_type2",
+  "q": "Tiểu đường type 1 khác type 2 ở điểm nào?",
+  "relevant": [
+   "medlineplus_diabetes.txt",
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Hai bài có mục mô tả từng loại."
+ },
+ {
+  "id": "gestational",
+  "q": "Tiểu đường thai kỳ là gì và được sàng lọc khi nào?",
+  "relevant": [
+   "medlineplus_diabetes.txt",
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Mục gestational diabetes: tuần 24-28 (MedlinePlus), sàng lọc trước sinh (WHO)."
+ },
+ {
+  "id": "symptoms",
+  "q": "Các dấu hiệu nhận biết bệnh tiểu đường là gì?",
+  "relevant": [
+   "medlineplus_diabetes.txt",
+   "medlineplus_type2_diabetes.txt",
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Triệu chứng: khát, tiểu nhiều, mệt, mờ mắt - có trong ba bài."
+ },
+ {
+  "id": "t2_prevent",
+  "q": "Làm thế nào để phòng ngừa hoặc trì hoãn tiểu đường type 2?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt",
+   "who_diabetes_factsheet.txt",
+   "medlineplus_prediabetes.txt"
+  ],
+  "note": "Mục phòng ngừa: giảm cân, vận động, ăn lành mạnh (ba bài). (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "t2_treatment",
+  "q": "Điều trị tiểu đường type 2 gồm những biện pháp nào?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt",
+   "who_diabetes_factsheet.txt"
+  ],
+  "note": "Lối sống và thuốc: mục treatment ở ba bài."
+ },
+ {
+  "id": "monitoring",
+  "q": "Bao lâu thì tôi nên kiểm tra đường huyết một lần?",
+  "relevant": [
+   "medlineplus_type2_diabetes.txt",
+   "medlineplus_diabetes.txt",
+   "medlineplus_hypoglycemia.txt",
+   "medlineplus_blood_sugar.txt"
+  ],
+  "note": "Hỏi nhà cung cấp dịch vụ y tế về tần suất (type 2, tổng quan); kiểm tra hằng ngày (hypoglycemia). (Kho V4.6: thêm bài mới có cùng nội dung, xác định bằng đọc tài liệu trước khi chạy đánh giá.)"
+ },
+ {
+  "id": "foot_care",
+  "q": "Người tiểu đường nên chăm sóc bàn chân hằng ngày như thế nào?",
+  "relevant": [
+   "medlineplus_diabetic_foot.txt"
+  ],
+  "note": "Mục chăm sóc bàn chân hằng ngày. (V4.6)"
+ },
+ {
+  "id": "foot_ulcer",
+  "q": "Vết loét ở chân người tiểu đường nguy hiểm thế nào, có phải cắt cụt không?",
+  "relevant": [
+   "medlineplus_diabetic_foot.txt",
+   "medlineplus_diabetes_complications.txt"
+  ],
+  "note": "Loét, nhiễm trùng, hoại tử, cắt cụt. (V4.6)"
+ },
+ {
+  "id": "eye_exam",
+  "q": "Người bị tiểu đường có cần khám mắt định kỳ không?",
+  "relevant": [
+   "medlineplus_diabetic_eye.txt"
+  ],
+  "note": "Khám mắt giãn đồng tử hằng năm. (V4.6)"
+ },
+ {
+  "id": "eye_retinopathy",
+  "q": "Bệnh võng mạc do tiểu đường là gì?",
+  "relevant": [
+   "medlineplus_diabetic_eye.txt"
+  ],
+  "note": "Diabetic retinopathy. (V4.6)"
+ },
+ {
+  "id": "kidney_test",
+  "q": "Xét nghiệm nào giúp phát hiện sớm bệnh thận do tiểu đường?",
+  "relevant": [
+   "medlineplus_diabetic_kidney.txt"
+  ],
+  "note": "Xét nghiệm protein niệu và máu. (V4.6)"
+ },
+ {
+  "id": "neuropathy",
+  "q": "Tê bì, châm chích ở bàn chân có phải do tiểu đường không?",
+  "relevant": [
+   "medlineplus_diabetic_nerve.txt",
+   "medlineplus_diabetic_foot.txt"
+  ],
+  "note": "Bệnh thần kinh do tiểu đường. (V4.6)"
+ },
+ {
+  "id": "med_types",
+  "q": "Có những loại thuốc điều trị tiểu đường nào ngoài insulin?",
+  "relevant": [
+   "medlineplus_diabetes_medicines.txt"
+  ],
+  "note": "Thuốc uống, thuốc tiêm không phải insulin. (V4.6)"
+ },
+ {
+  "id": "prediabetes_def",
+  "q": "Tiền tiểu đường là gì, có quay lại bình thường được không?",
+  "relevant": [
+   "medlineplus_prediabetes.txt"
+  ],
+  "note": "Định nghĩa và thay đổi lối sống. (V4.6)"
+ },
+ {
+  "id": "hyper_symptoms",
+  "q": "Đường huyết cao có những dấu hiệu gì?",
+  "relevant": [
+   "medlineplus_hyperglycemia.txt",
+   "medlineplus_blood_sugar.txt"
+  ],
+  "note": "Symptoms of hyperglycemia. (V4.6)"
+ },
+ {
+  "id": "cgm",
+  "q": "Máy đo đường huyết liên tục CGM hoạt động thế nào?",
+  "relevant": [
+   "medlineplus_blood_sugar.txt"
+  ],
+  "note": "Continuous glucose monitoring. (V4.6)"
+ },
+ {
+  "id": "off_weather",
+  "q": "Hôm nay thời tiết Hà Nội thế nào?",
+  "relevant": [],
+  "note": "Ngoài chủ đề: thời tiết."
+ },
+ {
+  "id": "off_football",
+  "q": "Tối qua đội tuyển Việt Nam đá bóng thắng mấy bàn?",
+  "relevant": [],
+  "note": "Ngoài chủ đề: bóng đá."
+ },
+ {
+  "id": "off_pho",
+  "q": "Hướng dẫn tôi cách nấu phở bò ngon tại nhà",
+  "relevant": [],
+  "note": "Ngoài chủ đề: nấu phở (không phải thực đơn tiểu đường)."
+ },
+ {
+  "id": "off_gold",
+  "q": "Giá vàng hôm nay là bao nhiêu?",
+  "relevant": [],
+  "note": "Ngoài chủ đề: giá vàng."
+ }
 ]

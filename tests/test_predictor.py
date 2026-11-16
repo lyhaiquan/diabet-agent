@@ -46,3 +46,13 @@ def test_bench_report_renders_multisource_metrics():
     pm = json.loads((MODELS / "metrics.json").read_text(encoding="utf-8"))
     rep = build_report({}, {"title": "t", "predictor_metrics": pm, "k": 1, "n_cases": 0})
     assert "| nhanes |" in rep and "AUC mô hình cũ" in rep
+
+
+def test_compare_models_runs_both_on_same_profile():
+    from diacare.predictor import compare_models
+    rows = compare_models(Path(__file__).resolve().parent.parent / "models", HIGH_RISK)
+    assert [r["kind"] for r in rows] == ["v1", "multisource"]
+    assert all(0 < r["probability"] < 1 and r["band"] in ("thấp", "trung bình", "cao") for r in rows)
+    assert rows[0]["calibrated"] is False and rows[1]["calibrated"] is True
+    low = compare_models(Path(__file__).resolve().parent.parent / "models", LOW_RISK)
+    assert all(h["probability"] > l["probability"] for h, l in zip(rows, low))

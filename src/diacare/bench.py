@@ -251,7 +251,8 @@ def run_benchmark(orch, cases, k, clock=time.perf_counter):
                 rec = {"ok": ok, "reasons": reasons, "flags": list(state.flags),
                        "usage": dict(state.usage or {}), "draft": state.draft, "final": state.final,
                        "sources": [d["source"] for d in state.docs],
-                       "journal": bool(getattr(state, "journal", None)), "appointment_date": appt}
+                       "journal": bool(getattr(state, "journal", None)), "appointment_date": appt,
+                       "grounding": getattr(state, "grounding", None)}
             except Exception as exc:
                 rec = {"ok": False, "reasons": [f"exception: {type(exc).__name__}"], "flags": [],
                        "usage": {}, "draft": "", "final": "", "sources": []}

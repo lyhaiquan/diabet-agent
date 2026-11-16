@@ -30,7 +30,8 @@ flowchart LR
     F -.-> LOG[(log từng bước agent)]
 ```
 
-Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗi agent chỉ nhận lát ngữ cảnh mình cần
+Orchestrator gọi các agent **theo thứ tự cố định**; bốn agent chỉ đọc câu hỏi và hồ sơ (Predictor, Retriever, Graph,
+Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tuần tự). Mỗi agent chỉ nhận lát ngữ cảnh mình cần
 (`build_context`), bộ nhớ đứng trước xét nghiệm, rồi đến dinh dưỡng, đồ thị tri thức, định hướng RL và tài liệu khi cắt theo ngân sách token.
 
 | Agent / Module | File | Vai trò |
@@ -45,6 +46,8 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 | RL | `src/diacare/rl.py` | Contextual bandit chọn trọng tâm tư vấn, học từ phản hồi người dùng (bảng `rl_events`, `rl_model`) |
 | Advisor | `src/diacare/advisor.py`, `llm.py` | Gọi Ollama `/api/chat`, hỗ trợ stream |
 | Rules | `src/diacare/rules.py` | Chặn lời khuyên đổi thuốc, gắn cờ chuyển khám / cấp cứu / xét nghiệm |
+| Critic (bước kiểm tra, không phải agent) | `src/diacare/critic.py` | So bản nháp với ngữ cảnh: nhãn nguồn lạ, con số có đơn vị không có trong ngữ cảnh; chỉ gắn cờ |
+| Guard | `src/diacare/guard.py` | Dò dấu hiệu prompt injection trong câu hỏi (gắn cờ), loại đoạn tài liệu có câu ra lệnh cho mô hình |
 
 ## Tính năng
 
@@ -77,7 +80,11 @@ Orchestrator gọi các agent **tuần tự theo thứ tự cố định**. Mỗ
 - **Xem agent hoạt động**: dưới mỗi câu trả lời có mục "Agent đã làm gì" (agent nào, làm gì, bao nhiêu ms).
   Trang **Hoạt động agent** có **sơ đồ động phát lại** đúng lượt chạy từ log, bảng từng bước, và biểu đồ thời gian
   trung bình mỗi agent. Log lưu trong SQLite (`runs.trace_json`) và `logs/runs.jsonl`.
-- **Hồ sơ bệnh nhân, phiên hội thoại, lịch sử, thống kê** lưu trong SQLite.
+- **Hồ sơ bệnh nhân, phiên hội thoại, lịch sử, thống kê** lưu trong SQLite. Các cột chữ chứa thông tin sức khoẻ (tên,
+  hồ sơ, hội thoại, trí nhớ, ghi chú, câu hỏi và câu trả lời trong log) được mã hoá Fernet; khoá ở `DIACARE_DB_KEY` hoặc
+  tệp `<tên DB>.key` sinh một lần cạnh DB. Mã hoá bảo vệ khi lộ riêng tệp `.db`, không bảo vệ khi lộ cả máy.
+- **So sánh hai mô hình dự đoán** trên cùng hồ sơ: MLP bản cũ và mô hình đa nguồn đã hiệu chỉnh
+  (`GET /patients/{id}/risk-models`, hoặc bảng trong chế độ nhà phát triển).
 - **Câu chào hỏi** được trả lời ngay, không dự đoán nguy cơ và không gọi LLM. Lời nhắc nguy cơ cao chỉ hiện một lần mỗi phiên,
   trừ khi người dùng hỏi thẳng.
 
@@ -218,12 +225,14 @@ Ba dịch vụ: `ollama` (tự tải `qwen2.5:3b`, khoảng 1,9 GB ở lần đ�
 volume `diacare-data`; `docker compose down` không xoá, `docker compose down -v` mới xoá.
 
 - Đổi model: `DIACARE_MODEL=qwen2.5:7b docker compose up --build`.
-- Chạy thử không cần mô hình ngôn ngữ: `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up --build api web`.
+- Chạy thử không cần mô hình ngôn ngữ: `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up -d --build --no-deps api web`
+  (`--no-deps` để Compose không kéo ảnh Ollama 3,2 GB). Đã chạy thử ở V4.6: ảnh `api` 2,2 GB, `web` 755 MB, `/health`,
+  web, chat demo và mã hoá DB trong volume đều chạy. Dịch vụ Ollama trong Compose chưa được chạy thử.
 - Có GPU NVIDIA: bỏ dấu `#` ở khối `deploy` của dịch vụ `ollama`.
 - Khoá ký token tự sinh vào volume; muốn tự đặt thì khai báo `DIACARE_API_SECRET` trong tệp `.env`.
 
-Cấu hình đã qua `docker compose config`, nhưng các ảnh **chưa được dựng và chạy thử** (cần Docker Desktop và tải
-khoảng 3 GB). Nếu dựng lỗi, hãy báo lại kèm log.
+Volume `diacare-data` gắn vào `/app/var` (SQLite, khoá mã hoá DB, khoá ký token), tách khỏi bảng dinh dưỡng trong ảnh.
+Volume tạo từ bản cũ (gắn ở `/app/data`) dùng tiếp được, không cần chuyển dữ liệu.
 
 ### Giọng nói
 
@@ -286,6 +295,9 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
 | `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl, journal; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl,journal` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
+| `DIACARE_PARALLEL` | `1` | `0`: chạy bốn agent Predictor, Retriever, Graph, Nutrition tuần tự thay vì song song |
+| `DIACARE_DB_KEY` | tự sinh vào `<DB>.key` | khoá Fernet mã hoá các cột chữ trong SQLite |
+| `DIACARE_DB_ENCRYPT` | `1` | `0`: không mã hoá (vẫn đọc được dòng chữ thường cũ) |
 | `DIACARE_DEV` | (tắt) | `1`: giao diện Streamlit mở sẵn chế độ nhà phát triển |
 | `DIACARE_API_SECRET` | tự sinh vào `data/api_secret.key` | khoá ký token của API, ít nhất 32 ký tự |
 | `DIACARE_CORS` | `http://localhost:3000` | các origin được gọi API, cách nhau bằng dấu phẩy |
@@ -385,6 +397,16 @@ Kiểm định McNemar theo ca (`eval/compare.py`, một ca đạt khi đạt c�
 nghĩa thống kê** với 46 ca: v1 so với v2 $p = 0{,}73$, v2 so với all $p = 0{,}38$, v1 so với all $p = 0{,}27$.
 Khác biệt duy nhất có ý nghĩa là qwen2.5:7b so với 14b trên 50 ca: 17 ca chỉ 7b đạt, 3 ca chỉ 14b đạt, $p = 0{,}003$.
 
+**Đồ thị tri thức và RL** (V4.6). Máy cá nhân, `qwen2.5:3b`, kho 14 tài liệu, 50 ca × 3 lượt, bỏ nhóm nhật ký, đã chấm lại:
+
+| Cấu hình | Pass@3 | Pass^3 | Đạt từng lượt [Wilson 95%] |
+|---|---|---|---|
+| v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
+| v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
+| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+
+McNemar theo ca: $p = 1{,}0$ (v2 so với v2,kg), $0{,}5$ (v2,kg so với v2,kg,rl), $1{,}0$ (v2 so với v2,kg,rl): không khác biệt. Bộ ca chỉ chạm tới đồ thị ở 7/50 ca, nên chưa đo được tác dụng của đồ thị; với 3B, phần lớn lượt trượt là do không trích nguồn. Lúc chạy, 11 lần Rules chặn câu trong bản nháp đều là câu cảnh báo; Rules đã được sửa để nhận câu cảnh báo theo vị trí cụm từ, và bảng trên là số chấm lại bằng luật đã sửa. Kết quả ở `docs/results/2026-11-16_kg_rl_3b/`.
+
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
 nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
 
@@ -396,6 +418,22 @@ nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
 6 ca chỉ đạt khi có Journal, 1 ca chỉ đạt khi không có (McNemar theo ca $p = 0{,}125$: với 12 ca thì chưa đạt mức 0,05, dù tỉ lệ đạt từng lượt là 28/36 so với 3/36). Các ca mô hình 3B còn
 trượt khi đã có số liệu: quên trích nguồn, không nhắc số ngày tới lịch tái khám, tự đưa mục tiêu huyết áp khác với
 nhật ký. Kết quả ở `docs/results/2026-11-15_journal_3b/`.
+
+**Truy hồi tài liệu** (`eval/retrieval_eval.py`). Kho mở từ 5 lên 14 tài liệu ở V4.6 (thêm 9 bài MedlinePlus), bộ câu
+hỏi từ 24 lên 34 câu đúng chủ đề (bộ cũ giữ ở `eval/retrieval_cases_v1.json`). Kết quả ở `reports/retrieval_v46/`:
+
+| Kho / bộ câu | Chế độ | recall@1 | recall@4 | MRR |
+|---|---|---|---|---|
+| 5 tài liệu / 24 câu | dense, ngưỡng 0,2 | 0,708 | 0,917 | 0,785 |
+| 14 tài liệu / 34 câu | dense, ngưỡng 0,2 | 0,676 | 0,794 | 0,725 |
+| 14 tài liệu / 34 câu | lai RRF | 0,588 | 0,853 | 0,694 |
+
+Kho lớn hơn trả lời được nhiều chủ đề hơn nhưng xếp hạng kém đi vì các tài liệu gần nhau cạnh tranh; bốn câu dùng thuật
+ngữ y khoa tiếng Việt không chế độ nào tìm đúng.
+
+**Bộ thử tấn công** (`tests/test_injection.py`, 67 test): 14 câu hỏi cố lái mô hình bị gắn cờ, 10 câu bình thường dễ nhầm
+không bị gắn cờ, đoạn tài liệu bị chèn lệnh bị loại, 18 câu của một mô hình đã bị lái (gồm 8 câu cố lách khung cảnh báo) đều bị Rules loại. Ba cách nói vẫn
+lọt Rules được ghi thành test `xfail` để báo cáo đúng giới hạn.
 
 ```bash
 python eval/benchmark.py --models qwen2.5:7b --k 3 --num-ctx 4096
@@ -415,7 +453,7 @@ web/                    giao diện Next.js (app/: các trang, lib/api.ts: gọi
 src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
-kb/                     tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
+kb/                     14 tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
 data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC)
 tools/                  công cụ tạo thống kê KG (build_kg_stats.py), nạp Neo4j (kg_neo4j.py), huấn luyện RL (train_rl.py)
 eval/                   bộ ca benchmark, chấm điểm, đánh giá truy xuất
@@ -428,7 +466,9 @@ tests/                  test (pytest)
 
 - Mức nguy cơ chỉ tính từ 21 câu hỏi lối sống trong hồ sơ, không dùng xét nghiệm hay triệu chứng (hai thứ này được xét
   riêng bằng cờ). Ba nguồn huấn luyện đều là dữ liệu Mỹ; NHANES thiếu 10/21 chỉ số, BRFSS 2023 thiếu rau quả.
-- Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt.
+- Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt. Ba cách nói
+  đổi thuốc đã biết vẫn lọt (động từ đứng sau tên thuốc, từ tiếng Anh ngoài danh sách, chữ bị chèn ký tự).
+- Critic chỉ so khớp chuỗi: không phát hiện con số đúng nhưng đặt sai chỗ.
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
 - Nhắc nhở chỉ hiện khi mở ứng dụng; chưa gửi được thông báo đẩy. Đường huyết gõ trong chat vẫn được lưu vào
   mục xét nghiệm, chưa vào nhật ký, và trợ lý tư vấn chưa đọc nhật ký.

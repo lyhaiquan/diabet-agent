@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 31 tệp test với 611 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 34 tệp test với 698 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -117,6 +117,8 @@ Lấy ví dụ người dùng có hồ sơ nguy cơ cao, đã nhập phiếu xé
 11. **Advisor** gọi Ollama, nhận bản nháp từng đoạn và đẩy lên giao diện theo từng câu đã qua kiểm tra.
 12. **Rules** kiểm tra bản nháp, gắn ba cờ `high_risk_referral`, `lab_diabetes_range`, `symptom_referral` kèm ba ghi chú chuyển khám, rồi thêm lời nhắc bác sĩ.
 
+Từ V4.6, các bước 5–8 (Predictor, Retriever, Graph, Nutrition) chạy song song vì cả bốn chỉ đọc câu hỏi và hồ sơ, mỗi agent ghi một trường riêng của `State`. Giữa bước 11 và 12 có thêm bước **Critic**: so bản nháp với ngữ cảnh vừa đưa cho Advisor, đếm nhãn nguồn lạ và con số không có trong ngữ cảnh (mục 3.12). Critic không gọi mô hình và không tính là một agent.
+
 Với một người đã chẩn đoán và đã ghi nhật ký, bước 4 đưa thêm vào ngữ cảnh khoảng 8–10 dòng tóm tắt 14 ngày (mục 3.13), còn kết quả của Predictor bị ẩn khỏi giao diện vì mức nguy cơ mắc bệnh không còn ý nghĩa với người đã mắc.
 
 Toàn bộ các bước được ghi vào vết thực thi và lưu trong cơ sở dữ liệu. Nếu người dùng hỏi tiếp "Tôi bị béo phì và huyết áp cao, có dễ bị tiểu đường không?", bước Graph nhận ra hai yếu tố `OBESITY` và `HIGH_BP` và thêm một khối tri thức khoảng 210 token vào ngữ cảnh; bước RL không còn bị mặt nạ an toàn nên chọn theo chính sách đã học. Dưới câu trả lời, người dùng có thể bấm 👍/👎 cho trọng tâm mà RL đã chọn.
@@ -149,6 +151,8 @@ Một số quy tắc điều phối:
 - **Lời nhắc nguy cơ cao** chỉ xuất hiện một lần mỗi phiên, trừ khi người dùng hỏi thẳng về nguy cơ, xét nghiệm hay đi khám.
 - **Ghi chú xét nghiệm** chỉ nhắc khi người dùng vừa đưa số liệu mới hoặc chưa được nhắc lần nào trong phiên.
 - **Lỗi bất kỳ** ở một agent làm lượt đó trả về thông báo sự cố với cờ `system_error`, ghi tên lỗi vào log, không làm sập giao diện.
+- **Chạy song song (V4.6).** Predictor, Retriever, Graph và Nutrition chạy cùng lúc trong `ThreadPoolExecutor`. Predictor và Retriever là bắt buộc: lỗi ở một trong hai làm lượt đó trả về `system_error` như trên. Graph, Nutrition và RL là phụ: lỗi thì bỏ qua, ghi vào vết, câu trả lời vẫn được viết. Vết ghi thời gian riêng của từng agent. Đặt `DIACARE_PARALLEL=0` để chạy tuần tự.
+- **Dò prompt injection (V4.6, `guard.py`).** Câu hỏi có dấu hiệu cố lái mô hình ("bỏ qua mọi hướng dẫn", "từ giờ bạn là bác sĩ", "in system prompt") được gắn cờ `prompt_injection_suspected` nhưng vẫn được trả lời. Đoạn tài liệu truy hồi có câu ra lệnh cho mô hình bị loại trước khi tới Advisor (cờ `kb_injection_filtered`). Lớp chặn thật vẫn là Rules trên đầu ra.
 
 Lớp `_Tracer` ghi mỗi bước thành `{agent, detail, ms}`. Lỗi trong hàm `on_step` của giao diện bị nuốt lại để không làm hỏng pipeline.
 
@@ -268,12 +272,12 @@ Mô hình V1 vẫn giữ để so sánh, chọn bằng `DIACARE_PREDICTOR=v1`. H
 
 Tệp `retriever.py`, `kb.py`.
 
-- **Kho tài liệu**: năm tệp MedlinePlus và WHO trong thư mục `kb/`, mỗi tệp ghi nguồn và ngày tải.
+- **Kho tài liệu**: 14 tệp trong thư mục `kb/`, mỗi tệp ghi nguồn và ngày tải. Năm tệp đầu (MedlinePlus và WHO) có từ V1; V4.6 thêm 9 bài MedlinePlus (NLM, phạm vi công cộng) về tiền đái tháo đường, đường huyết, thuốc điều trị, bàn chân, mắt, thận, thần kinh, biến chứng và tăng đường huyết. Đoạn giới thiệu chung "What is diabetes?" lặp lại ở bốn bài được bỏ để không chiếm chỗ trong kết quả truy hồi.
 - **Chia đoạn**: 600 ký tự, chồng lấp 100, cắt ở ranh giới đoạn văn, câu hoặc khoảng trắng. Bản đầu cắt cứng mỗi 600 ký tự đã tạo ra những mẩu chữ bị cắt đôi ("has" thành "ha" rồi khớp nhầm "Hà Nội").
 - **Embedding**: `paraphrase-multilingual-MiniLM-L12-v2`, nên câu hỏi tiếng Việt tìm được tài liệu tiếng Anh. Điểm cosine dưới 0,2 bị bỏ để câu ngoài chủ đề không kéo về tài liệu rác.
 - **Truy hồi lai** (tuỳ chọn): BM25 kết hợp với dense bằng Reciprocal Rank Fusion, $k_{\text{RRF}} = 60$.
 
-Đánh giá trên 24 câu đúng chủ đề và 4 câu ngoài chủ đề:
+Đánh giá trên kho 5 tài liệu, 24 câu đúng chủ đề và 4 câu ngoài chủ đề (`eval/retrieval_cases_v1.json`):
 
 | Chế độ | recall@1 | recall@4 | MRR | Câu ngoài chủ đề trả về rỗng |
 |---|---|---|---|---|
@@ -281,7 +285,15 @@ Tệp `retriever.py`, `kb.py`.
 | BM25 | 0,333 | 0,500 | 0,410 | 0,50 |
 | lai RRF, ngưỡng 0,2 | 0,750 | 0,917 | 0,809 | 0,25 |
 
-Truy hồi lai nhỉnh hơn một câu ở recall@1 nhưng lọc câu ngoài chủ đề kém hơn rõ, nên mặc định dùng dense.
+Khi mở kho lên 14 tài liệu, bộ câu hỏi thêm 10 câu cho các chủ đề mới (34 câu đúng chủ đề, 4 câu ngoài chủ đề, `eval/retrieval_cases.json`). Nhãn đúng của câu cũ được mở rộng theo nội dung tài liệu mới trước khi chạy đo, ví dụ câu về hạ đường huyết nay đúng cả với bài "đường huyết":
+
+| Chế độ (14 tài liệu, 34 câu) | recall@1 | recall@4 | MRR | Câu ngoài chủ đề trả về rỗng |
+|---|---|---|---|---|
+| dense, ngưỡng 0,2 | 0,676 | 0,794 | 0,725 | 0,50 |
+| BM25 | 0,206 | 0,412 | 0,279 | 0,50 |
+| lai RRF, ngưỡng 0,2 | 0,588 | 0,853 | 0,694 | 0,25 |
+
+Recall giảm vì nhiều tài liệu gần nhau cạnh tranh cho cùng câu hỏi. Chỉ tính 24 câu cũ trên kho mới, recall@4 của dense giảm từ 0,917 xuống 0,833, của truy hồi lai giữ 0,917. Bốn câu không chế độ nào tìm đúng (kế hoạch ăn, bệnh võng mạc, xét nghiệm thận, định nghĩa tiền đái tháo đường) đều là thuật ngữ y khoa tiếng Việt cần ghép với tài liệu tiếng Anh. Mặc định vẫn là dense: truy hồi lai tìm được nhiều câu hơn trong 4 đoạn đầu nhưng xếp đúng ở vị trí đầu ít hơn và lọc câu ngoài chủ đề kém hơn. Kết quả nằm ở `reports/retrieval_v46/`.
 
 ## 3.7. Graph: đồ thị tri thức
 
@@ -504,6 +516,16 @@ Danh sách cờ:
 | `system_error` | lỗi trong pipeline |
 | `context_near_limit` | token vào vượt 90% cửa sổ |
 | `history_summarized` | lịch sử đã được tóm tắt |
+| `prompt_injection_suspected` | câu hỏi có dấu hiệu cố lái mô hình (V4.6); vẫn trả lời |
+| `kb_injection_filtered` | đã loại đoạn tài liệu có câu ra lệnh cho mô hình (V4.6) |
+| `unknown_source_cited` | bản nháp trích nhãn nguồn không có trong ngữ cảnh (Critic, V4.6) |
+| `unsupported_number` | bản nháp có con số kèm đơn vị không tìm thấy trong ngữ cảnh (Critic, V4.6) |
+
+**Mẫu mới ở V4.6.** Khi viết bộ thử tấn công (mục 7.1), ba cách nói lọt luật cũ được thêm vào bộ phát hiện: "uống/tiêm gấp đôi ... insulin", "không cần uống ... metformin", "cắt hẳn ... metformin". Một lỗi chặn nhầm cũng được sửa: câu có chủ ngữ là bác sĩ ("Họ có thể cần tăng liều insulin cho bạn", "Bác sĩ của bạn sẽ quyết định giảm liều") nay được coi là câu nói về việc của bác sĩ. Chạy lại luật mới trên 1.605 bản nháp đã lưu (gồm cả bản nháp của benchmark KG/RL ở mục 7.3), chỉ hai câu "Họ..." đổi kết quả. Mẫu "không cần dùng ... thuốc" từng chặn nhầm câu "kiểm soát đường huyết mà không cần dùng thuốc" trong benchmark đó; mẫu đã được sửa để bỏ qua cụm "mà không cần".
+
+**Câu cảnh báo theo vị trí (V4.6, sau benchmark KG/RL).** Benchmark KG/RL cho thấy Rules chặn thừa: cả 11 lần chặn đều là câu cảnh báo. Luật mới chỉ miễn một câu khi phần cảnh báo đứng đúng chỗ so với cụm đổi thuốc: phủ định hay từ chối đứng ngay trước trong cùng mệnh đề ("không có nghĩa là bạn nên tự giảm liều", "tôi không thể tư vấn về việc tự giảm liều"); nhận xét đứng sau trong cùng mệnh đề ("... không phải là một ý kiến tốt", "... cần được bác sĩ xem xét"); hoặc câu điều kiện "nếu bạn ... muốn dừng insulin" mà phần sau khuyên gặp, hỏi, thảo luận hay liên hệ bác sĩ. Mẫu cũ "nếu bạn muốn ... bác sĩ" bị bỏ, vì nó cho lọt cả câu nguy hiểm "Nếu bạn muốn, cứ ngừng insulin rồi báo bác sĩ sau". Tám câu cố lách theo kiểu này (dấu phẩy tách mệnh đề, "không cần hỏi bác sĩ", "không phải là điều xấu") được thêm vào bộ thử tấn công và đều bị chặn. Trên 1.605 bản nháp đã lưu, 17 câu đổi từ chặn sang cho qua, đọc lại cả 17 đều là câu cảnh báo, không câu nào đổi chiều ngược lại. Ba câu vẫn bị chặn và nên bị chặn: "Tăng liều metformin từ từ", "Có thể cần phải tăng liều insulin hoặc thay đổi loại thuốc", "Ngừng tiêm insulin và liên hệ với bác sĩ ngay lập tức". Ba cách nói vẫn lọt luật được ghi thành test `xfail`: động từ đứng sau tên thuốc ("Insulin thì bạn cứ nghỉ vài hôm"), từ tiếng Anh ngoài danh sách ("halt"), và chữ bị chèn ký tự ("Ng.ừng in-su-lin").
+
+**Critic (V4.6, `critic.py`).** Sau khi Advisor viết xong, Critic so bản nháp với ngữ cảnh đã đưa cho Advisor. Nhãn trong ngoặc vuông không khớp nguồn nào trong ngữ cảnh bị tính là nguồn lạ. Con số kèm đơn vị (%, mg/dL, mmol/L, mmHg, kcal, kg, g, ml, phút, giờ) hoặc số thập phân phải xuất hiện trong ngữ cảnh, được phép đổi mmol/L sang mg/dL (nhân 18, sai số 3%). Số đếm như "3 bữa", "2 lần" không bị xét. Kết quả là `state.grounding` (số con số có căn cứ trên số con số đã xét, danh sách nguồn lạ) và hai cờ ở bảng trên. Critic chỉ đo, không sửa câu trả lời, vì so khớp chuỗi không hiểu nghĩa: con số đúng đặt sai chỗ vẫn được tính là có căn cứ, còn con số đúng mà ngữ cảnh viết theo cách khác thì bị tính là không có căn cứ.
 
 **Lọc khi stream.** Lớp `SafeStream` gom các đoạn chữ của mô hình cho tới dấu kết thúc câu, kiểm tra cả câu, và chỉ đẩy lên giao diện những câu an toàn. Gặp câu nguy hiểm thì bỏ qua câu đó và hiện tiếp các câu sau, có áp lớp lọc hẹp như trên để câu không hiện thoáng qua rồi mất. Câu trả lời cuối vẫn do Rules quyết định, nên streaming không làm thay đổi kết luận an toàn nào.
 
@@ -602,6 +624,8 @@ SQLite, tệp `db.py`. Mười bốn bảng:
 Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê và Hoạt động agent. Cột `trace_json` được thêm ở V2.2, cột `messages.rl_event_id` ở V3.2 (nối câu trả lời với quyết định RL, để chấm và để phạt lặp); khi mở một cơ sở dữ liệu cũ, hệ tự thêm các cột này bằng `ALTER TABLE`. Song song với SQLite, mỗi lượt chạy còn được ghi một dòng JSON vào `logs/runs.jsonl`.
 
 Cột `patients.user_id` nối hồ sơ với tài khoản: một tài khoản theo dõi được nhiều người (ví dụ con theo dõi cho bố mẹ), và mọi truy vấn của API đều lọc theo tài khoản đang đăng nhập. Số đo được lưu kèm `measured_at` (thời điểm đo, người dùng ghi bù được) tách khỏi `created_at` (lúc ghi), có chỉ mục theo `(patient_id, measured_at)` để thống kê 14 ngày đọc nhanh. Khi chạy dưới API, cơ sở dữ liệu được bật chế độ WAL để nhiều request đọc trong lúc một request ghi.
+
+**Mã hoá cột (V4.6, `crypto.py`).** Các cột chữ chứa thông tin sức khoẻ được mã hoá bằng Fernet (AES-128-CBC kèm HMAC-SHA256): tên và hồ sơ trong `patients`, `messages.content`, `memories.content`, `summaries.content`, `runs.question/draft/final`, câu hỏi cho bác sĩ, và các cột ghi chú. Giá trị mã hoá có tiền tố `enc1:`; dòng cũ chưa mã hoá vẫn đọc được, nên không cần chuyển cơ sở dữ liệu. Khoá lấy từ biến `DIACARE_DB_KEY`, nếu không có thì sinh một lần vào tệp `<tên DB>.key` cạnh tệp DB (đã thêm vào `.gitignore`). Số đo, xét nghiệm và mức nguy cơ giữ dạng số để còn sắp xếp và tính thống kê. Fernet có thành phần ngẫu nhiên nên cột mã hoá không dùng được trong `WHERE ... = ?`; việc so trùng trí nhớ dài hạn vì vậy làm trong Python sau khi giải mã. Phạm vi bảo vệ: ai chỉ lấy được tệp `.db` (bản sao lưu, gửi nhầm) không đọc được nội dung; ai chiếm được cả máy thì có cả khoá. Tắt bằng `DIACARE_DB_ENCRYPT=0`.
 
 Nơi lưu thứ hai là **Neo4j**, dùng cho đồ thị tri thức khi đặt `DIACARE_KG=neo4j` (mục 3.7). Neo4j chạy trong container Docker riêng `diacare-neo4j`, cổng 7475 cho Neo4j Browser và 7688 cho bolt; dữ liệu nằm ở thư mục `neo4j_data/`. Mật khẩu được sinh ngẫu nhiên khi tạo container và lưu trong `neo4j.local.json`, tệp này không đưa lên repo. SQLite giữ dữ liệu của người dùng; Neo4j chỉ giữ tri thức chung, không có thông tin bệnh nhân nào.
 
@@ -768,15 +792,17 @@ Vài quyết định đáng ghi lại:
 - API tìm Ollama qua biến mới `DIACARE_OLLAMA_URL` (trong Compose là `http://ollama:11434`); không đặt thì vẫn là `localhost:11434` như trước.
 - `scikit-learn` được ghim đúng bản 1.8.0 trong `requirements-api.txt`, vì tệp `predictor_ms.joblib` được lưu bằng bản này.
 - Cổng 8000 và 3000 chỉ mở trên `127.0.0.1`. API chạy bằng người dùng thường trong container. Khoá ký token không nằm trong tệp Compose: để trống thì hệ tự sinh vào volume, muốn tự đặt thì khai báo trong `.env`.
-- Phụ thuộc của `api` vào `ollama` đặt `required: false`, nên chạy thử không cần mô hình ngôn ngữ được bằng `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up --build api web`.
+- Phụ thuộc của `api` vào `ollama` đặt `required: false`, nên chạy thử không cần mô hình ngôn ngữ được bằng `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up -d --build --no-deps api web`. Cần `--no-deps`: không có cờ này, Compose vẫn kéo ảnh `ollama/ollama` (khoảng 3,2 GB) dù không chạy nó.
 
-**Tình trạng kiểm chứng.** Tệp Compose đã qua `docker compose config`. Các ảnh **chưa được dựng và chạy thử**: lúc viết báo cáo Docker Desktop trên máy phát triển không chạy, và việc dựng cần tải khoảng 3 GB (ảnh nền, torch, gói npm, model). Vì vậy mục này mô tả cấu hình, chưa phải kết quả đã chạy.
+**Tình trạng kiểm chứng (V4.6).** Hai ảnh `api` và `web` đã được dựng và chạy thử ở chế độ demo trên Docker Desktop 28.3: ảnh `api` 2,2 GB (phần lớn là torch bản CPU và các gói Hugging Face), ảnh `web` 755 MB. Lần dựng đầu `npm ci` đứt mạng (ECONNRESET), dựng lại thì qua. Trong container: `/health` trả 200; trang web chuyển hướng tới `/today`; đăng ký, tạo hồ sơ, `GET /patients/{id}/risk-models` và một lượt chat đều chạy, lượt chat đi đủ các bước từ Memory tới Rules, có cả Critic; đọc thẳng tệp SQLite trong volume thấy tên, hồ sơ và tin nhắn đều ở dạng `enc1:...`. Dịch vụ `ollama` (ảnh 3,2 GB và model 1,9 GB) chưa được chạy thử trong Compose; lần thử kéo ảnh bị đứt mạng giữa chừng.
+
+Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắn vào `/app/data`, trùng thư mục chứa bảng dinh dưỡng của ảnh: lần chạy đầu Docker chép bảng vào volume, và các bản dựng sau vẫn đọc bảng cũ trong volume. Khoá ký token nay nằm cạnh tệp DB. Đã thử nâng cấp trên volume cũ: token cũ vẫn dùng được, hồ sơ cũ vẫn giải mã được, bảng dinh dưỡng đọc từ ảnh.
 
 # 7. Kiểm thử và đánh giá
 
 ## 7.1. Unit test
 
-611 test chạy bằng `pytest` trong khoảng một phút, không cần GPU, mạng hay mô hình giọng nói (một test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j). Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+698 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất: 694 đạt, 1 test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j, 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -787,6 +813,8 @@ Test của agent RL kiểm tra: phân bố trạng thái đúng tổng 253.680 n
 Test của nhật ký dùng một mốc thời gian cố định và kiểm tra: phân loại theo mục tiêu (không theo ngưỡng chẩn đoán), đổi đơn vị và bắt lỗi gõ 120 với đơn vị mmol/L, thống kê theo thời điểm đo, so sánh hai kỳ, cờ "cao 3 ngày liền", cảnh báo chỉ lấy 24 giờ gần nhất, nhắc lịch khám, bản PDF đọc lại được bằng pypdf và có đủ các mục, bản tóm tắt cho Journal có nhận định đúng (kể cả hạ đường huyết lúc trước khi ngủ), và khối nhật ký bị cắt dòng khi vượt ngân sách.
 
 Test của API dùng `TestClient` với mô hình giả và đồng hồ cố định: đăng ký, đăng nhập, token hết hạn, token sai chữ ký, `alg: none`; người này không đọc được hồ sơ người kia (404); ghi và đọc số đo, từ chối số đo ở tương lai và sai đơn vị; chat dạng JSON và dạng SSE (đúng thứ tự sự kiện); chat lưu bộ nhớ vào đúng cơ sở dữ liệu; Journal xuất hiện trong các bước khi đã có nhật ký; phản hồi chỉ chấm được một lần; PDF trả đúng kiểu tệp. Test của giọng nói kiểm tra giải mã WAV (đổi tần số, gộp kênh, từ chối đoạn quá ngắn, im lặng, quá dài), đọc số bằng chữ, và trường hợp "sáu tám" phải trả về hai lựa chọn.
+
+Bộ thử tấn công (`test_injection.py`) thử riêng ba lớp: 14 câu hỏi tấn công tiếng Việt và tiếng Anh phải bị gắn cờ, 10 câu bình thường dễ nhầm ("bác sĩ dặn tôi bỏ qua bữa phụ", "có nên bỏ thuốc lá") không bị gắn cờ; đoạn tài liệu bị chèn lệnh bị loại; 18 câu của một mô hình giả định đã bị lái (gồm 8 câu cố lách khung cảnh báo) phải bị Rules loại. Một test đầu-cuối ghép cả ba: câu hỏi tấn công, kho bị chèn và mô hình bị lái; câu trả lời cuối phải an toàn, đoạn bị chèn không tới được Advisor và đủ ba cờ.
 
 Test giao diện dùng `streamlit.testing.v1.AppTest` với mô hình giả: tạo bệnh nhân, chat, nhập xét nghiệm, kiểm tra huy hiệu, chuyển trang, xem trang Hoạt động agent. Nhiều test được viết từ chính những lỗi gặp phải: câu "tiểu đường" không được tạo bảng dinh dưỡng, câu chào không được hiện nguy cơ, cơ sở dữ liệu cũ phải tự thêm các cột mới.
 
@@ -816,7 +844,23 @@ Kaggle, GPU T4, qwen2.5:7b, 46 ca × 3 lượt, đã chấm lại. Lần chạy 
 
 Nhóm bộ nhớ tăng từ 0,25 lên 1,00. Nhóm ngoài chủ đề đứng yên ở 0,50. Khoảng tin cậy còn chồng nhau, và kiểm định McNemar theo ca trên 46 ca chung cho cùng kết luận: v1 so với v2 có 3 ca chỉ v1 đạt và 5 ca chỉ v2 đạt ($p = 0{,}73$); v2 so với all là 1 và 4 ($p = 0{,}38$); v1 so với all là 4 và 9 ($p = 0{,}27$). Nói cách khác, với 46 ca thì mức tăng chung **chưa có ý nghĩa thống kê**; điều chắc chắn chỉ là nhóm bộ nhớ, nơi v1 không thể đạt vì không có bộ nhớ. Qua 414 lượt chạy, mô hình không đưa ra lời khuyên đổi thuốc nguy hiểm nào; bốn lượt từng bị chặn đều là chặn nhầm câu cảnh báo, đã sửa ở bộ chấm.
 
-Đồ thị tri thức và agent RL **chưa được đo trên benchmark hội thoại**. Bước so sánh `v2`, `v2,kg` và `v2,kg,rl` (cùng mô hình, cùng bộ ca, $\varepsilon = 0$, kiểm định McNemar trên từng cặp lượt) là việc tiếp theo; các mục 3.7 và 5.2 chỉ cho thấy đồ thị được đọc đúng và hiện ra đúng, chưa cho thấy câu trả lời tốt hơn. Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
+**Đồ thị tri thức và agent RL (V4.6).** Máy cá nhân, `qwen2.5:3b`, kho 14 tài liệu, 50 ca × 3 lượt (bỏ nhóm nhật ký), $\varepsilon = 0$:
+
+| Cấu hình | Pass@3 | Pass^3 | Đạt từng lượt [Wilson 95%] |
+|---|---|---|---|
+| v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
+| v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
+| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+
+McNemar theo ca: v2 so với v2,kg $p = 1{,}0$; v2,kg so với v2,kg,rl $p = 0{,}5$; v2 so với v2,kg,rl $p = 1{,}0$. Không cặp nào khác nhau có ý nghĩa. Ba điều đọc ra:
+
+- Bộ ca gần như không chạm tới đồ thị: Graph agent chỉ nhận ra yếu tố nguy cơ trong 21/150 lượt (7 ca). Nhóm duy nhất nhích lên là `risk_referral` (0,50 lên 0,75 từng lượt, 4 ca). Kết luận đúng là bộ ca này **chưa đo được** tác dụng của đồ thị, không phải đồ thị không có tác dụng; cần thêm ca hỏi thẳng về yếu tố nguy cơ.
+- Với mô hình 3B, benchmark chủ yếu đo thói quen trích nguồn: 68–73 trong 78–84 lượt trượt của mỗi cấu hình là do không trích nguồn, và chỉ 3–4% câu trong bản nháp có nhãn nguồn. KG và RL không đổi được điều này. Con số 0,44 không so được với 0,88 của lần chạy Kaggle (khác mô hình, máy, kho tài liệu và bộ ca).
+- Lúc chạy, Rules chặn câu trong bản nháp ở 11 lượt; đọc lại cả 11 thì đều là câu cảnh báo ("tự giảm liều metformin ... không phải là một ý kiến tốt"), không câu nào là lời khuyên đổi thuốc thật. Rules được sửa sau đó để nhận câu cảnh báo theo vị trí của cụm từ (mục 3.12), và các số trên là kết quả chấm lại bằng luật đã sửa: không lượt nào còn bị chặn, nhóm `medication` đạt 1,00 ở cả ba cấu hình. Số chấm lúc chạy giữ trong `report.md` của từng cấu hình.
+
+Critic: trong các con số có đơn vị mà bản nháp đưa ra, 10–16% không có trong ngữ cảnh (11/102, 12/118, 18/112), phần lớn là số hướng dẫn chung như "150 phút mỗi tuần" mà mô hình lấy từ hiểu biết sẵn có. Ước lượng từ vết (chưa so trực tiếp với `DIACARE_PARALLEL=0`), chạy song song tiết kiệm khoảng 30 ms (khoảng 90 ms nếu tuần tự, khoảng 60 ms song song) trên khoảng 5,8 giây mỗi lượt. Thời gian giữa ba cấu hình không so được vì chúng chạy nối tiếp và cấu hình đầu trùng lúc với việc khác trên máy. Chi tiết ở `docs/results/2026-11-16_kg_rl_3b/`.
+
+Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
 
 ## 7.4. Khi đổi model
 
@@ -936,12 +980,15 @@ Bốn bài học rút ra:
 **Hạn chế hiện tại**
 
 - Mức nguy cơ chỉ phản ánh 21 câu hỏi lối sống; xét nghiệm và triệu chứng được xét riêng bằng luật, chưa gộp thành một điểm chung.
-- Luật tiếng Việt hoạt động tốt nhất với chữ có dấu.
+- Luật tiếng Việt hoạt động tốt nhất với chữ có dấu. Ba cách nói đổi thuốc vẫn lọt luật (mục 3.12): động từ đứng sau tên thuốc, từ tiếng Anh ngoài danh sách, chữ bị cố tình chèn ký tự.
+- Kho 14 tài liệu trả lời được nhiều chủ đề hơn nhưng xếp hạng kém hơn kho 5 tài liệu (recall@4 của dense 0,794 so với 0,917); thuật ngữ y khoa tiếng Việt ghép với tài liệu tiếng Anh còn yếu.
+- Critic chỉ so khớp chuỗi nên không phát hiện con số đúng đặt sai chỗ, và chưa xét câu khẳng định không có con số.
 - Benchmark không chấm độ đúng y khoa của phần giải thích.
 - Nhóm câu ngoài chủ đề chỉ đạt khoảng một nửa với mô hình 7B.
 - Bộ ca 62 ca còn nhỏ, khoảng tin cậy rộng; kiểm định McNemar cho thấy các mức tăng giữa v1, v2 và all chưa có ý nghĩa thống kê (mục 7.3).
 - Gộp nhiều nguồn làm xác suất đáng tin hơn hẳn nhưng AUC chỉ nhích nhẹ; trên Pima mô hình mới còn thua mô hình cũ một chút. NHANES thiếu 10/21 chỉ số và BRFSS 2023 thiếu rau quả. Cả ba nguồn chính đều là dữ liệu Mỹ; chưa có dữ liệu người Việt. Đơn xin bộ WHO STEPS Việt Nam 2015 (có đo đường huyết lúc đói) đã gửi tới kho dữ liệu NCD của WHO và đang chờ duyệt.
-- Đồ thị tri thức và agent RL chưa được đo trên benchmark hội thoại; chưa biết chúng làm câu trả lời tốt hơn bao nhiêu.
+- Benchmark KG/RL không thấy khác biệt, nhưng bộ ca chỉ chạm tới đồ thị ở 7/50 ca; chưa biết đồ thị làm câu trả lời tốt hơn bao nhiêu trên câu hỏi về yếu tố nguy cơ.
+- Rules nhận câu cảnh báo theo vị trí của cụm từ (mục 3.12); câu cảnh báo diễn đạt theo kiểu chưa gặp vẫn có thể bị chặn thừa.
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
 - Bộ nhớ dài hạn trích bằng luật: danh sách thuốc cố định 6 loại, câu "dùng metformin và insulin" chỉ nhận thuốc đầu, và mới chỉ tự tắt được thông tin thuốc (chưa tự sửa chẩn đoán, dị ứng).
@@ -950,13 +997,13 @@ Bốn bài học rút ra:
 - Nhắc đo trên web là thông báo của trình duyệt, chỉ hoạt động khi DiaCare đang mở (kể cả ở tab nền); chưa có thông báo đẩy khi trình duyệt đóng, và chưa thử trên điện thoại thật. Bản Streamlit chỉ nhắc khi mở trang.
 - Khi nhật ký có nhiều chỉ số cao, mô hình 3B đôi khi chêm câu về đổi liều thuốc; Rules bỏ câu đó và giữ phần còn lại. Câu "điều chỉnh liều insulin nếu cần" không bị chặn mà chỉ được kèm lời nhắc hỏi bác sĩ, vì so khớp từ không phân biệt được ai là người chỉnh liều. Trên nhóm ca nhật ký, mô hình 3B còn hay quên trích nguồn và có lúc tự đưa mục tiêu khác với mục tiêu trong nhật ký (mục 7.5).
 - Mục tiêu riêng do người dùng tự nhập theo lời bác sĩ; hệ thống chỉ kiểm tra giới hạn hợp lý, không có vai trò bác sĩ để xác nhận. Mới có mục tiêu riêng cho đường huyết, chưa có cho huyết áp và HbA1c.
-- Cấu hình Docker Compose đã qua kiểm tra cú pháp nhưng các ảnh chưa được dựng và chạy thử (mục 6.4).
+- Ảnh Docker `api` và `web` đã dựng và chạy thử ở chế độ demo; dịch vụ Ollama trong Compose chưa chạy thử (mục 6.4).
 - Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
 
 **Hướng phát triển**
 
-1. Đo đồ thị tri thức và RL trên benchmark: chạy `v2`, `v2,kg`, `v2,kg,rl` cùng bộ ca, so từng cặp lượt bằng kiểm định McNemar, thêm ca hỏi về yếu tố nguy cơ.
+1. Thêm ca hỏi thẳng về yếu tố nguy cơ (béo phì, tăng huyết áp, trầm cảm...) rồi đo lại `v2` so với `v2,kg`.
 2. Cho Rules, Lab và Nutrition đọc ngưỡng, triệu chứng và bảng dinh dưỡng từ đồ thị thay vì từ hằng số trong code, để đồ thị là nguồn sự thật duy nhất.
 3. Mở rộng đồ thị: biến chứng, thuốc, quan hệ giữa các yếu tố; trích khẳng định từ tài liệu tiếng Việt bằng mô hình ngôn ngữ, có người duyệt.
 4. Một bộ lọc chủ đề đặt trước Advisor, để từ chối câu ngoài phạm vi mà không phụ thuộc vào mô hình.
@@ -965,7 +1012,7 @@ Bốn bài học rút ra:
 7. Thu phản hồi thật cho agent RL, đánh giá bằng SNIPS sau khi có đủ vài trăm lượt; thử thăm dò theo cận tin cậy trên (LinUCB) thay cho epsilon-greedy.
 8. Phân biệt ai điều chỉnh liều (người dùng tự làm hay bác sĩ làm) bằng phân tích cú pháp hoặc một bộ phân loại nhỏ, thay cho lời nhắc chung hiện nay; mở rộng nhóm ca nhật ký và chạy trên qwen2.5:7b để so với 3B.
 9. Khi WHO duyệt bộ STEPS Việt Nam: kiểm tra ngoài Predictor trên người Việt và hiệu chỉnh lại xác suất. Dữ liệu này có giấy phép riêng nên chỉ lưu ngoài repo, không công bố cả dữ liệu dẫn xuất.
-10. Dựng và chạy thử các ảnh Docker; thông báo đẩy thật (Web Push với khoá VAPID và bộ hẹn giờ phía máy chủ) để nhắc cả khi trình duyệt đóng; tài khoản bác sĩ để xác nhận mục tiêu riêng; thử nhập bằng giọng nói với người lớn tuổi.
+10. Chạy thử cả dịch vụ Ollama trong Compose; thông báo đẩy thật (Web Push với khoá VAPID và bộ hẹn giờ phía máy chủ) để nhắc cả khi trình duyệt đóng; tài khoản bác sĩ để xác nhận mục tiêu riêng; thử nhập bằng giọng nói với người lớn tuổi.
 
 # Tài liệu tham khảo
 

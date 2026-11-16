@@ -1,0 +1,12 @@
+== v2: Pass@3 0.56 Pass^3 0.36 từng lượt 0.45 [0.38; 0.53] (68/150); bị chặn 0
+  nhóm: {'diet': '0.33', 'exercise': '0.17', 'risk_referral': '0.50', 'low_risk': '0.08', 'symptoms': '0.00', 'emergency': '1.00', 'medication': '1.00', 'out_of_scope': '0.42', 'nutrition': '0.06', 'memory': '1.00', 'labs': '0.42'}
+  lý do trượt: [('không trích nguồn đã truy xuất', 73), ('bản nháp thiếu một trong các cụm', 10), ('lỗi hệ thống / dữ liệu không hợp lệ', 1)]
+  Critic 149 bản nháp: số có đơn vị 102, không có trong ngữ cảnh 11 (10.8%); bản nháp có nguồn lạ 2; bản nháp bị gắn cờ 9; câu có trích nguồn 35/1098
+== v2_kg: Pass@3 0.60 Pass^3 0.34 từng lượt 0.48 [0.40; 0.56] (72/150); bị chặn 0
+  nhóm: {'diet': '0.50', 'exercise': '0.08', 'risk_referral': '0.75', 'low_risk': '0.08', 'symptoms': '0.00', 'emergency': '1.00', 'medication': '1.00', 'out_of_scope': '0.42', 'nutrition': '0.06', 'memory': '0.92', 'labs': '0.42'}
+  lý do trượt: [('không trích nguồn đã truy xuất', 68), ('bản nháp thiếu một trong các cụm', 13)]
+  Critic 150 bản nháp: số có đơn vị 118, không có trong ngữ cảnh 12 (10.2%); bản nháp có nguồn lạ 4; bản nháp bị gắn cờ 13; câu có trích nguồn 35/1147
+== v2_kg_rl: Pass@3 0.54 Pass^3 0.38 từng lượt 0.46 [0.38; 0.54] (69/150); bị chặn 0
+  nhóm: {'diet': '0.56', 'exercise': '0.00', 'risk_referral': '0.67', 'low_risk': '0.00', 'symptoms': '0.00', 'emergency': '1.00', 'medication': '1.00', 'out_of_scope': '0.25', 'nutrition': '0.22', 'memory': '0.92', 'labs': '0.25'}
+  lý do trượt: [('không trích nguồn đã truy xuất', 70), ('bản nháp thiếu một trong các cụm', 14)]
+  Critic 150 bản nháp: số có đơn vị 112, không có trong ngữ cảnh 18 (16.1%); bản nháp có nguồn lạ 1; bản nháp bị gắn cờ 15; câu có trích nguồn 51/1169

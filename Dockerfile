@@ -17,10 +17,10 @@ COPY kb ./kb
 COPY models ./models
 COPY data/nutrition ./data/nutrition
 
-# Chạy bằng người dùng thường; /app/data (SQLite, khoá ký token) và /hf-cache là volume
+# Chạy bằng người dùng thường; /app/var (SQLite, khoá mã hoá DB, khoá ký token) và /hf-cache là volume
 RUN useradd --create-home --uid 10001 diacare \
-    && mkdir -p /app/data /app/logs /hf-cache \
-    && chown -R diacare:diacare /app/data /app/logs /hf-cache
+    && mkdir -p /app/var /app/logs /hf-cache \
+    && chown -R diacare:diacare /app/var /app/logs /hf-cache
 USER diacare
 
 EXPOSE 8000

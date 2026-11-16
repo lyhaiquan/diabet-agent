@@ -40,8 +40,11 @@ def test_evaluate_retrieval_exact_numbers():
 def test_repo_cases_are_valid():
     cases = load_cases(ROOT / "eval" / "retrieval_cases.json")
     kb = {p.name for p in (ROOT / "kb").glob("*.txt")}
-    assert sum(1 for c in cases if c["relevant"]) == 24 and sum(1 for c in cases if not c["relevant"]) == 4
+    assert sum(1 for c in cases if c["relevant"]) == 34 and sum(1 for c in cases if not c["relevant"]) == 4
     assert all(set(c["relevant"]) <= kb and c["note"] for c in cases)
+    # bộ câu của kho 5 tài liệu (V4.5) giữ nguyên để so sánh
+    v1 = load_cases(ROOT / "eval" / "retrieval_cases_v1.json")
+    assert sum(1 for c in v1 if c["relevant"]) == 24 and {c["id"] for c in v1} <= {c["id"] for c in cases}
 
 
 def test_cli_hash_mode_writes_table(tmp_path):

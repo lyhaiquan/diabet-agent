@@ -60,3 +60,39 @@ class Predictor:
         x = self.scaler.transform(x).astype("float32")
         with torch.no_grad():
             return float(torch.sigmoid(self.model(torch.from_numpy(x))).item())
+
+
+# Ngưỡng mức nguy cơ của bản V1 (xác suất MLP chưa hiệu chỉnh); bản đa nguồn dùng 0,10 / 0,30 trong rules.py.
+V1_BANDS = (0.20, 0.50)
+_COMPARE_CACHE = {}
+
+
+def _v1_band(p):
+    return "thấp" if p < V1_BANDS[0] else ("trung bình" if p < V1_BANDS[1] else "cao")
+
+
+def compare_models(model_dir, profile):
+    """Chạy cùng một hồ sơ qua cả hai mô hình: MLP (học sâu, V1) và boosting đa nguồn đã hiệu chỉnh.
+
+    Dùng để trình diễn và giải thích vì sao bản mặc định không phải MLP: hai mô hình xếp hạng gần như nhau (AUC),
+    nhưng xác suất MLP bị đẩy cao do pos_weight nên phải dùng ngưỡng khác. Thiếu tệp mô hình nào thì bỏ mô hình đó.
+    """
+    from diacare.rules import risk_band
+
+    model_dir = Path(model_dir)
+    out = []
+    specs = (
+        ("v1", "predictor.pt", "MLP 21-64-32-1 (PyTorch, học sâu)", "BRFSS 2015", False, _v1_band),
+        ("multisource", "predictor_ms.joblib", "HistGradientBoosting + hiệu chỉnh isotonic",
+         "BRFSS 2015, BRFSS 2023, NHANES 2013-2020", True, risk_band),
+    )
+    for kind, fname, name, data, calibrated, band in specs:
+        if not (model_dir / fname).exists():
+            continue
+        key = (str(model_dir), kind)
+        if key not in _COMPARE_CACHE:
+            _COMPARE_CACHE[key] = Predictor(model_dir, kind=kind)
+        p = _COMPARE_CACHE[key].predict(profile)
+        out.append({"kind": kind, "name": name, "trained_on": data, "calibrated": calibrated,
+                    "probability": round(float(p), 4), "band": band(p)})
+    return out

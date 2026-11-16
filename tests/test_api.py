@@ -68,6 +68,15 @@ def parts(tmp_path_factory):
     return build_parts(kb_dir=kb, log_path=log, llm=DemoLLM(), embed_fn=hash_embed_fn(), min_score=0.0)
 
 
+def test_secret_file_sits_next_to_db(tmp_path, parts, monkeypatch):
+    """Docker gắn volume dữ liệu vào thư mục của DB: khoá ký token phải nằm cùng chỗ, không ở data/ của ảnh."""
+    monkeypatch.delenv("DIACARE_API_SECRET", raising=False)
+    db = tmp_path / "var" / "api.db"
+    with TestClient(create_app(db_path=db, parts=parts)) as c:
+        assert c.get("/health").status_code == 200
+    assert (db.parent / "api_secret.key").exists()
+
+
 @pytest.fixture
 def client(tmp_path, parts):
     app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: NOW,
@@ -417,3 +426,14 @@ def test_targets_are_private_to_owner(client):
     assert client.put(f"/patients/{pid}/targets", headers=other,
                       json={"pre_meal_low": 5.0, "pre_meal_high": 8.3, "post_meal_max": 11.0}).status_code == 404
     assert client.get(f"/patients/{pid}/targets").status_code == 401
+
+
+def test_risk_models_compares_mlp_and_multisource(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=False)
+    r = client.get(f"/patients/{pid}/risk-models", headers=auth)
+    assert r.status_code == 200
+    body = r.json()
+    assert [m["kind"] for m in body["models"]] == ["v1", "multisource"]
+    assert body["current"] == "multisource"
+    assert client.get(f"/patients/{pid}/risk-models").status_code == 401

@@ -1,12 +1,16 @@
 import json
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
 from diacare.advisor import advise
 from diacare.context import HISTORY_TOKEN_BUDGET, build_context, estimate_tokens
+from diacare.critic import check_grounding, describe as describe_grounding
 from diacare.contracts import (MODEL_VERSION, SYSTEM_VERSION, PatientDataAgent, build_decision_report,
                                evaluate_pre_rules, make_message, new_request_id)
+from diacare.guard import filter_docs, injection_signals
 from diacare.llm import DEFAULT_NUM_CTX
 from diacare.labs import parse_lab_text
 from diacare.memory import SummaryCache, compress_history, has_diagnosis
@@ -25,9 +29,10 @@ class _Tracer:
         self.state, self.on_step, self.t = state, on_step, time.perf_counter()
         state.trace = []
 
-    def __call__(self, agent, detail):
+    def __call__(self, agent, detail, ms=None):
+        """ms: thời gian riêng của bước (các agent chạy song song tự đo); bỏ trống thì tính từ bước trước."""
         now = time.perf_counter()
-        entry = {"agent": agent, "detail": detail, "ms": round((now - self.t) * 1000, 1)}
+        entry = {"agent": agent, "detail": detail, "ms": round((now - self.t) * 1000, 1) if ms is None else ms}
         self.t = now
         self.state.trace.append(entry)
         if self.on_step is not None:
@@ -35,6 +40,14 @@ class _Tracer:
                 self.on_step(entry)
             except Exception:  # lỗi hiển thị không được làm hỏng pipeline
                 pass
+
+
+def _timed(fn):
+    t = time.perf_counter()
+    try:
+        return fn(), round((time.perf_counter() - t) * 1000, 1), None
+    except Exception as exc:  # trả lỗi về cho Orchestrator quyết định: agent bắt buộc thì dừng, agent phụ thì bỏ qua
+        return None, round((time.perf_counter() - t) * 1000, 1), exc
 
 
 def _short(items, n=3):
@@ -45,7 +58,9 @@ def _short(items, n=3):
 class Orchestrator:
     def __init__(self, predictor, retriever, llm, log_path=None, store=None, session_id=None,
                  nutrition_agent=None, memory_agent=None, summarizer_llm=None, lab_agent=None,
-                 graph_agent=None, rl_agent=None, data_agent=None, journal_agent=None):
+                 graph_agent=None, rl_agent=None, data_agent=None, journal_agent=None, parallel=None):
+        # Predictor, Retriever, Graph, Nutrition không phụ thuộc nhau nên chạy song song (tắt: DIACARE_PARALLEL=0)
+        self.parallel = (os.environ.get("DIACARE_PARALLEL", "1") != "0") if parallel is None else bool(parallel)
         self.predictor = predictor
         self.retriever = retriever
         self.llm = llm
@@ -133,9 +148,24 @@ class Orchestrator:
                                  + (f", {j['hypo']} lần hạ" if j["hypo"] else "")
                                  + (f", {j['very_high']} lần rất cao" if j["very_high"] else ""))
                      if j else "chưa có nhật ký tự theo dõi")
-            state.risk = self.predictor.predict(build_context("predictor", state)["profile"])
+            # Bốn agent chỉ đọc câu hỏi / hồ sơ và ghi mỗi agent một trường riêng của State: chạy song song.
+            # Predictor và Retriever là bắt buộc (lỗi thì dừng lượt); Graph và Nutrition là phụ (lỗi thì bỏ qua).
+            profile, question = build_context("predictor", state)["profile"], state.question
+            jobs = {"predictor": lambda: self.predictor.predict(profile),
+                    "retriever": lambda: self.retriever.search(question)}
+            if self.graph_agent is not None:
+                jobs["graph"] = lambda: self.graph_agent.lookup(question)
+            if self.nutrition_agent is not None:
+                jobs["nutrition"] = lambda: self.nutrition_agent.analyze(question)
+            res = self._run_jobs(jobs)
+            for name in ("predictor", "retriever"):
+                if res[name][2] is not None:
+                    raise res[name][2]
+
+            state.risk = res["predictor"][0]
             kind = "mô hình đa nguồn" if getattr(self.predictor, "kind", "") == "multisource" else "MLP"
-            step("Predictor", f"{kind} trên 21 chỉ số hồ sơ: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}")
+            step("Predictor", f"{kind} trên 21 chỉ số hồ sơ: {state.risk:.1%} → nguy cơ {risk_band(state.risk)}",
+                 ms=res["predictor"][1])
             state.messages.append(make_message(
                 req_id, "DiabetesPredictionAgent", "ok",
                 {"prediction": int(state.risk >= HIGH_RISK_THRESHOLD), "score": round(float(state.risk), 4),
@@ -152,29 +182,48 @@ class Orchestrator:
                 req_id, "RuleBasedAgent", "ok", state.pre_rules,
             ))
 
-            state.docs = self.retriever.search(state.question)
-            step("Retriever", f"{len(state.docs)} đoạn tài liệu: {_short(d['source'] for d in state.docs)}"
-                 if state.docs else "không tìm thấy tài liệu phù hợp")
-            if self.graph_agent is not None:
-                state.kg = self.graph_agent.lookup(state.question)
-                step("Graph", f"{state.kg['backend']}: " + (
-                    "yếu tố " + _short(state.kg["factors"]) if state.kg["factors"]
-                    else "câu hỏi không nhắc tới yếu tố nguy cơ nào trong đồ thị"))
+            # Đoạn tài liệu có câu ra lệnh cho mô hình (kho bị chèn nội dung) không được tới Advisor
+            state.docs, poisoned = filter_docs(res["retriever"][0])
+            step("Retriever", (f"{len(state.docs)} đoạn tài liệu: {_short(d['source'] for d in state.docs)}"
+                               if state.docs else "không tìm thấy tài liệu phù hợp")
+                 + (f"; loại {len(poisoned)} đoạn có câu ra lệnh cho mô hình ({_short(d['source'] for d in poisoned)})"
+                    if poisoned else ""), ms=res["retriever"][1])
+            guard_flags = (["kb_injection_filtered"] if poisoned else []) + (
+                ["prompt_injection_suspected"] if injection_signals(state.question) else [])
+            if "graph" in res:
+                kg, ms, err = res["graph"]
+                if err is not None:
+                    step("Graph", f"lỗi {type(err).__name__}, bỏ qua đồ thị tri thức", ms=ms)
+                    state.messages.append(make_message(req_id, "KnowledgeGraphRAGAgent", "error",
+                                                       {"error": type(err).__name__}))
+                else:
+                    state.kg = kg
+                    step("Graph", f"{kg['backend']}: " + (
+                        "yếu tố " + _short(kg["factors"]) if kg["factors"]
+                        else "câu hỏi không nhắc tới yếu tố nguy cơ nào trong đồ thị"), ms=ms)
             state.messages.append(make_message(
                 req_id, "KnowledgeGraphRAGAgent", "ok",
                 {"docs_count": len(state.docs), "kg_factors": list((state.kg or {}).get("factors", []))},
                 evidence=[d["source"] for d in state.docs],
             ))
-            if self.nutrition_agent is not None:
-                analysis = self.nutrition_agent.analyze(state.question)
-                state.nutrition = analysis if is_nutrition_question(state.question, analysis) else None
-                step("Nutrition", "tra USDA: " + _short(i["name"] for i in state.nutrition["items"])
-                     if state.nutrition else "không phải câu hỏi dinh dưỡng, bỏ qua")
+            if "nutrition" in res:
+                analysis, ms, err = res["nutrition"]
+                if err is not None:
+                    step("Nutrition", f"lỗi {type(err).__name__}, bỏ qua phân tích dinh dưỡng", ms=ms)
+                else:
+                    state.nutrition = analysis if is_nutrition_question(state.question, analysis) else None
+                    step("Nutrition", "tra USDA: " + _short(i["name"] for i in state.nutrition["items"])
+                         if state.nutrition else "không phải câu hỏi dinh dưỡng, bỏ qua", ms=ms)
             if self.rl_agent is not None:
-                state.rl = self.rl_agent.recommend(state)
-                step("RL", f"{state.rl['mode']}: {state.rl['label']} (điểm {state.rl['q_value']:+.2f}, "
-                           f"chính sách {state.rl['policy_version']})")
-                state.messages.append(make_message(req_id, "RLAgent", "ok", state.rl))
+                try:
+                    state.rl = self.rl_agent.recommend(state)
+                except Exception as exc:  # agent phụ: mất định hướng trọng tâm thì vẫn trả lời được
+                    state.rl = None
+                    step("RL", f"lỗi {type(exc).__name__}, bỏ qua định hướng trọng tâm")
+                else:
+                    step("RL", f"{state.rl['mode']}: {state.rl['label']} (điểm {state.rl['q_value']:+.2f}, "
+                               f"chính sách {state.rl['policy_version']})")
+                    state.messages.append(make_message(req_id, "RLAgent", "ok", state.rl))
             num_ctx = getattr(self.llm, "num_ctx", DEFAULT_NUM_CTX)
             ctx = build_context("advisor", state, num_ctx=num_ctx)
             step("Context", f"ghép ngữ cảnh cho Advisor: ~{ctx['est_tokens']} token / num_ctx {num_ctx}")
@@ -183,6 +232,12 @@ class Orchestrator:
             u = state.usage
             step("Advisor", f"LLM viết bản nháp: {u.get('prompt_tokens', '?')} token vào, "
                             f"{u.get('completion_tokens', '?')} token ra" if u else "LLM viết bản nháp")
+            try:  # Critic chỉ đo và gắn cờ; lỗi ở đây không được chặn câu trả lời
+                state.grounding = check_grounding(state.draft, ctx)
+                step("Critic", "đối chiếu bản nháp với ngữ cảnh: " + describe_grounding(state.grounding))
+            except Exception as exc:
+                state.grounding = None
+                step("Critic", f"lỗi {type(exc).__name__}, bỏ qua kiểm tra căn cứ")
             if summary_usage:
                 state.usage["summary_prompt_tokens"] = summary_usage.get("prompt_tokens")
                 state.usage["summary_completion_tokens"] = summary_usage.get("completion_tokens")
@@ -200,6 +255,7 @@ class Orchestrator:
                 rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
                 remind_risk=asks_risk or not already, labs=labs_for_rules)
             step("Rules", "kiểm tra an toàn: " + (", ".join(flags) if flags else "không bật cờ nào"))
+            flags += [f for f in guard_flags + (state.grounding or {}).get("flags", []) if f not in flags]
             state.messages.append(make_message(
                 req_id, "ExplanationAgent", "ok",
                 {"draft": state.draft, "final": state.final},
@@ -231,6 +287,14 @@ class Orchestrator:
         ))
         self._log(state)
         return state
+
+    def _run_jobs(self, jobs):
+        """Chạy các việc độc lập, trả {tên: (kết quả, ms, lỗi)}. Song song bằng luồng khi self.parallel."""
+        if not self.parallel or len(jobs) < 2:
+            return {name: _timed(fn) for name, fn in jobs.items()}
+        with ThreadPoolExecutor(max_workers=len(jobs), thread_name_prefix="agent") as pool:
+            futures = {name: pool.submit(_timed, fn) for name, fn in jobs.items()}
+            return {name: f.result() for name, f in futures.items()}
 
     def _log(self, state, error=None):
         self._log_file(state, error)
@@ -267,6 +331,7 @@ class Orchestrator:
             "lab_levels": {r["test"]: r["level"] for r in state.labs},
             "kg_factors": (state.kg or {}).get("factors", []),
             "rl_action": (state.rl or {}).get("action"),
+            "grounding": state.grounding,
             "trace": state.trace,
         }
         if error:

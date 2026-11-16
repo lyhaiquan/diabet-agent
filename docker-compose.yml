@@ -58,12 +58,12 @@ services:
       DIACARE_OLLAMA_URL: http://ollama:11434
       DIACARE_EMBED: ${DIACARE_EMBED:-sbert}
       DIACARE_FEATURES: ${DIACARE_FEATURES:-default}
-      DIACARE_DB: /app/data/diacare.db
+      DIACARE_DB: /app/var/diacare.db
       DIACARE_LOG: /app/logs/runs.jsonl
       DIACARE_CORS: ${DIACARE_CORS:-http://localhost:3000}
       DIACARE_API_SECRET: ${DIACARE_API_SECRET:-}
     volumes:
-      - diacare-data:/app/data
+      - diacare-data:/app/var     # SQLite và các tệp khoá; tách khỏi /app/data (bảng dinh dưỡng trong ảnh)
       - hf-cache:/hf-cache        # mô hình embedding và PhoWhisper tải từ Hugging Face ở lần dùng đầu
     ports:
       - "127.0.0.1:8000:8000"     # chỉ mở trên máy này; muốn cho máy khác trong mạng vào thì bỏ 127.0.0.1

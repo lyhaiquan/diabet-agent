@@ -18,3 +18,4 @@ kaggle/app_kernel/
 neo4j.local.json
 neo4j_data/
 kaggle/rgcn_kernel/
+*.db.key

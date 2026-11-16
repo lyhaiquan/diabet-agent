@@ -12,6 +12,7 @@ matplotlib
 nbformat
 networkx
 reportlab
+cryptography  # mã hoá các cột chữ chứa thông tin sức khoẻ trong SQLite (diacare.crypto)
 fastapi
 uvicorn
 python-multipart

@@ -7,13 +7,14 @@ import streamlit as st
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from diacare.factory import build_orchestrator, open_store  # noqa: E402
+from diacare.factory import ROOT, build_orchestrator, open_store  # noqa: E402
 from diacare.flowviz import flow_html  # noqa: E402
 from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
 from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS, has_diagnosis  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
+from diacare.predictor import compare_models  # noqa: E402
 from diacare.rl import ACTION_LABELS, off_policy_report  # noqa: E402
 from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
@@ -367,6 +368,14 @@ def render_chat(store, base, patient_id):
         band = risk_band(base.predictor.predict(patient["profile"]))
         st.caption(f"Bệnh nhân: #{patient['id']} {patient['name']} · hồ sơ nguy cơ {band} · "
                    f"Phiên {st.session_state['session_id']} · Đổi bệnh nhân hoặc lưu hồ sơ mới ở thanh bên")
+        with st.expander("So sánh hai mô hình dự đoán trên hồ sơ này"):
+            rows = compare_models(ROOT / "models", patient["profile"])
+            st.table([{"Mô hình": r["name"], "Dữ liệu học": r["trained_on"],
+                       "Xác suất": f"{r['probability']:.1%}", "Mức": r["band"],
+                       "Đã hiệu chỉnh": "có" if r["calibrated"] else "chưa"} for r in rows])
+            st.caption("Hai mô hình xếp hạng người dùng gần như nhau (AUC 0,83). Xác suất của MLP chưa hiệu chỉnh "
+                       "(ECE 0,23) nên dùng ngưỡng 0,20 / 0,50; bản đa nguồn (ECE 0,004) dùng 0,10 / 0,30 và là bản "
+                       "mặc định. Chạy cả hệ bằng MLP: đặt DIACARE_PREDICTOR=v1.")
     else:
         st.caption("Hỏi về ăn uống, vận động, thuốc, kết quả xét nghiệm. Trợ lý không chẩn đoán và không khuyên "
                    "đổi thuốc; mọi thay đổi điều trị cần hỏi bác sĩ.")

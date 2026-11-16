@@ -31,6 +31,7 @@ from diacare.factory import DEFAULT_DB_PATH, ROOT, build_parts, orchestrator_fro
 from diacare.labs import LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file, parse_lab_text
 from diacare.memory import KIND_LABELS, has_diagnosis
 from diacare.rl import ACTION_LABELS, RLAgent
+from diacare.predictor import compare_models
 from diacare.rules import FEATURE_RANGES, SafeStream, risk_band, validate_profile
 from diacare.samples import LOW_RISK
 from diacare.speech import AudioError, decode_wav, make_transcriber, parse_spoken_reading
@@ -57,7 +58,9 @@ def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=N
         boot.enable_wal()
         boot.close()
         if app.state.secret is None:  # đọc khi khởi động, không phải lúc import (test đặt khoá riêng)
-            app.state.secret = security.load_secret(ROOT / "data" / "api_secret.key")
+            # khoá nằm cạnh DB: trong Docker cả hai cùng ở volume dữ liệu, tách khỏi data/nutrition của ảnh
+            key_dir = ROOT / "data" if db_path == ":memory:" else Path(db_path).parent
+            app.state.secret = security.load_secret(key_dir / "api_secret.key")
         app.state.parts = parts or build_parts()
         yield
 
@@ -315,6 +318,8 @@ def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
             "focus": {"event_id": rl.get("event_id"), "action": rl.get("action"),
                       "label": ACTION_LABELS.get(rl.get("action"))} if rl.get("action") else None,
             "steps": [{"agent": e["agent"], "detail": e["detail"], "ms": e["ms"]} for e in state.trace],
+            # CriticAgent: bản nháp có căn cứ trong ngữ cảnh không (nguồn trích lạ, con số không có trong ngữ cảnh)
+            "grounding": state.grounding,
         }
     finally:
         store.close()
@@ -396,6 +401,13 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
                 raise HTTPException(422, "; ".join(errors))
         store.update_patient(patient["id"], body.name.strip() if body.name else None, profile)
         return _patient_out(store, request.app.state.parts, store.get_patient(patient["id"]))
+
+    @app.get("/patients/{patient_id}/risk-models", tags=["hồ sơ"])
+    def risk_models(patient=Depends(owned_patient)):
+        """Cùng một hồ sơ qua hai mô hình dự đoán: MLP (học sâu, V1) và boosting đa nguồn đang chạy mặc định."""
+        return {"current": getattr(app.state.parts.predictor, "kind", None),
+                "models": compare_models(ROOT / "models", patient["profile"]),
+                "note": "Xác suất MLP chưa hiệu chỉnh nên dùng ngưỡng 0,20 / 0,50; bản đa nguồn dùng 0,10 / 0,30."}
 
     @app.get("/patients/{patient_id}/memories", tags=["hồ sơ"])
     def memories(patient=Depends(owned_patient), store: Store = Depends(get_store)):
