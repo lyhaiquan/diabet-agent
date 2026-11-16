@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 34 tệp test với 698 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 34 tệp test với 703 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -487,7 +487,7 @@ Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống, lịch s�
 - khi có xét nghiệm: giải thích so với ngưỡng, trích `[ada_2024]`, nói rõ không phải chẩn đoán;
 - khi có nhật ký: nêu con số cụ thể, giữ nguyên nhận định có sẵn (cao hơn, thấp hơn, trong mục tiêu) thay vì tự so lại, không suy ra liều thuốc, và khuyên báo bác sĩ khi có hạ đường huyết hoặc chỉ số rất cao.
 
-Lớp `OllamaLLM` gọi `/api/chat` với nhiệt độ 0,2, `num_ctx` 4.096 và `num_predict` 512. Giới hạn `num_predict` được thêm sau khi lần chạy Kaggle thứ hai gặp câu trả lời viết mãi tới hết thời gian chờ. Khi có `on_token`, lớp này bật chế độ stream và đọc từng dòng JSON của Ollama. Lớp `DemoLLM` là mô hình giả, trích nguyên đoạn tài liệu đầu tiên, dùng cho test và chạy thử giao diện không cần GPU.
+Lớp `OllamaLLM` gọi `/api/chat` với nhiệt độ 0,2, `num_ctx` 4.096 và `num_predict` 512. Giới hạn `num_predict` được thêm sau khi lần chạy Kaggle thứ hai gặp câu trả lời viết mãi tới hết thời gian chờ. Mặt trái của giới hạn này là câu trả lời dài bị cắt giữa chừng: khi chạy thử giao diện, câu trả lời kết thúc ở "Tham khảo ý kiến bác sĩ: Đảm", và trong benchmark KG/RL có 8, 8 và 14 trên 150 lượt mỗi cấu hình chạm đúng 512 token. Từ V4.6, khi Ollama báo dừng vì chạm giới hạn (`done_reason: length`), `trim_incomplete` bỏ phần dở dang ở cuối: giữ tới dấu kết thúc câu cuối cùng (không nhầm số thập phân như 7.8), rồi bỏ các tiêu đề còn treo như "**Gợi ý thêm:**". Lượt đó được gắn cờ `answer_truncated`, và Critic, Rules làm việc trên bản đã cắt. Khi có `on_token`, lớp này bật chế độ stream và đọc từng dòng JSON của Ollama. Lớp `DemoLLM` là mô hình giả, trích nguyên đoạn tài liệu đầu tiên, dùng cho test và chạy thử giao diện không cần GPU.
 
 ## 3.12. Rules: rào chắn an toàn
 
@@ -516,6 +516,7 @@ Danh sách cờ:
 | `system_error` | lỗi trong pipeline |
 | `context_near_limit` | token vào vượt 90% cửa sổ |
 | `history_summarized` | lịch sử đã được tóm tắt |
+| `answer_truncated` | bản nháp chạm giới hạn 512 token, đã bỏ câu dở dang ở cuối (V4.6) |
 | `prompt_injection_suspected` | câu hỏi có dấu hiệu cố lái mô hình (V4.6); vẫn trả lời |
 | `kb_injection_filtered` | đã loại đoạn tài liệu có câu ra lệnh cho mô hình (V4.6) |
 | `unknown_source_cited` | bản nháp trích nhãn nguồn không có trong ngữ cảnh (Critic, V4.6) |
@@ -802,7 +803,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-698 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất: 694 đạt, 1 test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j, 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+703 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất: 699 đạt, 1 test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j, 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 

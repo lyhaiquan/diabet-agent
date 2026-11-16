@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-from diacare.advisor import advise
+from diacare.advisor import advise, trim_incomplete
 from diacare.context import HISTORY_TOKEN_BUDGET, build_context, estimate_tokens
 from diacare.critic import check_grounding, describe as describe_grounding
 from diacare.contracts import (MODEL_VERSION, SYSTEM_VERSION, PatientDataAgent, build_decision_report,
@@ -232,6 +232,10 @@ class Orchestrator:
             u = state.usage
             step("Advisor", f"LLM viết bản nháp: {u.get('prompt_tokens', '?')} token vào, "
                             f"{u.get('completion_tokens', '?')} token ra" if u else "LLM viết bản nháp")
+            if u.get("truncated"):  # chạm giới hạn num_predict: bỏ câu dở dang ở cuối thay vì hiện chữ bị cắt
+                state.draft = trim_incomplete(state.draft)
+                guard_flags.append("answer_truncated")
+                step("Advisor", "bản nháp chạm giới hạn độ dài: bỏ phần dở dang ở cuối, giữ tới câu trọn vẹn cuối cùng")
             try:  # Critic chỉ đo và gắn cờ; lỗi ở đây không được chặn câu trả lời
                 state.grounding = check_grounding(state.draft, ctx)
                 step("Critic", "đối chiếu bản nháp với ngữ cảnh: " + describe_grounding(state.grounding))

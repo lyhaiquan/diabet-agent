@@ -469,6 +469,8 @@ tests/                  test (pytest)
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt. Ba cách nói
   đổi thuốc đã biết vẫn lọt (động từ đứng sau tên thuốc, từ tiếng Anh ngoài danh sách, chữ bị chèn ký tự).
 - Critic chỉ so khớp chuỗi: không phát hiện con số đúng nhưng đặt sai chỗ.
+- Câu trả lời giới hạn 512 token (`num_predict`); câu trả lời dài hơn bị cắt về câu trọn vẹn cuối cùng và gắn cờ
+  `answer_truncated`, nên phần cuối dự định viết có thể bị mất.
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
 - Nhắc nhở chỉ hiện khi mở ứng dụng; chưa gửi được thông báo đẩy. Đường huyết gõ trong chat vẫn được lưu vào
   mục xét nghiệm, chưa vào nhật ký, và trợ lý tư vấn chưa đọc nhật ký.

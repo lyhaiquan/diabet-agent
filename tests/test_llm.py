@@ -106,3 +106,17 @@ def test_demo_llm_streams_same_text():
     msgs = [{"role": "user", "content": "Tài liệu tham khảo:\n[a.txt]\nĂn rau.\n\nCâu hỏi: gì?"}]
     got = []
     assert "".join(got) == "" and DemoLLM()(msgs, on_token=got.append) == "".join(got)
+
+
+def test_truncated_when_ollama_stops_at_length(monkeypatch):
+    patch(monkeypatch, {**FULL, "eval_count": 512, "done_reason": "length"})
+    llm = OllamaLLM(num_predict=512)
+    llm([])
+    assert llm.last_usage["truncated"] is True
+
+
+def test_not_truncated_when_answer_finishes(monkeypatch):
+    patch(monkeypatch, {**FULL, "done_reason": "stop"})
+    llm = OllamaLLM(num_predict=512)
+    llm([])
+    assert "truncated" not in llm.last_usage

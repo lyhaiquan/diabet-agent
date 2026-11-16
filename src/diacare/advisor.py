@@ -1,3 +1,5 @@
+import re
+
 from diacare.rules import risk_band
 
 SYSTEM_PROMPT = (
@@ -45,6 +47,26 @@ def build_messages(ctx):
     )
     return [{"role": "system", "content": SYSTEM_PROMPT}, *ctx["history"],
             {"role": "user", "content": user}]
+
+
+_SENT_END = re.compile(r"[.!?…](?:\*\*|\*|\)|\"|”)*(?=\s|$)")
+
+
+def trim_incomplete(text):
+    """Bỏ phần cuối bị cắt khi LLM chạm giới hạn token: giữ tới hết câu trọn vẹn cuối cùng.
+
+    Dòng cuối dở dang: giữ tới dấu kết thúc câu cuối trong dòng, không có thì bỏ cả dòng. Sau đó bỏ các dòng tiêu đề
+    còn treo ở cuối (kết thúc bằng dấu hai chấm, hoặc chỉ là chữ in đậm) vì phần nội dung của chúng đã bị cắt."""
+    lines = text.rstrip().split("\n")
+    last = lines[-1]
+    ends = list(_SENT_END.finditer(last))
+    if ends and ends[-1].end() == len(last.rstrip()):
+        return text.rstrip()  # đã kết thúc trọn câu
+    lines[-1] = last[:ends[-1].end()] if ends else ""
+    while lines and (not lines[-1].strip() or lines[-1].rstrip().rstrip("*").endswith(":")
+                     or re.fullmatch(r"\s*(?:[-*+]|\d+\.)?\s*\*\*[^*]+\*\*\s*", lines[-1])):
+        lines.pop()
+    return "\n".join(lines).rstrip()
 
 
 def advise(ctx, llm, on_token=None):

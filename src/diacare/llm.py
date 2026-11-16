@@ -40,6 +40,10 @@ class OllamaLLM:
             "seconds": round(data.get("total_duration", 0) / 1e9, 3),
             "num_ctx": self.num_ctx,
         }
+        # Ollama báo done_reason="length" khi dừng vì chạm num_predict: câu cuối bị cắt giữa chừng
+        if data.get("done_reason") == "length" or (
+                self.num_predict is not None and data.get("eval_count", 0) >= self.num_predict):
+            self.last_usage["truncated"] = True
         return text
 
 

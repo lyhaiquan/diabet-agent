@@ -421,3 +421,16 @@ def test_parallel_can_be_disabled_by_env(monkeypatch):
     assert Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "x").parallel is False
     monkeypatch.delenv("DIACARE_PARALLEL")
     assert Orchestrator(FakePredictor(0.1), FakeRetriever(), lambda m: "x").parallel is True
+
+
+def test_truncated_draft_is_trimmed_and_flagged():
+    reply = "Hãy giảm đường [ada.txt]. Đi bộ mỗi ngày.\n- **Tham khảo ý kiến bác sĩ:** Đảm"
+    llm = FakeLLM({"prompt_tokens": 100, "completion_tokens": 512, "truncated": True}, reply=reply)
+    state = Orchestrator(FakePredictor(0.1), FakeRetriever(), llm).run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert state.draft == "Hãy giảm đường [ada.txt]. Đi bộ mỗi ngày."
+    assert "Đảm" not in state.final and "answer_truncated" in state.flags
+
+
+def test_complete_draft_is_not_flagged_truncated():
+    state = run_with_usage({"prompt_tokens": 100, "completion_tokens": 40})
+    assert "answer_truncated" not in state.flags
