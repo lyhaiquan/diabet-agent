@@ -10,10 +10,15 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
 import secrets
+import threading
 import time
+from collections import deque
 from pathlib import Path
+
+from diacare.crypto import restrict_to_owner
 
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 2 ** 14, 8, 1
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
@@ -22,6 +27,43 @@ MIN_SECRET_BYTES = 32
 
 class TokenError(Exception):
     pass
+
+
+# ---- chống dò mật khẩu ----
+
+class RateLimiter:
+    """Cửa sổ trượt trong bộ nhớ: mỗi khoá được tối đa `limit` lần trong `window` giây.
+
+    Không khoá cứng tài khoản (kẻ xấu có thể dùng việc đó để khoá người khác): hết cửa sổ là thử lại được.
+    Bộ đếm nằm trong tiến trình: đúng khi API chạy một worker (Dockerfile chạy uvicorn một tiến trình);
+    chạy nhiều worker thì mỗi worker đếm riêng, giới hạn thực tế nhân lên theo số worker."""
+
+    def __init__(self, clock=time.time):
+        self.clock = clock
+        self._hits = {}
+        self._lock = threading.Lock()
+
+    def _window(self, key, window, now):
+        q = self._hits.setdefault(key, deque())
+        while q and q[0] <= now - window:
+            q.popleft()
+        return q
+
+    def retry_after(self, key, limit, window):
+        """Số giây phải chờ nếu khoá đã dùng hết lượt, hoặc 0."""
+        with self._lock:
+            now = self.clock()
+            q = self._window(key, window, now)
+            return max(1, math.ceil(q[0] + window - now)) if len(q) >= limit else 0
+
+    def hit(self, key, window):
+        with self._lock:
+            now = self.clock()
+            self._window(key, window, now).append(now)
+
+    def reset(self, key):
+        with self._lock:
+            self._hits.pop(key, None)
 
 
 # ---- mật khẩu ----
@@ -54,6 +96,8 @@ def load_secret(path):
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(secrets.token_urlsafe(48), encoding="utf-8")
+        # ai đọc được khoá ký là giả được token của mọi tài khoản: chỉ người dùng chạy API được đọc
+        restrict_to_owner(path)
         secret = path.read_text(encoding="utf-8").strip().encode("utf-8")
     if len(secret) < MIN_SECRET_BYTES:
         raise ValueError(f"Khoá ký token phải dài ít nhất {MIN_SECRET_BYTES} byte.")

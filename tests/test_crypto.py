@@ -15,6 +15,7 @@ def _raw(path, sql):
         con.close()
 
 
+@pytest.mark.sqlite_only
 def test_sensitive_columns_are_encrypted_on_disk_and_roundtrip(tmp_path, monkeypatch):
     monkeypatch.delenv("DIACARE_DB_KEY", raising=False)
     monkeypatch.delenv("DIACARE_DB_ENCRYPT", raising=False)
@@ -80,3 +81,34 @@ def test_env_key_and_disable(monkeypatch, tmp_path):
     assert c.dec(c.enc("xin chào")) == "xin chào" and c.enc("a") != c.enc("a")
     monkeypatch.setenv("DIACARE_DB_ENCRYPT", "0")
     assert isinstance(cipher_for(tmp_path / "x.db"), NoCipher)
+
+
+def _only_owner_can_read(path):
+    import os
+    import subprocess
+    if os.name != "nt":
+        return (os.stat(path).st_mode & 0o077) == 0
+    out = subprocess.run(["icacls", str(path)], capture_output=True, text=True).stdout
+    aces = [line for line in out.splitlines()[:-2] if "(" in line]  # bỏ dòng tổng kết của icacls
+    user = os.environ.get("USERNAME", "").lower()
+    return r"BUILTIN\Users" not in out and "Authenticated Users" not in out and len(aces) == 1 \
+        and user in aces[0].lower()
+
+
+def test_key_file_readable_only_by_owner(tmp_path, monkeypatch):
+    """Tệp khoá mã hoá DB: người dùng Windows khác trên cùng máy không được đọc."""
+    from diacare.crypto import cipher_for, key_path
+    monkeypatch.delenv("DIACARE_DB_KEY", raising=False)
+    monkeypatch.delenv("DIACARE_DB_ENCRYPT", raising=False)
+    db = tmp_path / "x.db"
+    cipher_for(db)
+    assert _only_owner_can_read(key_path(db))
+
+
+def test_api_secret_file_readable_only_by_owner(tmp_path, monkeypatch):
+    """Khoá ký token: ai đọc được là giả được token của mọi tài khoản."""
+    from api import security
+    monkeypatch.delenv("DIACARE_API_SECRET", raising=False)
+    p = tmp_path / "api_secret.key"
+    security.load_secret(p)
+    assert _only_owner_can_read(p)

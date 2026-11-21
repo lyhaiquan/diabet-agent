@@ -15,3 +15,4 @@ matplotlib
 networkx
 reportlab
 cryptography  # mã hoá các cột chữ chứa thông tin sức khoẻ trong SQLite (diacare.crypto)
+psycopg[binary]>=3.2  # PostgreSQL cho dịch vụ API (DIACARE_DATABASE_URL); không đặt thì dùng SQLite

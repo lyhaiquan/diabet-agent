@@ -10,6 +10,8 @@ import re
 from diacare.nutrition import strip_accents
 from diacare.ocr import IMAGE_EXTENSIONS, clean_ocr_text, extract_pdf_text, ocr_image
 
+MAX_LAB_PDF_PAGES = 10  # phiếu xét nghiệm thường 1-3 trang; mỗi trang scan tốn tới 30 giây OCR
+
 SOURCE_TAG = "[ada_2024]"
 MGDL_PER_MMOL = 18.0
 
@@ -103,7 +105,7 @@ def parse_lab_file(filename, data, ocr_fn=None):
     """Đọc file kết quả (.txt, .csv, .json, .pdf có chữ hoặc PDF scan/ảnh chụp) rồi trích chỉ số."""
     name = filename.lower()
     if name.endswith(".pdf"):
-        text = extract_pdf_text(data, ocr_fn=ocr_fn)
+        text = extract_pdf_text(data, ocr_fn=ocr_fn, max_pages=MAX_LAB_PDF_PAGES)
     elif name.endswith(IMAGE_EXTENSIONS):
         text = ocr_image(data, ocr_fn=ocr_fn)
     else:

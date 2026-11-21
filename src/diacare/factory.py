@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from diacare.db import Store
+from diacare.pg import is_url as is_db_url
 from diacare.kb import load_kb
 from diacare.kg import GraphAgent, MemoryKG, Neo4jKG
 from diacare.journal import JournalAgent
@@ -86,8 +87,10 @@ def parse_features(value=None):
 
 
 def open_store(path=None):
-    path = Path(path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    """DB của Streamlit/CLI: tham số, rồi DIACARE_DATABASE_URL (PostgreSQL), rồi DIACARE_DB (tệp SQLite)."""
+    path = path or os.environ.get("DIACARE_DATABASE_URL") or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH
+    if not is_db_url(path):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
     return Store(path)
 
 

@@ -72,4 +72,6 @@ if ($Cli) {
 }
 
 Write-Host "Mở giao diện tại http://localhost:$Port  (đóng cửa sổ này để tắt)"
-python -m streamlit run src/app.py --server.port $Port --browser.gatherUsageStats false
+# Streamlit không có đăng nhập: chỉ nghe trên máy này. Không đặt address thì Streamlit nghe mọi giao diện mạng,
+# ai cùng mạng Wi-Fi cũng mở được và xem mọi hồ sơ.
+python -m streamlit run src/app.py --server.address 127.0.0.1 --server.port $Port --browser.gatherUsageStats false

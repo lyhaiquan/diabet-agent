@@ -9,6 +9,12 @@ Thứ tự backend `ocr_image` (tự động chọn cái có sẵn trên máy, h
 1. `rapidocr_onnxruntime` (nếu cài)
 2. `tesseract` CLI / `pytesseract` (nếu cài)
 3. `Windows.Media.Ocr.OcrEngine` có sẵn trên Windows 10/11 (không cần cài thêm thư viện ngoài).
+
+Chặn tệp tải lên làm treo máy chủ (`UploadRejected`):
+- Ảnh: kiểm tra kích thước điểm ảnh từ phần đầu tệp (Pillow chưa giải nén) trước khi đưa vào bất kỳ bộ OCR nào.
+  Một PNG 20000x20000 chỉ nặng vài KB nhưng giải nén ra hàng GB.
+- PDF: giới hạn số trang (`max_pages`, phiếu xét nghiệm chỉ 1-3 trang) và kết xuất trang thành ảnh với độ phân giải
+  tự hạ để không quá `MAX_RENDER_PIXELS` (một trang khai báo khổ 200 inch ở 200 dpi ra ảnh 40000x40000).
 """
 import io
 import os
@@ -22,6 +28,13 @@ from pathlib import Path
 from pypdf import PdfReader
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
+MAX_IMAGE_PIXELS = 50_000_000    # 50 MP: đủ cho ảnh chụp điện thoại độ phân giải cao
+MAX_RENDER_PIXELS = 12_000_000   # một trang A4 ở 200 dpi khoảng 3,9 MP
+RENDER_DPI = 200
+
+
+class UploadRejected(ValueError):
+    """Tệp hợp lệ về định dạng nhưng vượt giới hạn xử lý; thông điệp viết cho người dùng."""
 
 # Lỗi nhận dạng đơn vị xét nghiệm thường gặp khi OCR đọc phiếu in mờ:
 # "7.2 %" -> "7.2 0/0" hoặc "7.2 o/o"; "mg/dL" -> "mg/d1" hoặc "mg/di"; "mmol/L" -> "mmol/1"
@@ -66,9 +79,27 @@ def clean_ocr_text(text):
     return text
 
 
+def check_image_size(raw):
+    """Đọc kích thước ảnh từ phần đầu tệp (chưa giải nén điểm ảnh); quá MAX_IMAGE_PIXELS thì từ chối."""
+    from PIL import Image, UnidentifiedImageError
+    try:
+        with Image.open(io.BytesIO(raw)) as img:
+            width, height = img.size
+    except Image.DecompressionBombError as exc:
+        raise UploadRejected("Ảnh quá lớn để xử lý.") from exc
+    except (UnidentifiedImageError, OSError) as exc:
+        raise UploadRejected("Không nhận ra định dạng ảnh.") from exc
+    if width * height > MAX_IMAGE_PIXELS:
+        raise UploadRejected(f"Ảnh quá lớn ({width}x{height} điểm ảnh); tối đa {MAX_IMAGE_PIXELS // 1_000_000} "
+                             "triệu điểm ảnh. Hãy chụp lại hoặc giảm kích thước ảnh.")
+    return width, height
+
+
 def _to_png_bytes(data):
-    """Đảm bảo dữ liệu ảnh ở định dạng PNG hợp lệ trước khi đưa vào công cụ OCR."""
+    """Đảm bảo dữ liệu ảnh ở định dạng PNG hợp lệ trước khi đưa vào công cụ OCR.
+    Kiểm tra kích thước nằm ngoài khối try: lỗi quá cỡ không được nuốt mất rồi để bộ OCR tự giải nén ảnh."""
     raw = Path(data).read_bytes() if isinstance(data, (str, Path)) else bytes(data)
+    check_image_size(raw)
     try:
         from PIL import Image
         with Image.open(io.BytesIO(raw)) as img:
@@ -143,20 +174,32 @@ def ocr_image(data, ocr_fn=None):
     return clean_ocr_text(fn(raw) or "")
 
 
+def render_scale(width_pt, height_pt, dpi=RENDER_DPI, max_pixels=MAX_RENDER_PIXELS):
+    """Hệ số phóng (điểm ảnh trên 1 point PDF) ở `dpi`, tự hạ để ảnh kết xuất không quá `max_pixels`."""
+    scale = dpi / 72
+    area = max(float(width_pt), 1.0) * max(float(height_pt), 1.0)
+    if area * scale * scale > max_pixels:
+        scale = (max_pixels / area) ** 0.5
+    return scale
+
+
 def render_pdf_page(pdf_bytes, page_index, reader_page=None):
     """Kết xuất trang `page_index` của PDF sang danh sách ảnh PNG (`bytes`) để chạy OCR."""
     try:
         import fitz
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             if 0 <= page_index < len(doc):
-                return [doc[page_index].get_pixmap(dpi=200).tobytes("png")]
+                page = doc[page_index]
+                s = render_scale(page.rect.width, page.rect.height)
+                return [page.get_pixmap(matrix=fitz.Matrix(s, s)).tobytes("png")]
     except Exception:
         pass
     try:
         import pypdfium2 as pdfium
         doc = pdfium.PdfDocument(pdf_bytes)
         if 0 <= page_index < len(doc):
-            pil_img = doc[page_index].render(scale=2.0).to_pil()
+            page = doc[page_index]
+            pil_img = page.render(scale=render_scale(*page.get_size())).to_pil()
             buf = io.BytesIO()
             pil_img.save(buf, format="PNG")
             return [buf.getvalue()]
@@ -170,10 +213,13 @@ def render_pdf_page(pdf_bytes, page_index, reader_page=None):
     return []
 
 
-def extract_pdf_text(pdf_source, ocr_fn=None):
-    """Trích văn bản từ PDF (`bytes` hoặc `Path`). Trang không có lớp chữ sẽ tự động chuyển qua OCR."""
+def extract_pdf_text(pdf_source, ocr_fn=None, max_pages=None):
+    """Trích văn bản từ PDF (`bytes` hoặc `Path`). Trang không có lớp chữ sẽ tự động chuyển qua OCR.
+    max_pages: từ chối PDF dài hơn (tệp người dùng tải lên); None = không giới hạn (tài liệu trong kho kiến thức)."""
     pdf_bytes = Path(pdf_source).read_bytes() if isinstance(pdf_source, (str, Path)) else bytes(pdf_source)
     reader = PdfReader(io.BytesIO(pdf_bytes))
+    if max_pages is not None and len(reader.pages) > max_pages:
+        raise UploadRejected(f"PDF có {len(reader.pages)} trang; phiếu xét nghiệm tối đa {max_pages} trang.")
     pages = []
     for idx, page in enumerate(reader.pages):
         text = (page.extract_text() or "").strip()

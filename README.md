@@ -26,7 +26,7 @@ flowchart LR
     C --> A[Advisor<br/>LLM Ollama qwen2.5]
     A --> RU[Rules<br/>lọc an toàn + cờ]
     RU --> F[Trả lời cuối]
-    M & L -.-> DB[(SQLite)]
+    M & L -.-> DB[(SQLite / PostgreSQL)]
     F -.-> LOG[(log từng bước agent)]
 ```
 
@@ -181,12 +181,24 @@ Bảo mật:
   `data/api_secret.key` (không lên git).
 - Mỗi tài khoản chỉ thấy hồ sơ của mình. Tài nguyên của người khác trả 404.
 - CORS chỉ mở cho các origin trong `DIACARE_CORS` (mặc định `http://localhost:3000`).
+- Chống dò mật khẩu: sai 5 lần cho một email, hoặc 30 lần từ một địa chỉ IP, trong 15 phút thì trả 429 kèm
+  `Retry-After` (như nhau dù email có tài khoản hay không); mỗi IP tạo tối đa 20 tài khoản mỗi giờ. Không khoá cứng
+  tài khoản. Bộ đếm nằm trong tiến trình API (đúng khi chạy một worker, như Dockerfile).
+- Tệp tải lên: tối đa 10 MB; PDF xét nghiệm tối đa 10 trang; ảnh tối đa 50 triệu điểm ảnh, kiểm tra từ phần đầu tệp
+  trước khi giải nén (chặn "bom giải nén": PNG vài KB nhưng giải nén ra hàng GB); trang PDF scan được kết xuất tối đa
+  12 triệu điểm ảnh. Vượt giới hạn trả 413.
 
 Cách chạy:
 
 - Phần AI nặng (Predictor, Retriever, LLM, KG) dựng một lần khi khởi động.
-- Mỗi request mở một kết nối SQLite riêng, chế độ WAL.
-- Các lượt tư vấn chạy lần lượt từng lượt một, vì Ollama cũng chỉ trả lời từng câu một.
+- Cơ sở dữ liệu: PostgreSQL khi đặt `DIACARE_DATABASE_URL=postgresql://...` (Docker Compose đặt sẵn), nếu không thì
+  SQLite (`DIACARE_DB`, chế độ WAL). Mỗi request mở một kết nối riêng.
+- Nhiều người hỏi cùng lúc thì chạy song song, tối đa `DIACARE_CHAT_CONCURRENCY` lượt (mặc định 4). Quá số đó thì chờ
+  tối đa `DIACARE_CHAT_QUEUE_SECONDS` (120 giây) rồi trả 503 kèm `Retry-After`. Ollama tự xếp hàng các câu gửi tới.
+  Hai câu trong cùng một phiên chạy lần lượt để giữ đúng lịch sử và thứ tự tin nhắn. Phản hồi 👍/👎 sửa mô hình RL
+  dưới một khoá riêng; với PostgreSQL đó là advisory lock, đúng cả khi chạy nhiều tiến trình.
+- Chat có hai chế độ: `stream=false` trả JSON khi xong; `stream=true` trả luồng SSE (`step`, `token`, `done`), giao
+  diện web dùng chế độ này để chữ hiện dần.
 
 ### Giao diện web (Next.js)
 
@@ -218,21 +230,43 @@ cookie `HttpOnly`.
 ### Chạy bằng Docker Compose
 
 ```bash
+copy .env.example .env           # lần đầu: đặt POSTGRES_PASSWORD (chữ, số, - và _)
 docker compose up --build        # web http://localhost:3000, API http://localhost:8000/docs
 ```
 
-Ba dịch vụ: `ollama` (tự tải `qwen2.5:3b`, khoảng 1,9 GB ở lần đầu), `api`, `web`. Dữ liệu người dùng nằm trong
-volume `diacare-data`; `docker compose down` không xoá, `docker compose down -v` mới xoá.
+Bốn dịch vụ: `db` (PostgreSQL 16, không mở cổng ra ngoài mạng Docker), `ollama` (tự tải `qwen2.5:3b`, khoảng 1,9 GB
+ở lần đầu), `api`, `web`. Dữ liệu người dùng nằm trong volume `pg-data`; khoá mã hoá DB và khoá ký token nằm trong
+volume `diacare-data`. Mất `diacare-data` thì không đọc lại được các cột đã mã hoá, nên phải sao lưu cả hai.
+`docker compose down` không xoá volume, `docker compose down -v` mới xoá.
 
 - Đổi model: `DIACARE_MODEL=qwen2.5:7b docker compose up --build`.
-- Chạy thử không cần mô hình ngôn ngữ: `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up -d --build --no-deps api web`
-  (`--no-deps` để Compose không kéo ảnh Ollama 3,2 GB). Đã chạy thử ở V4.6: ảnh `api` 2,2 GB, `web` 755 MB, `/health`,
-  web, chat demo và mã hoá DB trong volume đều chạy. Dịch vụ Ollama trong Compose chưa được chạy thử.
+- Chạy thử không cần mô hình ngôn ngữ: `DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up -d --build --no-deps db api web`
+  (`--no-deps` để Compose không kéo ảnh Ollama 3,2 GB; vẫn cần tệp `.env` có `POSTGRES_PASSWORD`). Ở V4.6 (còn dùng
+  SQLite) đã chạy thử: ảnh `api` 2,2 GB, `web` 755 MB, `/health`, web, chat demo và mã hoá DB trong volume đều chạy.
+  Từ V4.7 có thêm dịch vụ `db`; lệnh này và dịch vụ Ollama trong Compose chưa được chạy thử.
 - Có GPU NVIDIA: bỏ dấu `#` ở khối `deploy` của dịch vụ `ollama`.
 - Khoá ký token tự sinh vào volume; muốn tự đặt thì khai báo `DIACARE_API_SECRET` trong tệp `.env`.
 
-Volume `diacare-data` gắn vào `/app/var` (SQLite, khoá mã hoá DB, khoá ký token), tách khỏi bảng dinh dưỡng trong ảnh.
-Volume tạo từ bản cũ (gắn ở `/app/data`) dùng tiếp được, không cần chuyển dữ liệu.
+Volume `diacare-data` gắn vào `/app/var` (khoá mã hoá DB, khoá ký token), tách khỏi bảng dinh dưỡng trong ảnh.
+Volume tạo từ bản trước V4.7 còn tệp `/app/var/diacare.db` (SQLite); từ V4.7 API không đọc tệp đó nữa. Muốn giữ dữ
+liệu cũ thì chép tệp ra (`docker compose cp api:/app/var/diacare.db .`) rồi chuyển sang bằng script ở mục dưới.
+
+### Chuyển dữ liệu từ SQLite sang PostgreSQL
+
+Dữ liệu cũ trong `data/diacare.db` (hoặc volume Docker bản trước) chuyển sang bằng:
+
+```bash
+python tools/sqlite_to_postgres.py data/diacare.db postgresql://diacare:MẬT_KHẨU@127.0.0.1:5432/diacare --key-dir data
+```
+
+Script giữ nguyên id và chép nguyên dữ liệu đã mã hoá, rồi đặt lại bộ đếm id. Nó chép `diacare.db.key` thành
+`<key-dir>/diacare_db.key` (tên tệp khoá khi chạy với PostgreSQL) và `api_secret.key`, để dữ liệu và token đăng nhập cũ
+vẫn dùng được. Bảng đích đã có dữ liệu thì dừng (thêm `--replace` để chép lại); tệp khoá đích đã có mà khác thì dừng,
+không ghi đè. Tệp SQLite không bị sửa. Sau đó chạy API với `DIACARE_DATABASE_URL` và `DIACARE_KEY_DIR` trỏ tới hai chỗ
+trên.
+
+Chạy cả bộ test trên PostgreSQL: đặt `DIACARE_TEST_PG_URL=postgresql://...` rồi `python -m pytest`. Mọi `Store` trong
+test được chuyển sang một schema riêng; test đọc thẳng tệp SQLite được bỏ qua (xem `tests/conftest.py`).
 
 ### Giọng nói
 
@@ -291,12 +325,16 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_EMBED` | `sbert` | `sbert` hoặc `hash` (demo) |
 | `DIACARE_MIN_SCORE` | `0.2` (sbert), `0` (hash) | ngưỡng điểm truy xuất |
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
-| `DIACARE_DB` | `data/diacare.db` | file SQLite |
+| `DIACARE_DATABASE_URL` | (trống) | `postgresql://người_dùng:mật_khẩu@máy:5432/tên_db`; có giá trị thì API và Streamlit dùng PostgreSQL thay cho `DIACARE_DB` |
+| `DIACARE_DB` | `data/diacare.db` | file SQLite (khi không đặt `DIACARE_DATABASE_URL`) |
+| `DIACARE_KEY_DIR` | `data/` | thư mục khoá mã hoá DB (`diacare_db.key`) và khoá ký token khi dùng PostgreSQL |
+| `DIACARE_CHAT_CONCURRENCY` | `4` | số lượt tư vấn API chạy cùng lúc |
+| `DIACARE_CHAT_QUEUE_SECONDS` | `120` | thời gian chờ suất tư vấn trước khi trả 503 |
 | `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
 | `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl, journal; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl,journal` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 | `DIACARE_PARALLEL` | `1` | `0`: chạy bốn agent Predictor, Retriever, Graph, Nutrition tuần tự thay vì song song |
-| `DIACARE_DB_KEY` | tự sinh vào `<DB>.key` | khoá Fernet mã hoá các cột chữ trong SQLite |
+| `DIACARE_DB_KEY` | tự sinh vào `<DB>.key` (PostgreSQL: `<DIACARE_KEY_DIR>/diacare_db.key`) | khoá Fernet mã hoá các cột chữ |
 | `DIACARE_DB_ENCRYPT` | `1` | `0`: không mã hoá (vẫn đọc được dòng chữ thường cũ) |
 | `DIACARE_DEV` | (tắt) | `1`: giao diện Streamlit mở sẵn chế độ nhà phát triển |
 | `DIACARE_API_SECRET` | tự sinh vào `data/api_secret.key` | khoá ký token của API, ít nhất 32 ký tự |
@@ -474,7 +512,18 @@ tests/                  test (pytest)
 - Benchmark chấm an toàn, trích nguồn và định dạng, không chấm độ đúng y khoa của nội dung.
 - Nhắc nhở chỉ hiện khi mở ứng dụng; chưa gửi được thông báo đẩy. Đường huyết gõ trong chat vẫn được lưu vào
   mục xét nghiệm, chưa vào nhật ký, và trợ lý tư vấn chưa đọc nhật ký.
-- API dùng SQLite; muốn nhiều người dùng cùng lúc ở quy mô lớn cần chuyển sang PostgreSQL.
+- Với PostgreSQL, mỗi request vẫn mở một kết nối mới (chưa dùng pool kết nối); đủ cho vài chục người dùng cùng lúc.
+  Chống dò mật khẩu đếm trong bộ nhớ của một tiến trình; chạy nhiều worker thì giới hạn nhân theo số worker.
+- Giới hạn theo IP dùng địa chỉ của kết nối tới API. Đặt sau reverse proxy (hoặc khi Docker chuyển tiếp cổng mà mọi
+  kết nối mang cùng một IP) thì mọi người chung một bộ đếm: 30 lần sai của ai đó chặn đăng nhập của tất cả trong 15
+  phút. Khi đó cần đọc IP thật từ `X-Forwarded-For` của proxy tin cậy (chưa làm).
+- Lượt tư vấn đang chờ suất giữ một luồng của FastAPI tới 120 giây; nhiều người hỏi dồn một lúc có thể làm các
+  endpoint khác (kể cả đăng nhập) chậm theo. Giảm `DIACARE_CHAT_QUEUE_SECONDS` nếu gặp.
+- PostgreSQL mới được chạy thử với PostgreSQL 16 trong WSL (cả bộ test qua `DIACARE_TEST_PG_URL`); dịch vụ `db`
+  trong Docker Compose chưa được chạy thử vì Docker Desktop trên máy phát triển bị lỗi khi khởi động.
+- Giao diện Streamlit không có đăng nhập nên chỉ nghe trên `127.0.0.1` (`.streamlit/config.toml`,
+  `chay_local.ps1`). Đừng đổi sang `0.0.0.0` khi máy đang ở mạng chung: ai cùng mạng sẽ xem được mọi hồ sơ.
+  Muốn cho máy khác vào thì dùng API và giao diện web (có tài khoản).
 - Nhóm câu ngoài chủ đề (`out_of_scope`) mới đạt 0.50: model vẫn làm thơ hoặc chỉ cách nấu ăn thay vì từ chối.
 
 ## Nguồn dữ liệu

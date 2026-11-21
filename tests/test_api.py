@@ -240,6 +240,26 @@ def test_labs_text_and_file(client):
     assert len(client.get(f"/patients/{pid}/labs", headers=auth).json()) == 3
 
 
+def test_lab_upload_limits(client):
+    """Ảnh bom giải nén và PDF quá dài bị từ chối 413, không làm treo máy chủ."""
+    import io
+    import fitz
+    from PIL import Image
+    auth = register(client)
+    pid = new_patient(client, auth)
+    buf = io.BytesIO()
+    Image.new("1", (20000, 20000), 1).save(buf, format="PNG", optimize=True)
+    r = client.post(f"/patients/{pid}/labs/file", files={"file": ("kq.png", buf.getvalue(), "image/png")},
+                    headers=auth)
+    assert r.status_code == 413 and "quá lớn" in r.json()["detail"]
+    doc = fitz.open()
+    for _ in range(11):
+        doc.new_page()
+    r = client.post(f"/patients/{pid}/labs/file", files={"file": ("kq.pdf", doc.tobytes(), "application/pdf")},
+                    headers=auth)
+    assert r.status_code == 413 and "11 trang" in r.json()["detail"]
+
+
 def test_questions_appointment_and_pdf(client):
     auth = register(client)
     pid = new_patient(client, auth)
@@ -437,3 +457,140 @@ def test_risk_models_compares_mlp_and_multisource(client):
     assert [m["kind"] for m in body["models"]] == ["v1", "multisource"]
     assert body["current"] == "multisource"
     assert client.get(f"/patients/{pid}/risk-models").status_code == 401
+
+
+def test_login_throttled_after_repeated_failures(tmp_path, parts):
+    """Sai 5 lần cho một email: lần thứ 6 bị 429 kể cả mật khẩu đúng; hết 15 phút thì đăng nhập lại được."""
+    now = [NOW]
+    app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: now[0])
+    with TestClient(app) as c:
+        register(c)
+        login = lambda email, pw: c.post("/auth/token", data={"username": email, "password": pw})  # noqa: E731
+        for _ in range(5):
+            assert login("an@example.com", "sai-mat-khau").status_code == 401
+        r = login("an@example.com", "matkhau123")
+        assert r.status_code == 429 and int(r.headers["Retry-After"]) > 0
+        # email chưa có tài khoản bị đối xử y hệt: không lộ email nào tồn tại
+        for _ in range(5):
+            assert login("ma@example.com", "x").status_code == 401
+        assert login("ma@example.com", "x").status_code == 429
+        now[0] = NOW + timedelta(minutes=16)
+        assert login("an@example.com", "matkhau123").status_code == 200
+
+
+def test_login_throttled_per_ip_and_register_limited(tmp_path, parts):
+    app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: NOW)
+    with TestClient(app) as c:
+        for i in range(30):  # dò nhiều email, mỗi email 1 lần
+            assert c.post("/auth/token", data={"username": f"u{i}@x.vn", "password": "x"}).status_code == 401
+        assert c.post("/auth/token", data={"username": "khac@x.vn", "password": "x"}).status_code == 429
+        for i in range(20):
+            assert c.post("/auth/register", json={"email": f"r{i}@x.vn", "password": "matkhau123"}).status_code == 201
+        assert c.post("/auth/register", json={"email": "r99@x.vn", "password": "matkhau123"}).status_code == 429
+
+
+def test_successful_login_resets_email_counter(tmp_path, parts):
+    app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: NOW)
+    with TestClient(app) as c:
+        register(c)
+        for _ in range(2):
+            for _ in range(4):
+                assert c.post("/auth/token", data={"username": "an@example.com", "password": "sai"}).status_code == 401
+            assert c.post("/auth/token", data={"username": "an@example.com",
+                                               "password": "matkhau123"}).status_code == 200
+
+
+# ---- nhiều người hỏi cùng lúc ----
+
+class _GateLLM(DemoLLM):
+    """LLM giả: ghi số lượt đang chạy cùng lúc; `gate` (nếu có) chặn tới khi test mở."""
+
+    def __init__(self, hold=0.0, gate=None, barrier=None):
+        super().__init__()
+        self.hold, self.gate, self.barrier = hold, gate, barrier
+        self.active = self.peak = 0
+        self._lock = __import__("threading").Lock()
+
+    def __call__(self, messages, on_token=None):
+        with self._lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+        try:
+            if self.barrier is not None:
+                self.barrier.wait(timeout=10)  # chỉ qua được khi đủ số lượt CÙNG đang chạy
+            if self.gate is not None:
+                self.gate.wait(timeout=10)
+            __import__("time").sleep(self.hold)
+            return super().__call__(messages, on_token)
+        finally:
+            with self._lock:
+                self.active -= 1
+
+
+def _gate_client(tmp_path, llm):
+    kb = tmp_path / "kb"
+    kb.mkdir(exist_ok=True)
+    (kb / "ada.txt").write_text("Ăn nhiều rau xanh và hạn chế đường.", encoding="utf-8")
+    p = build_parts(kb_dir=kb, log_path=tmp_path / "runs.jsonl", llm=llm, embed_fn=hash_embed_fn(), min_score=0.0,
+                    features="v1")
+    return TestClient(create_app(db_path=tmp_path / "api.db", parts=p, secret=SECRET, clock=lambda: NOW))
+
+
+def _in_threads(*fns):
+    import threading
+    out = [None] * len(fns)
+    threads = [threading.Thread(target=lambda i=i, f=f: out.__setitem__(i, f())) for i, f in enumerate(fns)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    return out
+
+
+def test_chats_of_different_users_run_in_parallel(tmp_path):
+    """Không còn khoá chung: hai người hỏi cùng lúc thì cả hai cùng ở trong LLM (barrier 2 chỉ qua khi song song)."""
+    import threading
+    llm = _GateLLM(barrier=threading.Barrier(2))
+    with _gate_client(tmp_path, llm) as c:
+        a, b = register(c, "a@x.vn"), register(c, "b@x.vn")
+        pa, pb = new_patient(c, a), new_patient(c, b)
+        ra, rb = _in_threads(lambda: c.post(f"/patients/{pa}/chat", json={"question": "Nên ăn gì?"}, headers=a),
+                             lambda: c.post(f"/patients/{pb}/chat", json={"question": "Nên ăn gì?"}, headers=b))
+        assert ra.status_code == 200 and rb.status_code == 200 and llm.peak == 2
+
+
+def test_same_session_turns_run_one_after_another(tmp_path):
+    llm = _GateLLM(hold=0.3)
+    with _gate_client(tmp_path, llm) as c:
+        auth = register(c)
+        pid = new_patient(c, auth)
+        sid = c.post(f"/patients/{pid}/chat", json={"question": "Chào"}, headers=auth).json()["session_id"]
+        ask = lambda q: lambda: c.post(f"/patients/{pid}/chat", json={"question": q, "session_id": sid},  # noqa: E731
+                                       headers=auth)
+        r1, r2 = _in_threads(ask("Câu một?"), ask("Câu hai?"))
+        assert r1.status_code == 200 and r2.status_code == 200 and llm.peak == 1
+        roles = [m["role"] for m in c.get(f"/patients/{pid}/sessions/{sid}/messages", headers=auth).json()]
+        assert roles == ["user", "assistant"] * 3  # không chen tin nhắn của hai lượt
+
+
+def test_chat_returns_503_when_all_slots_busy(tmp_path):
+    import threading
+    import time
+    gate = threading.Event()
+    llm = _GateLLM(gate=gate)
+    with _gate_client(tmp_path, llm) as c:
+        c.app.state.chat_slots = threading.BoundedSemaphore(1)
+        c.app.state.chat_wait = 0.2
+        a, b = register(c, "a@x.vn"), register(c, "b@x.vn")
+        pa, pb = new_patient(c, a), new_patient(c, b)
+        first = threading.Thread(target=lambda: c.post(f"/patients/{pa}/chat", json={"question": "Nên ăn gì?"},
+                                                       headers=a))
+        first.start()
+        while llm.active == 0:
+            time.sleep(0.01)
+        r = c.post(f"/patients/{pb}/chat", json={"question": "Nên ăn gì?", "stream": True}, headers=b)
+        assert r.status_code == 503 and r.headers["Retry-After"]
+        gate.set()
+        first.join(10)
+        # suất được trả lại sau khi lượt đầu xong (kể cả khi lỗi): lượt mới chạy được
+        assert c.post(f"/patients/{pb}/chat", json={"question": "Nên ăn gì?"}, headers=b).status_code == 200

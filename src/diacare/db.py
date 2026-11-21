@@ -1,9 +1,18 @@
 import json
 import sqlite3
+import threading
 import unicodedata
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from diacare import pg
 from diacare.crypto import cipher_for
+
+# Cột được thêm sau khi bảng đã có trong DB cũ: (bảng, cột, kiểu)
+_ADDED_COLUMNS = [("runs", "trace_json", "TEXT"), ("summaries", "anchor", "TEXT"),
+                  ("messages", "rl_event_id", "INTEGER"), ("patients", "user_id", "INTEGER")]
+_LOCAL_LOCKS = {}
+_LOCAL_LOCKS_GUARD = threading.Lock()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS patients (
@@ -145,36 +154,62 @@ def _key(text):
 
 class Store:
     def __init__(self, path=":memory:", init_schema=True, timeout=10.0, cipher=None):
-        """init_schema=False: chỉ mở kết nối (API mở một kết nối cho mỗi request, schema đã tạo lúc khởi động).
+        """path: tệp SQLite, ":memory:", hoặc URL postgresql://... (diacare.pg).
+        init_schema=False: chỉ mở kết nối (API mở một kết nối cho mỗi request, schema đã tạo lúc khởi động).
 
         Các cột chữ chứa thông tin sức khoẻ được mã hoá (diacare.crypto): tên và hồ sơ bệnh nhân, nội dung hội thoại,
         câu hỏi/bản nháp/câu trả lời trong runs, trí nhớ dài hạn, bản tóm tắt, ghi chú, câu hỏi cho bác sĩ.
         """
+        self.path = str(path)
         self.cipher = cipher or cipher_for(path)
-        self.conn = sqlite3.connect(str(path), check_same_thread=False, timeout=timeout)
-        self.conn.row_factory = sqlite3.Row
+        if pg.is_url(path):
+            self.dialect = "postgres"
+            self.conn = pg.PgConnection(self.path, connect_timeout=int(timeout))
+        else:
+            self.dialect = "sqlite"
+            self.conn = sqlite3.connect(self.path, check_same_thread=False, timeout=timeout)
+            self.conn.row_factory = sqlite3.Row
         if init_schema:
             self._migrate()
 
     def enable_wal(self):
-        """Cho nhiều kết nối đọc trong lúc một kết nối đang ghi (dịch vụ API)."""
+        """Cho nhiều kết nối đọc trong lúc một kết nối đang ghi (dịch vụ API). PostgreSQL vốn đã như vậy."""
+        if self.dialect == "postgres":
+            return "postgres"
         return self.conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
 
+    def _columns(self, table):
+        if self.dialect == "postgres":
+            return self.conn.columns(table)
+        return {r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+
     def _migrate(self):
-        self.conn.executescript(_SCHEMA)
-        cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(runs)")}
-        if "trace_json" not in cols:  # DB tạo từ bản cũ
-            self.conn.execute("ALTER TABLE runs ADD COLUMN trace_json TEXT")
-        scols = {r["name"] for r in self.conn.execute("PRAGMA table_info(summaries)")}
-        if "anchor" not in scols:  # dấu nhận dạng đoạn lịch sử đã tóm tắt
-            self.conn.execute("ALTER TABLE summaries ADD COLUMN anchor TEXT")
-        mcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(messages)")}
-        if "rl_event_id" not in mcols:  # trước khi có agent RL học từ phản hồi
-            self.conn.execute("ALTER TABLE messages ADD COLUMN rl_event_id INTEGER")
-        pcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(patients)")}
-        if "user_id" not in pcols:  # trước khi có tài khoản (API); NULL = hồ sơ tạo từ Streamlit/CLI
-            self.conn.execute("ALTER TABLE patients ADD COLUMN user_id INTEGER")
+        if self.dialect == "postgres":
+            self.conn.executescript(pg.translate_schema(_SCHEMA))
+        else:
+            self.conn.executescript(_SCHEMA)
+        # DB tạo từ bản cũ: trace_json (vết agent), anchor (dấu đoạn lịch sử đã tóm tắt), rl_event_id (agent RL),
+        # user_id (tài khoản API; NULL = hồ sơ tạo từ Streamlit/CLI)
+        for table, col, kind in _ADDED_COLUMNS:
+            if col not in self._columns(table):
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {kind}")
         self.conn.commit()
+
+    @contextmanager
+    def exclusive(self, name):
+        """Khoá loại trừ theo tên cho một đoạn đọc-sửa-ghi (mô hình RL, một phiên chat).
+        PostgreSQL: advisory lock, đúng cả khi chạy nhiều tiến trình API. SQLite: khoá trong tiến trình."""
+        if self.dialect == "postgres":
+            self.conn.advisory_lock(name)
+            try:
+                yield
+            finally:
+                self.conn.advisory_unlock(name)
+            return
+        with _LOCAL_LOCKS_GUARD:
+            lock = _LOCAL_LOCKS.setdefault((self.path, name), threading.Lock())
+        with lock:
+            yield
 
     def close(self):
         self.conn.close()
@@ -217,7 +252,7 @@ class Store:
             cur = self.conn.execute(
                 "INSERT INTO users (email, password_hash, name, created_at) VALUES (?, ?, ?, ?)",
                 (email.strip().lower(), password_hash, name, _now()))
-        except sqlite3.IntegrityError:
+        except (sqlite3.IntegrityError, pg.IntegrityError):
             return None
         self.conn.commit()
         return cur.lastrowid

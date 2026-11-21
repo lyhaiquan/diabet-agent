@@ -38,7 +38,7 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 | 5 | **Tra cứu thành phần dinh dưỡng món ăn Việt Nam**: Đánh giá định lượng carbohydrate, chất xơ, calo của bữa ăn bản địa, hỗ trợ kiểm soát đường huyết sau ăn. | Hiện thực hóa qua `NutritionAgent` ([`nutrition.py`](file:///C:/DATA/diacare-mas/src/diacare/nutrition.py)) với cơ sở dữ liệu `vn_foods.json` gồm 50 món ăn Việt Nam chuẩn hóa từ USDA FoodData Central. Thuật toán phân tích ngữ cảnh 2 từ trước/sau xử lý các trường hợp từ đa nghĩa đã gặp. | **Đã cài đặt** |
 | 6 | **Rào chắn an toàn y khoa bất biến & Chuyển viện kịp thời**: Chặn lời khuyên tự ý đổi thuốc, phát hiện dấu hiệu cấp cứu, triệu chứng lâm sàng và bắt buộc chuyển viện. | Hiện thực hóa qua `Rules` ([`rules.py`](file:///C:/DATA/diacare-mas/src/diacare/rules.py)) hoạt động độc lập ở bước cuối pipeline. Chặn lời khuyên thuốc bằng regex đa tầng (`_UNSAFE`, `_NEGATION`, `_CAUTION`), kích hoạt 13 cờ an toàn, truyền phát an toàn từng câu qua `SafeStream`. | **Đã cài đặt** |
 | 7 | **Cá nhân hóa tư vấn bằng Học tăng cường (Reinforcement Learning)**: Tự động điều chỉnh trọng tâm can thiệp phù hợp với từng bệnh nhân dựa trên tối ưu hóa hàm thưởng lâm sàng. | Hiện thực hóa ở phiên bản V3 qua `RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)). Contextual bandit tuyến tính, 13 đặc trưng trạng thái, 6 trọng tâm can thiệp, học trực tuyến từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn và đánh giá SNIPS. Chưa có phản hồi thật. | **Đã cài đặt; chưa đánh giá với người dùng** |
-| 8 | **Khả năng quan sát, kiểm chuẩn và triển khai trên phần cứng tối thiểu**: Hệ thống phải trong suốt, đo đạc được tài nguyên, có bộ kiểm thử tự động và chạy được trên môi trường miễn phí. | Hiện thực hóa qua `_Tracer` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)), trang Hoạt động agent động SVG/JS ([`flowviz.py`](file:///C:/DATA/diacare-mas/src/diacare/flowviz.py)), 703 bài kiểm thử tự động, chạy được trên laptop có GPU 4 GB hoặc môi trường Kaggle T4 miễn phí. | **Đã cài đặt** |
+| 8 | **Khả năng quan sát, kiểm chuẩn và triển khai trên phần cứng tối thiểu**: Hệ thống phải trong suốt, đo đạc được tài nguyên, có bộ kiểm thử tự động và chạy được trên môi trường miễn phí. | Hiện thực hóa qua `_Tracer` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)), trang Hoạt động agent động SVG/JS ([`flowviz.py`](file:///C:/DATA/diacare-mas/src/diacare/flowviz.py)), 705 bài kiểm thử tự động, chạy được trên laptop có GPU 4 GB hoặc môi trường Kaggle T4 miễn phí. | **Đã cài đặt** |
 
 ---
 
@@ -64,7 +64,7 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
    - **Chính sách RL**: 6 mô hình ridge tuyến tính ($A_a \in \mathbb{R}^{13 \times 13}$, $b_a \in \mathbb{R}^{13}$) của `RLAgent`, khởi động từ `models/rl_policy.json`, học tiếp trong SQLite.
    - **Hệ thống Tri thức Chuẩn mực**: Hướng dẫn thực hành ADA 2024, Bảng cơ sở dữ liệu dinh dưỡng USDA FoodData Central.
 5. **Lớp Lưu trữ & Dữ liệu Bền vững (Persistence & Storage Layer)**:
-   - **Cơ sở dữ liệu Quan hệ SQLite** (`data/diacare.db` qua [`db.py`](file:///C:/DATA/diacare-mas/src/diacare/db.py)): Quản lý 9 bảng quan hệ (`patients`, `sessions`, `messages`, `memories`, `labs`, `summaries`, `runs`, `rl_events`, `rl_model`).
+   - **Cơ sở dữ liệu quan hệ SQLite hoặc PostgreSQL** (SQLite `data/diacare.db` khi chạy trên máy; PostgreSQL 16 cho dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`; cùng mã truy vấn qua lớp `pg.py`; qua [`db.py`](file:///C:/DATA/diacare-mas/src/diacare/db.py)): Quản lý 9 bảng quan hệ (`patients`, `sessions`, `messages`, `memories`, `labs`, `summaries`, `runs`, `rl_events`, `rl_model`).
    - **Nhật ký Thực thi (JSONL Run Logs)**: Ghi vết tuần tự các lượt suy luận vào `logs/runs.jsonl`.
    - **Đồ thị Tri thức Neo4j** (`neo4j_data/` qua `bolt://localhost:7688`): Lưu trữ đồ thị tri thức 108 nút và 228 cạnh (6 loại quan hệ, có 8 cạnh gen chung lấy từ PrimeKG). Mặc định đồ thị chạy bằng networkx trong bộ nhớ; đặt `DIACARE_KG=neo4j` thì đọc từ Neo4j.
    - **Kho Văn bản Y khoa (Knowledge Base)**: Thư mục `kb/` chứa các tài liệu MedlinePlus, WHO và các đoạn cắt vector hóa.
@@ -653,7 +653,7 @@ Dự án DiaCare-MAS đã cài đặt 9 giai đoạn của lộ trình:
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
 | **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
 | **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
-| **9** | **Continuous Automated Testing & Observability**: 703 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
+| **9** | **Continuous Automated Testing & Observability**: 722 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
 
@@ -720,14 +720,14 @@ Critic: trong các con số có đơn vị mà bản nháp đưa ra, 10–16% kh
 
 ## 11.2. Kiểm thử Đơn vị
 
-Hệ thống có bộ kiểm thử tự động gồm **703 bài kiểm thử** phân bổ trên 34 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **722 bài kiểm thử** phân bổ trên 35 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Lần chạy gần nhất (V4.6): 699 đạt, 1 bài đọc Neo4j tự bỏ qua khi Neo4j không chạy, 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
+Lần chạy gần nhất (V4.7) trên SQLite: 713 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
 
 ## 11.3. Bổ sung ở V4.6: an toàn, quyền riêng tư, kho tài liệu
 

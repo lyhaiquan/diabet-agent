@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from diacare.advisor import build_messages
@@ -71,6 +72,7 @@ def test_build_orchestrator_end_to_end(tmp_path):
     assert state.final and "[" in state.final
 
 
+@pytest.mark.sqlite_only
 def test_open_store_env(tmp_path, monkeypatch):
     db = tmp_path / "sub" / "x.db"
     monkeypatch.setenv("DIACARE_DB", str(db))

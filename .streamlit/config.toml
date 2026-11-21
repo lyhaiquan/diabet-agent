@@ -1,0 +1,8 @@
+# Giao diện Streamlit không có đăng nhập: chỉ cho chính máy này mở.
+# Không đặt address thì Streamlit nghe trên mọi giao diện mạng (0.0.0.0 / ::), người cùng mạng mở được mọi hồ sơ.
+# Áp dụng khi chạy `streamlit run src/app.py` từ thư mục gốc repo; chay_local.bat còn đặt lại bằng tham số dòng lệnh.
+[server]
+address = "127.0.0.1"
+
+[browser]
+gatherUsageStats = false

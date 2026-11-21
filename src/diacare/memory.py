@@ -1,6 +1,7 @@
 """Trí nhớ dài hạn về bệnh nhân (trích xuất theo luật) và nén lịch sử hội thoại bằng tóm tắt."""
 import hashlib
 import re
+import threading
 import unicodedata
 
 from diacare.nutrition import strip_accents
@@ -223,15 +224,10 @@ class SummaryCache:
         self.store.save_summary(self.session_id, upto, content, anchor=anchor)
 
 
-def compress_history(history, llm, budget_tokens, estimate, cache=None):
-    """Nếu lịch sử vượt ngân sách: giữ tin mới nhất vừa nửa ngân sách, tóm tắt phần cũ.
-
-    cache (SummaryCache): nếu bản đã lưu phủ đúng phần cũ thì dùng lại, không gọi LLM; nếu nó phủ một đoạn
-    đầu của phần cũ thì chỉ tóm tắt thêm các tin mới (tóm tắt tăng dần); không khớp thì tóm tắt lại từ đầu.
-    Trả về (lịch sử mới, có tóm tắt không); lượt dùng lại bản cũ thì `compress_history.last_mode` = "reused"."""
-    compress_history.last_mode = None
+def _compress_history(history, llm, budget_tokens, estimate, cache):
+    """Trả (lịch sử mới, có tóm tắt không, cách làm: None/"reused"/"incremental"/"full")."""
     if sum(estimate(m["content"]) for m in history) <= budget_tokens:
-        return history, False
+        return history, False, None
     kept, used = [], 0
     for m in reversed(history):
         cost = estimate(m["content"])
@@ -241,7 +237,7 @@ def compress_history(history, llm, budget_tokens, estimate, cache=None):
         used += cost
     older = history[:len(history) - len(kept)]
     if not older:
-        return history, False
+        return history, False, None
     prev = cache.get() if cache is not None else None
     upto = prev["upto_message_index"] if prev else 0
     valid = bool(prev) and 0 < upto <= len(older) and prev.get("anchor") == message_anchor(older[:upto])
@@ -255,8 +251,30 @@ def compress_history(history, llm, budget_tokens, estimate, cache=None):
         summary, mode = summarise_history(older, llm), "full"
     if cache is not None and mode != "reused":
         cache.save(len(older), summary, message_anchor(older))
-    compress_history.last_mode = mode
-    return [{"role": "system", "content": SUMMARY_PREFIX + summary}] + kept, True
+    return [{"role": "system", "content": SUMMARY_PREFIX + summary}] + kept, True, mode
 
 
-compress_history.last_mode = None
+class _CompressHistory:
+    """compress_history(history, llm, budget_tokens, estimate, cache=None)
+
+    Nếu lịch sử vượt ngân sách: giữ tin mới nhất vừa nửa ngân sách, tóm tắt phần cũ.
+    cache (SummaryCache): nếu bản đã lưu phủ đúng phần cũ thì dùng lại, không gọi LLM; nếu nó phủ một đoạn
+    đầu của phần cũ thì chỉ tóm tắt thêm các tin mới (tóm tắt tăng dần); không khớp thì tóm tắt lại từ đầu.
+    Trả về (lịch sử mới, có tóm tắt không); lượt dùng lại bản cũ thì `compress_history.last_mode` = "reused".
+    last_mode được lưu riêng cho từng luồng: API chạy nhiều lượt hỏi song song."""
+
+    def __init__(self):
+        self._local = threading.local()
+
+    @property
+    def last_mode(self):
+        return getattr(self._local, "mode", None)
+
+    def __call__(self, history, llm, budget_tokens, estimate, cache=None):
+        self._local.mode = None
+        new, summarised, mode = _compress_history(history, llm, budget_tokens, estimate, cache)
+        self._local.mode = mode
+        return new, summarised
+
+
+compress_history = _CompressHistory()

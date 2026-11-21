@@ -4,8 +4,11 @@ Chạy:  uvicorn api.main:app --app-dir src --port 8000      (tài liệu tươn
 
 Thiết kế:
 - Phần AI nặng (Predictor, Retriever, LLM, KG, tiên nghiệm RL) dựng MỘT lần khi khởi động, dùng chung.
-- Mỗi request mở một kết nối SQLite riêng (chế độ WAL). Lượt tư vấn và phản hồi 👍/👎 chạy tuần tự dưới một
-  khoá: mô hình RL được đọc-sửa-ghi, và Ollama cũng chỉ trả lời từng câu một.
+- Mỗi request mở một kết nối DB riêng (SQLite chế độ WAL, hoặc PostgreSQL qua DIACARE_DATABASE_URL).
+- Lượt tư vấn của nhiều người chạy song song, tối đa DIACARE_CHAT_CONCURRENCY lượt (mặc định 4; quá thì chờ tối
+  đa DIACARE_CHAT_QUEUE_SECONDS rồi trả 503). Ollama tự xếp hàng các câu gửi tới nếu chỉ chạy được từng câu một.
+  Hai lượt trong CÙNG một phiên chạy lần lượt (lịch sử và thứ tự tin nhắn). Phản hồi 👍/👎 sửa mô hình RL dưới
+  một khoá riêng (đọc-sửa-ghi); với PostgreSQL đó là advisory lock nên đúng cả khi chạy nhiều tiến trình.
 - Mọi tài nguyên đều thuộc về một hồ sơ (patient) của một tài khoản; tài nguyên của người khác trả 404.
 """
 import json
@@ -25,11 +28,13 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from api import security
-from diacare import journal
+from diacare import journal, pg
+from diacare.crypto import key_dir
 from diacare.db import Store
 from diacare.factory import DEFAULT_DB_PATH, ROOT, build_parts, orchestrator_from_parts
 from diacare.labs import LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file, parse_lab_text
 from diacare.memory import KIND_LABELS, has_diagnosis
+from diacare.ocr import UploadRejected
 from diacare.rl import ACTION_LABELS, RLAgent
 from diacare.predictor import compare_models
 from diacare.rules import FEATURE_RANGES, SafeStream, risk_band, validate_profile
@@ -41,6 +46,10 @@ from diacare.visit_report import build_visit_pdf
 API_VERSION = "0.1.0"
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_AUDIO_BYTES = 4 * 1024 * 1024  # 60 giây WAV 16 kHz 16 bit khoảng 1,9 MB
+# Chống dò mật khẩu: kiểm tra TRƯỚC khi băm scrypt (băm là phần tốn CPU). (số lần, cửa sổ giây)
+LOGIN_FAILS_PER_EMAIL = (5, 15 * 60)    # sai 5 lần cho một email trong 15 phút
+LOGIN_FAILS_PER_IP = (30, 15 * 60)      # sai 30 lần từ một địa chỉ IP (dò nhiều email)
+REGISTER_PER_IP = (20, 60 * 60)         # 20 tài khoản mới mỗi giờ từ một IP
 DIAGNOSIS_T2D = "đái tháo đường típ 2"
 oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -48,19 +57,22 @@ oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 # ---- dựng ứng dụng ------------------------------------------------------------
 
 def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=None, transcriber=None):
-    """Tham số để test: db_path (tệp SQLite tạm), parts (LLM giả lập), secret, clock (giờ cố định)."""
-    db_path = str(db_path or os.environ.get("DIACARE_DB") or DEFAULT_DB_PATH)
+    """db_path: tệp SQLite hoặc URL postgresql://... Mặc định: DIACARE_DATABASE_URL, rồi DIACARE_DB, rồi data/diacare.db.
+    Tham số để test: db_path (tệp SQLite tạm), parts (LLM giả lập), secret, clock (giờ cố định)."""
+    db_path = str(db_path or os.environ.get("DIACARE_DATABASE_URL") or os.environ.get("DIACARE_DB")
+                  or DEFAULT_DB_PATH)
 
     @asynccontextmanager
     async def lifespan(app):
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        if not pg.is_url(db_path):
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         boot = Store(db_path)  # tạo bảng, nâng cấp DB cũ: chỉ làm một lần, trước khi nhận request
         boot.enable_wal()
         boot.close()
         if app.state.secret is None:  # đọc khi khởi động, không phải lúc import (test đặt khoá riêng)
-            # khoá nằm cạnh DB: trong Docker cả hai cùng ở volume dữ liệu, tách khỏi data/nutrition của ảnh
-            key_dir = ROOT / "data" if db_path == ":memory:" else Path(db_path).parent
-            app.state.secret = security.load_secret(key_dir / "api_secret.key")
+            # khoá nằm cạnh tệp SQLite, hoặc trong DIACARE_KEY_DIR khi dùng PostgreSQL. Trong Docker đó là volume
+            # dữ liệu, tách khỏi data/nutrition của ảnh
+            app.state.secret = security.load_secret(key_dir(db_path) / "api_secret.key")
         app.state.parts = parts or build_parts()
         yield
 
@@ -70,7 +82,10 @@ def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=N
     app.state.db_path = db_path
     app.state.secret = secret
     app.state.clock = clock or journal.now_vn
-    app.state.chat_lock = threading.Lock()
+    app.state.chat_slots = threading.BoundedSemaphore(int(os.environ.get("DIACARE_CHAT_CONCURRENCY", "4")))
+    app.state.chat_wait = float(os.environ.get("DIACARE_CHAT_QUEUE_SECONDS", "120"))
+    app.state.limiter = security.RateLimiter(
+        clock=(lambda: app.state.clock().timestamp()) if clock is not None else time.time)
     app.state.transcriber = transcriber  # None: nạp PhoWhisper ở lần nói đầu tiên
     origins = cors_origins if cors_origins is not None else [
         o.strip() for o in os.environ.get("DIACARE_CORS", "http://localhost:3000").split(",") if o.strip()]
@@ -116,6 +131,20 @@ def owned_patient(patient_id: int, user=Depends(current_user), store: Store = De
 
 def _not_found(what="Không tìm thấy."):
     return HTTPException(status.HTTP_404_NOT_FOUND, what)
+
+
+def _client_ip(request):
+    return request.client.host if request.client else "?"
+
+
+def _throttle(limiter, checks):
+    """checks: [(khoá, (số lần, cửa sổ))]. Khoá nào hết lượt thì trả 429 kèm Retry-After."""
+    wait = max(limiter.retry_after(key, *rule) for key, rule in checks)
+    if wait:
+        minutes = max(1, round(wait / 60))
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            f"Thử quá nhiều lần. Vui lòng thử lại sau khoảng {minutes} phút.",
+                            headers={"Retry-After": str(wait)})
 
 
 # ---- dữ liệu vào ---------------------------------------------------------------
@@ -276,15 +305,26 @@ def _import_labs(store, patient_id, results):
 
 # ---- tư vấn: chạy pipeline 10 agent ----------------------------------------------
 
+def _chat_slot(app):
+    """Giữ một suất chạy tư vấn; hết suất trong thời gian chờ thì 503. Người gọi phải trả suất (release)."""
+    if not app.state.chat_slots.acquire(timeout=app.state.chat_wait):
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                            "Trợ lý đang trả lời nhiều người cùng lúc. Vui lòng thử lại sau ít phút.",
+                            headers={"Retry-After": "30"})
+
+
 def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
-    """Chạy một lượt tư vấn trên kết nối SQLite riêng (dùng được trong luồng phụ của SSE) và lưu tin nhắn.
-    emit(event, data): báo bước agent và chữ đã qua bộ lọc an toàn trong lúc chạy."""
-    store = Store(app.state.db_path, init_schema=False)
+    """Chạy một lượt tư vấn trên kết nối DB riêng (dùng được trong luồng phụ của SSE) và lưu tin nhắn.
+    emit(event, data): báo bước agent và chữ đã qua bộ lọc an toàn trong lúc chạy.
+    Người gọi đã giữ một suất (_chat_slot); hàm này trả suất khi xong, kể cả khi lỗi."""
+    store = None
     try:
-        with app.state.chat_lock:
-            patient = store.get_patient(patient_id)
-            if session_id is None:
-                session_id = store.start_session(patient_id)
+        store = Store(app.state.db_path, init_schema=False)
+        patient = store.get_patient(patient_id)
+        if session_id is None:
+            session_id = store.start_session(patient_id)
+        # hai lượt trong cùng một phiên chạy lần lượt: lượt sau phải thấy câu hỏi và câu trả lời của lượt trước
+        with store.exclusive(f"chat-session:{session_id}"):
             if emit:
                 emit("session", {"session_id": session_id})
             orch = orchestrator_from_parts(app.state.parts, store, session_id)
@@ -322,7 +362,9 @@ def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
             "grounding": state.grounding,
         }
     finally:
-        store.close()
+        if store is not None:
+            store.close()
+        app.state.chat_slots.release()
 
 
 def _sse(event, data):
@@ -347,6 +389,9 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
     # -- tài khoản --
     @app.post("/auth/register", status_code=201, tags=["tài khoản"])
     def register(body: RegisterIn, request: Request, store: Store = Depends(get_store)):
+        limiter, ip_key = request.app.state.limiter, ("register-ip", _client_ip(request))
+        _throttle(limiter, [(ip_key, REGISTER_PER_IP)])
+        limiter.hit(ip_key, REGISTER_PER_IP[1])
         uid = store.create_user(body.email, security.hash_password(body.password), body.name)
         if uid is None:
             raise HTTPException(status.HTTP_409_CONFLICT, "Email này đã có tài khoản.")
@@ -355,11 +400,20 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
 
     @app.post("/auth/token", tags=["tài khoản"])
     def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), store: Store = Depends(get_store)):
-        """Chuẩn OAuth2 password flow: trường `username` là email. Nút Authorize ở /docs dùng đường này."""
+        """Chuẩn OAuth2 password flow: trường `username` là email. Nút Authorize ở /docs dùng đường này.
+        Sai quá 5 lần cho một email (hoặc 30 lần từ một IP) trong 15 phút thì trả 429 kèm Retry-After,
+        như nhau dù email có tài khoản hay không."""
+        limiter = request.app.state.limiter
+        email_key = ("login-email", form.username.strip().lower())
+        ip_key = ("login-ip", _client_ip(request))
+        _throttle(limiter, [(email_key, LOGIN_FAILS_PER_EMAIL), (ip_key, LOGIN_FAILS_PER_IP)])
         user = store.get_user_by_email(form.username)
         if user is None or not security.verify_password(form.password, user["password_hash"]):
+            limiter.hit(email_key, LOGIN_FAILS_PER_EMAIL[1])
+            limiter.hit(ip_key, LOGIN_FAILS_PER_IP[1])
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Email hoặc mật khẩu không đúng.",
                                 headers={"WWW-Authenticate": "Bearer"})
+        limiter.reset(email_key)  # đăng nhập đúng: xoá đếm của email, giữ đếm theo IP
         return {"access_token": security.create_token(user["id"], request.app.state.secret),
                 "token_type": "bearer"}
 
@@ -561,6 +615,8 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             raise HTTPException(413, "File lớn hơn 10 MB.")
         try:
             results = parse_lab_file(file.filename or "upload.txt", data)
+        except UploadRejected as exc:  # quá nhiều trang, ảnh quá nhiều điểm ảnh
+            raise HTTPException(413, str(exc)) from exc
         except Exception as exc:  # file hỏng, định dạng lạ, OCR lỗi
             raise HTTPException(422, f"Không đọc được file ({type(exc).__name__}).") from exc
         return _import_labs(store, patient["id"], results)
@@ -639,6 +695,7 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             if s is None or s["patient_id"] != patient["id"]:
                 raise _not_found("Không tìm thấy phiên.")
         app_ = request.app
+        _chat_slot(app_)  # _run_chat trả suất khi xong
         if not body.stream:
             return _run_chat(app_, user["id"], patient["id"], body.question, body.session_id)
 
@@ -696,7 +753,7 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
         parts = request.app.state.parts
         if parts.rl_prior is None:
             raise HTTPException(409, "Agent học tăng cường đang tắt.")
-        with request.app.state.chat_lock:
+        with store.exclusive("rl-model"):  # đọc mô hình mới nhất, cập nhật, ghi lại: không để hai phản hồi đè nhau
             res = RLAgent(prior=parts.rl_prior, store=store, epsilon=0).feedback(event_id, body.value)
         if res is None:
             raise HTTPException(409, "Lượt này đã được chấm rồi.")

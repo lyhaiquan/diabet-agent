@@ -120,3 +120,20 @@ def test_not_truncated_when_answer_finishes(monkeypatch):
     llm = OllamaLLM(num_predict=512)
     llm([])
     assert "truncated" not in llm.last_usage
+
+
+def test_last_usage_is_per_thread():
+    """API dùng chung một đối tượng LLM cho mọi lượt: mỗi luồng phải đọc đúng số token của lượt mình."""
+    import threading
+    from diacare.llm import DemoLLM
+    llm, seen, ready = DemoLLM(), {}, threading.Barrier(2)
+
+    def run(name, size):
+        llm([{"role": "user", "content": "x" * size}])
+        ready.wait(5)  # cả hai đã gọi xong trước khi đọc: biến dùng chung sẽ bị lượt kia ghi đè
+        seen[name] = llm.last_usage["prompt_tokens"]
+
+    ts = [threading.Thread(target=run, args=("a", 300)), threading.Thread(target=run, args=("b", 3000))]
+    [t.start() for t in ts]
+    [t.join(5) for t in ts]
+    assert seen == {"a": 100, "b": 1000}

@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -19,6 +20,7 @@ from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_
                            apply_rules, is_small_talk, risk_band)
 
 # Hỏi thẳng về nguy cơ / khám thì nhắc lại lời khuyên đi khám dù đã nhắc trong phiên.
+_LOG_LOCK = threading.Lock()  # ghi logs/runs.jsonl từ nhiều luồng
 _RISK_WORDS = ("nguy cơ", "có bị", "xét nghiệm", "đi khám", "risk")
 
 
@@ -340,5 +342,6 @@ class Orchestrator:
         }
         if error:
             record["error"] = error
-        with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        with _LOG_LOCK, self.log_path.open("a", encoding="utf-8") as f:  # nhiều lượt song song: không chen dòng
+            f.write(line)

@@ -1,3 +1,4 @@
+import pytest
 from diacare.db import Store
 from diacare.samples import LOW_RISK
 from diacare.state import State
@@ -110,6 +111,7 @@ def test_file_store_persists(tmp_path):
     s2.close()
 
 
+@pytest.mark.sqlite_only
 def test_old_db_without_trace_column_is_migrated(tmp_path):
     import sqlite3
     from diacare.db import Store

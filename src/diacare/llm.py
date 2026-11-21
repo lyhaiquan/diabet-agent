@@ -1,5 +1,6 @@
 import json
 import re
+import threading
 import urllib.request
 import zlib
 
@@ -12,7 +13,23 @@ DEFAULT_NUM_CTX = 4096
 DEFAULT_NUM_PREDICT = 512
 
 
-class OllamaLLM:
+class _PerThreadUsage:
+    """`last_usage` riêng cho từng luồng. Một đối tượng LLM được dùng chung cho mọi lượt hỏi của API; các lượt
+    chạy song song trên các luồng khác nhau, mỗi lượt gọi LLM rồi đọc last_usage trên cùng luồng của nó, nên không
+    lượt nào đọc nhầm số token của lượt khác."""
+
+    @property
+    def last_usage(self):
+        return getattr(self.__dict__["_usage"], "value", {})
+
+    @last_usage.setter
+    def last_usage(self, value):
+        if "_usage" not in self.__dict__:
+            self.__dict__["_usage"] = threading.local()
+        self.__dict__["_usage"].value = value
+
+
+class OllamaLLM(_PerThreadUsage):
     def __init__(self, model="qwen2.5:7b", url="http://localhost:11434/api/chat",
                  num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=300,
                  num_predict=DEFAULT_NUM_PREDICT):
@@ -80,7 +97,7 @@ _DOC_MARK = "Tài liệu tham khảo:"
 _LABEL = re.compile(r"^\[([^\]\n]+)\][ \t]*\n?", re.M)
 
 
-class DemoLLM:
+class DemoLLM(_PerThreadUsage):
     """Fake LLM for demos and tests ONLY: quotes the first retrieved document."""
 
     def __init__(self):

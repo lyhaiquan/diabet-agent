@@ -1,18 +1,40 @@
 # DiaCare-MAS bằng một lệnh:   docker compose up --build
 #   web     http://localhost:3000   (giao diện Next.js)
 #   api     http://localhost:8000   (FastAPI; tài liệu ở /docs)
+#   db      PostgreSQL 16, chỉ mở trong mạng Docker (không mở cổng ra máy)
 #   ollama  chỉ mở trong mạng Docker (LLM qwen2.5:3b, tải về ở lần chạy đầu, khoảng 1,9 GB)
+#
+# Trước lần chạy đầu: chép .env.example thành .env và đặt POSTGRES_PASSWORD (chỉ chữ, số, - và _ vì mật khẩu
+# nằm trong URL kết nối). Tệp .env không lên git.
 #
 # Đổi model:        DIACARE_MODEL=qwen2.5:7b docker compose up --build
 # Chạy thử không cần LLM (câu trả lời giả lập, không tải model):
 #                   DIACARE_LLM=demo DIACARE_EMBED=hash docker compose up --build api web
 # Có GPU NVIDIA:    bỏ dấu # ở khối "deploy" của dịch vụ ollama (cần NVIDIA Container Toolkit).
 #
-# Dữ liệu người dùng (SQLite, khoá ký token) nằm trong volume diacare-data; `docker compose down` không xoá,
-# `docker compose down -v` mới xoá. Khoá ký token tự sinh ở lần chạy đầu; muốn tự đặt thì khai báo
-# DIACARE_API_SECRET (ít nhất 32 ký tự) trong tệp .env cạnh tệp này, KHÔNG ghi thẳng vào đây.
+# Dữ liệu người dùng nằm trong volume pg-data (PostgreSQL); khoá mã hoá DB và khoá ký token nằm trong volume
+# diacare-data. MẤT volume diacare-data là không đọc lại được các cột đã mã hoá trong pg-data: sao lưu cả hai.
+# `docker compose down` không xoá volume, `docker compose down -v` mới xoá. Khoá ký token tự sinh ở lần chạy đầu;
+# muốn tự đặt thì khai báo DIACARE_API_SECRET (ít nhất 32 ký tự) trong tệp .env, KHÔNG ghi thẳng vào đây.
+# Chuyển dữ liệu từ data/diacare.db (SQLite) sang: xem tools/sqlite_to_postgres.py.
 
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: diacare
+      POSTGRES_DB: diacare
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Chép .env.example thành .env và đặt POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diacare -d diacare"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    # Không có "ports": chỉ dịch vụ api trong mạng Docker kết nối được
+
   ollama:
     image: ollama/ollama
     volumes:
@@ -45,6 +67,8 @@ services:
   api:
     build: .
     depends_on:
+      db:
+        condition: service_healthy
       # required: false để chạy được riêng "api web" ở chế độ demo mà không kéo Ollama lên
       ollama:
         condition: service_healthy
@@ -58,12 +82,14 @@ services:
       DIACARE_OLLAMA_URL: http://ollama:11434
       DIACARE_EMBED: ${DIACARE_EMBED:-sbert}
       DIACARE_FEATURES: ${DIACARE_FEATURES:-default}
-      DIACARE_DB: /app/var/diacare.db
+      DIACARE_DATABASE_URL: postgresql://diacare:${POSTGRES_PASSWORD}@db:5432/diacare
+      DIACARE_KEY_DIR: /app/var   # khoá mã hoá DB và khoá ký token (volume diacare-data)
+      DIACARE_CHAT_CONCURRENCY: ${DIACARE_CHAT_CONCURRENCY:-4}
       DIACARE_LOG: /app/logs/runs.jsonl
       DIACARE_CORS: ${DIACARE_CORS:-http://localhost:3000}
       DIACARE_API_SECRET: ${DIACARE_API_SECRET:-}
     volumes:
-      - diacare-data:/app/var     # SQLite và các tệp khoá; tách khỏi /app/data (bảng dinh dưỡng trong ảnh)
+      - diacare-data:/app/var     # các tệp khoá; tách khỏi /app/data (bảng dinh dưỡng trong ảnh)
       - hf-cache:/hf-cache        # mô hình embedding và PhoWhisper tải từ Hugging Face ở lần dùng đầu
     ports:
       - "127.0.0.1:8000:8000"     # chỉ mở trên máy này; muốn cho máy khác trong mạng vào thì bỏ 127.0.0.1
@@ -81,6 +107,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  pg-data:
   ollama-models:
   diacare-data:
   hf-cache:

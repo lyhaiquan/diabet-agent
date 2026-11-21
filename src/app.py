@@ -13,6 +13,7 @@ from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
 from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS, has_diagnosis  # noqa: E402
+from diacare.ocr import UploadRejected  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.predictor import compare_models  # noqa: E402
 from diacare.rl import ACTION_LABELS, off_policy_report  # noqa: E402
@@ -159,6 +160,9 @@ def _import_labs(store, patient_id):
         if upload is not None:
             results += parse_lab_file(upload.name, upload.getvalue())
         results += parse_lab_text(st.session_state.get("lab_text", ""))
+    except UploadRejected as exc:  # quá nhiều trang, ảnh quá lớn
+        st.session_state["lab_msg"] = ("error", str(exc))
+        return
     except Exception as exc:  # file hỏng / không đọc được
         st.session_state["lab_msg"] = ("error", f"Không đọc được file: {type(exc).__name__}")
         return

@@ -19,3 +19,6 @@ neo4j.local.json
 neo4j_data/
 kaggle/rgcn_kernel/
 *.db.key
+
+# mật khẩu PostgreSQL, khoá ký token... cho docker compose (xem .env.example)
+.env

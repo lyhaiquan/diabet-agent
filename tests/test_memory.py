@@ -131,6 +131,7 @@ def test_store_summary_roundtrip():
     assert s.get_summary(6) is None
 
 
+@pytest.mark.sqlite_only
 def test_old_db_gains_tables(tmp_path):
     path = tmp_path / "old.db"
     con = sqlite3.connect(path)

@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 34 tệp test với 703 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 35 tệp test với 722 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -129,7 +129,7 @@ Toàn bộ các bước được ghi vào vết thực thi và lưu trong cơ s�
 
 Pipeline mười một agent ở trên chỉ là phần lõi. Bao quanh nó có ba lớp:
 
-1. **Dịch vụ API** (`src/api/`, FastAPI, 35 endpoint). Phần nặng (Predictor, Retriever, mô hình ngôn ngữ, đồ thị) được dựng một lần khi khởi động; mỗi request mở một kết nối SQLite riêng ở chế độ WAL. Các endpoint chia sáu nhóm: tài khoản, hồ sơ, nhật ký, xét nghiệm, tái khám, tư vấn; thêm `/transcribe` cho giọng nói. Chi tiết ở mục 6.2.
+1. **Dịch vụ API** (`src/api/`, FastAPI, 35 endpoint). Phần nặng (Predictor, Retriever, mô hình ngôn ngữ, đồ thị) được dựng một lần khi khởi động; mỗi request mở một kết nối riêng tới PostgreSQL (khi đặt `DIACARE_DATABASE_URL`, mặc định trong Docker Compose) hoặc SQLite ở chế độ WAL. Các endpoint chia sáu nhóm: tài khoản, hồ sơ, nhật ký, xét nghiệm, tái khám, tư vấn; thêm `/transcribe` cho giọng nói. Chi tiết ở mục 6.2.
 2. **Giao diện web Next.js** (`web/`) cho người bệnh, ưu tiên điện thoại, chỉ nói chuyện với API (mục 5.6).
 3. **Giao diện Streamlit** (`src/app.py`) có bốn trang cho người dùng và các trang cho nhà phát triển (mục 5). Streamlit không đi qua API mà gọi thẳng Orchestrator, nên dùng được khi không bật API.
 
@@ -603,7 +603,7 @@ Có một trường hợp hệ cố ý không tự chọn. Câu "đường huy�
 
 # 4. Cơ sở dữ liệu
 
-SQLite, tệp `db.py`. Mười bốn bảng:
+Tệp `db.py`, chạy trên SQLite (mặc định khi chạy trên máy, test, Kaggle) hoặc PostgreSQL (dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`). Lớp `pg.py` mô phỏng phần sqlite3 mà `db.py` dùng nên mã truy vấn giữ nguyên: tham số `?` đổi thành `%s`, câu INSERT được thêm `RETURNING id` thay cho `lastrowid`, `AUTOINCREMENT` thành cột IDENTITY, `REAL` thành `DOUBLE PRECISION` (`REAL` của PostgreSQL chỉ là float4), bool và số numpy đổi sang kiểu Python. Ràng buộc `REFERENCES` bị bỏ ở PostgreSQL vì SQLite của hệ chưa bao giờ bật kiểm tra khoá ngoại, để hai backend cư xử như nhau. `tools/sqlite_to_postgres.py` chép dữ liệu cũ sang, giữ nguyên id và dữ liệu đã mã hoá, chép kèm tệp khoá. Mười bốn bảng:
 
 | Bảng | Nội dung | Cột chính |
 |---|---|---|
@@ -626,7 +626,7 @@ Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê v�
 
 Cột `patients.user_id` nối hồ sơ với tài khoản: một tài khoản theo dõi được nhiều người (ví dụ con theo dõi cho bố mẹ), và mọi truy vấn của API đều lọc theo tài khoản đang đăng nhập. Số đo được lưu kèm `measured_at` (thời điểm đo, người dùng ghi bù được) tách khỏi `created_at` (lúc ghi), có chỉ mục theo `(patient_id, measured_at)` để thống kê 14 ngày đọc nhanh. Khi chạy dưới API, cơ sở dữ liệu được bật chế độ WAL để nhiều request đọc trong lúc một request ghi.
 
-**Mã hoá cột (V4.6, `crypto.py`).** Các cột chữ chứa thông tin sức khoẻ được mã hoá bằng Fernet (AES-128-CBC kèm HMAC-SHA256): tên và hồ sơ trong `patients`, `messages.content`, `memories.content`, `summaries.content`, `runs.question/draft/final`, câu hỏi cho bác sĩ, và các cột ghi chú. Giá trị mã hoá có tiền tố `enc1:`; dòng cũ chưa mã hoá vẫn đọc được, nên không cần chuyển cơ sở dữ liệu. Khoá lấy từ biến `DIACARE_DB_KEY`, nếu không có thì sinh một lần vào tệp `<tên DB>.key` cạnh tệp DB (đã thêm vào `.gitignore`). Số đo, xét nghiệm và mức nguy cơ giữ dạng số để còn sắp xếp và tính thống kê. Fernet có thành phần ngẫu nhiên nên cột mã hoá không dùng được trong `WHERE ... = ?`; việc so trùng trí nhớ dài hạn vì vậy làm trong Python sau khi giải mã. Phạm vi bảo vệ: ai chỉ lấy được tệp `.db` (bản sao lưu, gửi nhầm) không đọc được nội dung; ai chiếm được cả máy thì có cả khoá. Tắt bằng `DIACARE_DB_ENCRYPT=0`.
+**Mã hoá cột (V4.6, `crypto.py`).** Các cột chữ chứa thông tin sức khoẻ được mã hoá bằng Fernet (AES-128-CBC kèm HMAC-SHA256): tên và hồ sơ trong `patients`, `messages.content`, `memories.content`, `summaries.content`, `runs.question/draft/final`, câu hỏi cho bác sĩ, và các cột ghi chú. Giá trị mã hoá có tiền tố `enc1:`; dòng cũ chưa mã hoá vẫn đọc được, nên không cần chuyển cơ sở dữ liệu. Khoá lấy từ biến `DIACARE_DB_KEY`, nếu không có thì sinh một lần vào tệp `<tên DB>.key` cạnh tệp DB (đã thêm vào `.gitignore`). Số đo, xét nghiệm và mức nguy cơ giữ dạng số để còn sắp xếp và tính thống kê. Fernet có thành phần ngẫu nhiên nên cột mã hoá không dùng được trong `WHERE ... = ?`; việc so trùng trí nhớ dài hạn vì vậy làm trong Python sau khi giải mã. Phạm vi bảo vệ: ai chỉ lấy được tệp `.db` (bản sao lưu, gửi nhầm) không đọc được nội dung; ai chiếm được cả máy thì có cả khoá. Tắt bằng `DIACARE_DB_ENCRYPT=0`. Tệp khoá mã hoá và khoá ký token (`api_secret.key`) được đặt quyền chỉ người dùng đang chạy đọc/ghi được (`restrict_to_owner`: `chmod 600` trên Linux; trên Windows bỏ quyền thừa kế và chỉ cấp cho người dùng hiện tại bằng `icacls`). Lý do: thư mục dữ liệu như `C:\DATA\...` thừa kế quyền đọc cho mọi tài khoản Windows trên máy, nên một tài khoản khác có thể đọc khoá, giả token và giải mã DB.
 
 Nơi lưu thứ hai là **Neo4j**, dùng cho đồ thị tri thức khi đặt `DIACARE_KG=neo4j` (mục 3.7). Neo4j chạy trong container Docker riêng `diacare-neo4j`, cổng 7475 cho Neo4j Browser và 7688 cho bolt; dữ liệu nằm ở thư mục `neo4j_data/`. Mật khẩu được sinh ngẫu nhiên khi tạo container và lưu trong `neo4j.local.json`, tệp này không đưa lên repo. SQLite giữ dữ liệu của người dùng; Neo4j chỉ giữ tri thức chung, không có thông tin bệnh nhân nào.
 
@@ -764,7 +764,11 @@ Tệp `src/api/main.py` (ứng dụng), `src/api/security.py` (mật khẩu và 
 
 **Chat qua SSE.** Với `"stream": true`, `/chat` trả về luồng sự kiện: `session` (mã phiên), `step` (mỗi agent vừa xong), `token` (phần chữ mới đã qua `SafeStream`), rồi `done` (kết quả cuối) hoặc `error`. Giao diện phải thay phần chữ đang hiện bằng câu trả lời trong `done`, vì Rules có thể bỏ bớt câu hoặc thay cả bản nháp. Các lượt chat chạy lần lượt dưới một khoá, vì Ollama trên một GPU cũng chỉ trả lời từng câu một và agent RL cần cập nhật mô hình tuần tự.
 
-**Mỗi request một kết nối.** Phần nặng (`Parts`: Predictor, Retriever, mô hình ngôn ngữ, đồ thị, chính sách RL khởi động) dựng một lần. Các agent có trạng thái (Memory, Lab, Journal, RL) được dựng lại cho từng lượt bằng `orchestrator_from_parts` và gắn với kết nối SQLite của request đó, nên không có trạng thái dùng chung giữa các request.
+**Mỗi request một kết nối.** Phần nặng (`Parts`: Predictor, Retriever, mô hình ngôn ngữ, đồ thị, chính sách RL khởi động) dựng một lần. Các agent có trạng thái (Memory, Lab, Journal, RL) được dựng lại cho từng lượt bằng `orchestrator_from_parts` và gắn với kết nối DB của request đó, nên không có trạng thái dùng chung giữa các request.
+
+**Nhiều lượt tư vấn song song (V4.7).** Trước đây mọi lượt tư vấn chạy tuần tự dưới một khoá chung của cả dịch vụ: người thứ hai phải chờ người thứ nhất xong. Bỏ khoá đó cần sửa hai chỗ dùng chung giữa các luồng: đối tượng mô hình ngôn ngữ ghi số token của lượt vừa gọi vào `last_usage`, và `compress_history.last_mode` là thuộc tính của hàm; cả hai giờ được lưu riêng cho từng luồng (`threading.local`). Số lượt chạy cùng lúc giới hạn bằng semaphore `DIACARE_CHAT_CONCURRENCY` (mặc định 4); hết suất thì chờ tối đa 120 giây rồi trả 503. Hai lượt trong cùng một phiên vẫn chạy lần lượt để lượt sau thấy đủ lịch sử. Phản hồi 👍/👎 đọc-sửa-ghi mô hình RL dưới khoá `rl-model`: advisory lock của PostgreSQL (đúng cả khi chạy nhiều tiến trình) hoặc khoá trong tiến trình với SQLite. Test kiểm chứng bằng một LLM giả có barrier hai bên: barrier chỉ qua được khi hai lượt thật sự cùng ở trong LLM; khi chỉ cho 1 lượt chạy cùng lúc (tương đương khoá chung cũ) test này thất bại.
+
+**Chống lạm dụng (V4.7).** Đăng nhập sai 5 lần cho một email hoặc 30 lần từ một IP trong 15 phút thì trả 429 kèm `Retry-After`, như nhau dù email có tài khoản hay không, kiểm tra trước khi băm scrypt; mỗi IP tạo tối đa 20 tài khoản mỗi giờ. Không khoá cứng tài khoản vì kẻ xấu có thể dùng việc đó để khoá người khác. Tệp xét nghiệm tải lên: PDF tối đa 10 trang; ảnh tối đa 50 triệu điểm ảnh, kiểm tra kích thước từ phần đầu tệp trước khi giải nén (một PNG 20000×20000 chỉ vài KB nhưng giải nén ra 400 triệu điểm ảnh); trang PDF scan kết xuất tối đa 12 triệu điểm ảnh (một trang khai báo khổ 200 inch ở 200 dpi ra ảnh 40000×40000). Vượt giới hạn trả 413.
 
 ## 6.3. Chạy trên Kaggle
 
@@ -785,7 +789,8 @@ Tệp `docker-compose.yml` ở gốc repo dựng ba dịch vụ bằng một l�
 |---|---|---|
 | `ollama` | `ollama/ollama` | chỉ mở trong mạng Docker; model nằm trong volume `ollama-models` |
 | `ollama-pull` | `ollama/ollama` | chạy một lần rồi thoát: tải model (`DIACARE_MODEL`, mặc định qwen2.5:3b, khoảng 1,9 GB) |
-| `api` | `Dockerfile` (python 3.13-slim, torch bản CPU) | cổng 8000; SQLite và khoá ký token trong volume `diacare-data`; mô hình Hugging Face trong volume `hf-cache` |
+| `db` | `postgres:16-alpine` | không mở cổng ra ngoài mạng Docker; dữ liệu trong volume `pg-data`; mật khẩu lấy từ `POSTGRES_PASSWORD` trong tệp `.env` (không lên git) |
+| `api` | `Dockerfile` (python 3.13-slim, torch bản CPU) | cổng 8000; kết nối `db` qua `DIACARE_DATABASE_URL`; khoá mã hoá DB và khoá ký token trong volume `diacare-data`; mô hình Hugging Face trong volume `hf-cache` |
 | `web` | `web/Dockerfile` (node 22, dựng hai tầng) | cổng 3000; `NEXT_PUBLIC_API_URL` được ghi vào mã lúc dựng |
 
 Vài quyết định đáng ghi lại:
@@ -803,7 +808,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-703 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất: 699 đạt, 1 test đọc Neo4j tự bỏ qua khi máy không chạy Neo4j, 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+722 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 713 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -993,12 +998,13 @@ Bốn bài học rút ra:
 - Đồ thị chỉ nối 17 yếu tố nguy cơ với đái tháo đường típ 2; chưa có biến chứng, thuốc, hay quan hệ giữa các yếu tố với nhau. Khẳng định được trích bằng luật từ năm tài liệu tiếng Anh.
 - Nối câu hỏi vào yếu tố bằng danh sách từ đồng nghĩa, nên cách nói lạ có thể bị bỏ sót.
 - Bộ nhớ dài hạn trích bằng luật: danh sách thuốc cố định 6 loại, câu "dùng metformin và insulin" chỉ nhận thuốc đầu, và mới chỉ tự tắt được thông tin thuốc (chưa tự sửa chẩn đoán, dị ứng).
-- Dịch vụ API và giao diện web có tài khoản, nhưng giao diện Streamlit vẫn chưa có đăng nhập: ai mở trên máy cũng xem được mọi hồ sơ. Streamlit chỉ nên dùng trên máy của nhà phát triển.
-- Web giữ token trong `localStorage`, đủ cho đồ án; bản chạy thật nên dùng cookie `HttpOnly` và HTTPS. Chưa có đổi mật khẩu, quên mật khẩu, hay giới hạn số lần đăng nhập sai.
+- Dịch vụ API và giao diện web có tài khoản, nhưng giao diện Streamlit vẫn chưa có đăng nhập: ai mở trên máy cũng xem được mọi hồ sơ. Rà soát bảo mật V4.6 phát hiện Streamlit mặc định nghe trên mọi giao diện mạng (`0.0.0.0` / `::`), và tường lửa Windows của máy phát triển cho phép Python nhận kết nối ở cả mạng Private lẫn Public: người cùng mạng Wi-Fi mở được giao diện và mọi hồ sơ. Đã sửa bằng `--server.address 127.0.0.1` trong `chay_local.ps1` và tệp `.streamlit/config.toml` (cho lệnh `streamlit run` gõ tay); thử lại thì gọi qua địa chỉ mạng của máy bị từ chối, qua `127.0.0.1` vẫn chạy. Streamlit chỉ nên dùng trên máy của nhà phát triển.
+- Web giữ token trong `localStorage`, đủ cho đồ án; bản chạy thật nên dùng cookie `HttpOnly` và HTTPS. Chưa có đổi mật khẩu hay quên mật khẩu. Giới hạn đăng nhập sai (V4.7) đếm trong bộ nhớ của một tiến trình API; chạy nhiều worker thì giới hạn nhân theo số worker.
 - Nhắc đo trên web là thông báo của trình duyệt, chỉ hoạt động khi DiaCare đang mở (kể cả ở tab nền); chưa có thông báo đẩy khi trình duyệt đóng, và chưa thử trên điện thoại thật. Bản Streamlit chỉ nhắc khi mở trang.
 - Khi nhật ký có nhiều chỉ số cao, mô hình 3B đôi khi chêm câu về đổi liều thuốc; Rules bỏ câu đó và giữ phần còn lại. Câu "điều chỉnh liều insulin nếu cần" không bị chặn mà chỉ được kèm lời nhắc hỏi bác sĩ, vì so khớp từ không phân biệt được ai là người chỉnh liều. Trên nhóm ca nhật ký, mô hình 3B còn hay quên trích nguồn và có lúc tự đưa mục tiêu khác với mục tiêu trong nhật ký (mục 7.5).
 - Mục tiêu riêng do người dùng tự nhập theo lời bác sĩ; hệ thống chỉ kiểm tra giới hạn hợp lý, không có vai trò bác sĩ để xác nhận. Mới có mục tiêu riêng cho đường huyết, chưa có cho huyết áp và HbA1c.
 - Ảnh Docker `api` và `web` đã dựng và chạy thử ở chế độ demo; dịch vụ Ollama trong Compose chưa chạy thử (mục 6.4).
+- PostgreSQL (V4.7) đã chạy cả bộ test trên PostgreSQL 16 trong WSL (714 đạt, 5 bỏ qua gồm 4 test đọc thẳng tệp SQLite và 1 test Neo4j, 3 xfail) và chuyển thử DB SQLite thật sang, nhưng dịch vụ `db` trong Docker Compose chưa chạy thử: Docker Desktop trên máy phát triển bị lỗi khi khởi động. Mỗi request mở một kết nối mới, chưa dùng pool kết nối.
 - Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
 
