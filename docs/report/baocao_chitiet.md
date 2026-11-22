@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 35 tệp test với 724 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 35 tệp test với 753 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -808,7 +808,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-724 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 715 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+753 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 744 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -884,7 +884,16 @@ hình hay chép lại câu hỏi. Câu trả lời cuối vẫn an toàn: Rules 
 câu trả lời cuối nhóm này đều nhắc bác sĩ. Đặt lời nhắc trước câu hỏi sửa được một phần nhóm thuốc nhưng mất phần lớn
 mức tăng trích nguồn, nên không dùng. Câu ngoài chủ đề vẫn chỉ 2/12. Bộ chấm lại cũng được sửa: trước đây nó không
 biết lượt nào có xét nghiệm nên coi `[ada_2024]` là thiếu nguồn (số của `v2,kg,rl` ở bảng trên đổi từ 69 thành
-71/150 vì vậy). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
+71/150 vì vậy).
+
+Sau đó Rules được sửa để không chặn nhầm câu cảnh báo: gom 15 câu bị chặn trên mọi lần chạy đã lưu, giữ chặn 5 câu
+(3 lời khuyên thật, 2 câu lủng củng), cho qua 10 câu cảnh báo bằng khung theo vị trí, mỗi khung có câu đối chứng
+vẫn bị chặn; tiện thể sửa một lỗ hổng có sẵn ("không cần thảo luận với bác sĩ ..., cứ bỏ thuốc" từng lọt luật).
+Chấm lại: lần đo 16/11 không đổi; bản nhắc sau câu hỏi lên 122/150 (trong mẫu, vì bản sửa được thiết kế từ chính
+các bản nháp đó). Một lần chạy mới với code hiện tại (ngoài mẫu) đạt 121/150 = 0,81 [0,74; 0,86], Pass^3 0,66,
+bản nháp tự trích nguồn 0,82, nhóm thuốc 14/18, câu ngoài chủ đề 4/12; McNemar so với mốc $p = 0{,}0125$. Rules còn
+chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
 

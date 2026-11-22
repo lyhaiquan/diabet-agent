@@ -463,7 +463,16 @@ hình hay chép lại câu hỏi. Câu trả lời cuối vẫn an toàn: Rules 
 câu trả lời cuối nhóm này đều nhắc bác sĩ. Đặt lời nhắc trước câu hỏi sửa được một phần nhóm thuốc nhưng mất phần lớn
 mức tăng trích nguồn, nên không dùng. Câu ngoài chủ đề vẫn chỉ 2/12. Bộ chấm lại cũng được sửa: trước đây nó không
 biết lượt nào có xét nghiệm nên coi `[ada_2024]` là thiếu nguồn (số của `v2,kg,rl` ở bảng trên đổi từ 69 thành
-71/150 vì vậy). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
+71/150 vì vậy).
+
+Sau đó Rules được sửa để không chặn nhầm câu cảnh báo: gom 15 câu bị chặn trên mọi lần chạy đã lưu, giữ chặn 5 câu
+(3 lời khuyên thật, 2 câu lủng củng), cho qua 10 câu cảnh báo bằng khung theo vị trí, mỗi khung có câu đối chứng
+vẫn bị chặn; tiện thể sửa một lỗ hổng có sẵn ("không cần thảo luận với bác sĩ ..., cứ bỏ thuốc" từng lọt luật).
+Chấm lại: lần đo 16/11 không đổi; bản nhắc sau câu hỏi lên 122/150 (trong mẫu, vì bản sửa được thiết kế từ chính
+các bản nháp đó). Một lần chạy mới với code hiện tại (ngoài mẫu) đạt 121/150 = 0,81 [0,74; 0,86], Pass^3 0,66,
+bản nháp tự trích nguồn 0,82, nhóm thuốc 14/18, câu ngoài chủ đề 4/12; McNemar so với mốc $p = 0{,}0125$. Rules còn
+chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
 nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
