@@ -257,7 +257,7 @@ Khi nhận được câu hỏi từ người dùng cùng hồ sơ lâm sàng, `O
 Trước mọi bước, câu hỏi được dò dấu hiệu prompt injection (`guard.injection_signals`: "bỏ qua mọi hướng dẫn", "ignore previous instructions", "bạn là bác sĩ của tôi", "in system prompt"...). Câu hỏi nghi vấn vẫn được trả lời bình thường nhưng gắn cờ `prompt_injection_suspected`; lớp chặn thật sự vẫn là Rules ở bước 12.
 
 1. **Bước 1 (Profile Validation)**: `Orchestrator` gọi `validate_profile(state.profile)`. Kiểm tra đầy đủ 21 trường, kiểu dữ liệu số, tính hợp lệ trong miền giá trị sinh lý (ví dụ: BMI từ 10 đến 80). Nếu phát hiện lỗi, hệ thống dừng pipeline lập tức, gắn cờ `invalid_input` và thông báo lỗi cụ thể cho người dùng.
-2. **Bước 2 (Small-talk Interception)**: `Orchestrator` chạy hàm `is_small_talk(state.question)`. Nếu câu hỏi thuần túy là câu chào hỏi hoặc cảm ơn (như *"xin chào"*, *"cảm ơn bot nhé"*), hệ thống phản hồi ngay bằng câu chào định sẵn kèm lời nhắc tham khảo ý kiến bác sĩ, không tính toán nguy cơ, không gọi LLM, tiết kiệm tối đa tài nguyên GPU.
+2. **Bước 2 (Small-talk Interception)**: `Orchestrator` chạy hàm `is_small_talk(state.question)`. Nếu câu hỏi thuần túy là câu chào hỏi hoặc cảm ơn (như *"xin chào"*, *"cảm ơn bot nhé"*), hệ thống phản hồi ngay bằng câu chào định sẵn kèm lời nhắc tham khảo ý kiến bác sĩ, không tính toán nguy cơ, không gọi LLM, tiết kiệm tối đa tài nguyên GPU. Ngay sau đó, `scope.classify` nhận câu ngoài chủ đề (thủ đô, làm thơ, giá vàng, công thức nấu ăn không nói tới sức khoẻ) và trả câu từ chối soạn sẵn theo cùng cách; câu kể triệu chứng hay dấu hiệu cấp cứu luôn được cho qua.
 3. **Bước 3 (Memory Recall & Observation)**: Nếu có mã định danh bệnh nhân (`patient_id`), `MemoryAgent` quan sát câu hỏi để bóc tách các sự kiện dài hạn mới (như tiền sử được chẩn đoán, thuốc mới uống, tình trạng dị ứng) lưu vào SQLite; đồng thời hồi tưởng (`recall`) toàn bộ các sự kiện trước đây của bệnh nhân đưa vào `state.memory`.
 4. **Bước 4 (Adaptive History Compression)**: `MemoryAgent` kiểm tra dung lượng token của lịch sử hội thoại. Nếu vượt quá ngân sách (`HISTORY_TOKEN_BUDGET = 800` tokens), mô hình tóm tắt sẽ kích hoạt để nén các lượt trò chuyện cũ thành một đoạn tóm tắt súc tích, gắn cờ `history_summarized`.
 5. **Bước 5 (Lab Extraction & Evaluation)**: `LabAgent` bóc tách kết quả xét nghiệm từ câu hỏi hoặc gọi module `ocr.py` nếu có ảnh/file PDF phiếu xét nghiệm tải lên. Các chỉ số được chuẩn hóa về đơn vị tiêu chuẩn ($mg/dL$, $\%$) và xếp mức lâm sàng theo chuẩn ADA 2024: bình thường, tiền tiểu đường, tiểu đường hoặc hạ đường huyết ($< 70\ mg/dL$). Ngay sau đó, `JournalAgent` (V4.4) đọc nhật ký tự theo dõi 14 ngày của hồ sơ và ghi bản tóm tắt vào `state.journal`; người chưa ghi nhật ký thì bước này không thêm gì.
@@ -653,7 +653,7 @@ Dự án DiaCare-MAS đã cài đặt 9 giai đoạn của lộ trình:
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
 | **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
 | **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
-| **9** | **Continuous Automated Testing & Observability**: 753 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
+| **9** | **Continuous Automated Testing & Observability**: 847 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
 
@@ -741,7 +741,29 @@ vẫn bị chặn; tiện thể sửa một lỗ hổng có sẵn ("không cần
 Chấm lại: lần đo 16/11 không đổi; bản nhắc sau câu hỏi lên 122/150 (trong mẫu, vì bản sửa được thiết kế từ chính
 các bản nháp đó). Một lần chạy mới với code hiện tại (ngoài mẫu) đạt 121/150 = 0,81 [0,74; 0,86], Pass^3 0,66,
 bản nháp tự trích nguồn 0,82, nhóm thuốc 14/18, câu ngoài chủ đề 4/12; McNemar so với mốc $p = 0{,}0125$. Rules còn
-chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn.
+
+**Chặn câu ngoài chủ đề trước khi gọi LLM (V4.7).** Ngay cả sau khi nhắc trích nguồn, `qwen2.5:3b` vẫn trả lời thủ đô
+nước Pháp, làm thơ, chỉ cách nấu phở (nhóm `out_of_scope` 4/12). `src/diacare/scope.py` thêm một bước tất định
+ngay sau bước nhận câu chào: câu bị coi là ngoài chủ đề thì trả câu từ chối soạn sẵn ("nằm ngoài phạm vi của DiaCare",
+kèm gợi ý các chủ đề hỗ trợ), không dự đoán nguy cơ, không gọi LLM, gắn cờ `out_of_scope`. Câu xin công thức nấu ăn
+không nói gì tới sức khoẻ nhận câu trả lời riêng: không hướng dẫn nấu, nhưng nói được calo, tinh bột của món đó.
+Bước này luôn bật, không phụ thuộc cấu hình tính năng, và cố ý nghiêng về cho qua:
+
+- Câu có dấu, chưa có lịch sử hội thoại: ngoài chủ đề khi không có từ nào về sức khoẻ, tiểu đường, ăn uống, vận
+  động, không nhắc món ăn nào trong bảng dinh dưỡng.
+- Đã có lịch sử hội thoại, hoặc câu gõ không dấu: chỉ từ chối khi có dấu hiệu ngoài chủ đề rõ (làm thơ, giá vàng,
+  bóng đá...), vì câu nối tiếp như "Tôi nên làm gì để kiểm soát tốt hơn?" không có từ khoá nào.
+- Câu kể triệu chứng hoặc dấu hiệu cấp cứu luôn được cho qua, dùng đúng hàm Rules dùng để gắn lời khuyên đi khám và
+  gọi 115 (`mentions_symptom`, `mentions_emergency`). Bản đầu của bước này từ chối nhầm "Dạo này tôi đái nhiều quá",
+  "Tôi bị sụt cân nhanh", "Hơi thở có mùi lạ"; đã sửa, và mọi từ trong danh sách triệu chứng, cấp cứu của Rules có test.
+
+Kiểm tra trên một bộ câu riêng, không lấy từ benchmark (`tests/test_scope.py`). Lần chạy đầu: 14/14 câu ngoài chủ đề
+và 3/3 câu xin công thức bị từ chối đúng, 1/32 câu trong chủ đề bị từ chối nhầm ("Tôi hay bị chuột rút ở chân về
+đêm"). Sau đó danh sách từ được sửa dựa trên chính bộ câu này, nên con số đạt hết hiện tại là trong mẫu. Trên
+benchmark, bước này nhận đúng 4 ca ngoài chủ đề và không đụng tới 62 ca còn lại; nhóm `out_of_scope` lên 12/12 là có
+sẵn theo cách làm (4 câu đó đã được xem khi thiết kế, và câu từ chối chứa cụm benchmark tìm), nên không tính p. Các ca
+khác đi đúng đường cũ, nên không chạy lại benchmark. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 - `JournalAgent` đã được đo riêng: bộ benchmark thêm 12 ca có nhật ký gieo sẵn (tổng 62 ca, 12 nhóm). Trên máy cá nhân với `qwen2.5:3b`, 12 ca × 3 lượt: có JournalAgent Pass^3 = 0,50, tỉ lệ đạt từng lượt 0,78 (28/36); không có JournalAgent Pass^3 = 0,08, 0,08 (3/36); 6 ca chỉ đạt khi có JournalAgent, 1 ca ngược lại, McNemar theo ca $p = 0{,}125$ (với 12 ca thì chưa đạt mức 0,05). Mô hình 3B vẫn trượt một số ca dù đã có số liệu (quên trích nguồn, không nhắc ngày tái khám).
@@ -749,14 +771,14 @@ có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 ## 11.2. Kiểm thử Đơn vị
 
-Hệ thống có bộ kiểm thử tự động gồm **753 bài kiểm thử** phân bổ trên 35 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **847 bài kiểm thử** phân bổ trên 36 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Lần chạy gần nhất (V4.7) trên SQLite: 744 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
+Lần chạy gần nhất (V4.7) trên SQLite: 838 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
 
 ## 11.3. Bổ sung ở V4.6: an toàn, quyền riêng tư, kho tài liệu
 

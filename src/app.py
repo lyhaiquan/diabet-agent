@@ -269,7 +269,7 @@ def _render_kg(kg):
 
 def _render_meta(meta, dev=True, diagnosed=False):
     flags = meta.get("flags", [])
-    if "small_talk" in flags:  # câu chào: không dự đoán, không hiện nguy cơ
+    if "small_talk" in flags or "out_of_scope" in flags:  # câu chào / ngoài chủ đề: không dự đoán, không hiện nguy cơ
         return
     if not dev:  # người bệnh: chỉ cần biết câu trả lời dựa trên tài liệu nào, không cần log agent hay nguy cơ BRFSS
         lab_level = meta.get("lab_level")

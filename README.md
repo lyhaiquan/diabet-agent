@@ -471,7 +471,29 @@ vẫn bị chặn; tiện thể sửa một lỗ hổng có sẵn ("không cần
 Chấm lại: lần đo 16/11 không đổi; bản nhắc sau câu hỏi lên 122/150 (trong mẫu, vì bản sửa được thiết kế từ chính
 các bản nháp đó). Một lần chạy mới với code hiện tại (ngoài mẫu) đạt 121/150 = 0,81 [0,74; 0,86], Pass^3 0,66,
 bản nháp tự trích nguồn 0,82, nhóm thuốc 14/18, câu ngoài chủ đề 4/12; McNemar so với mốc $p = 0{,}0125$. Rules còn
-chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+chặn nhầm 3 câu cảnh báo mới trong lần chạy đó; câu trả lời cuối vẫn an toàn.
+
+**Chặn câu ngoài chủ đề trước khi gọi LLM (V4.7).** Ngay cả sau khi nhắc trích nguồn, `qwen2.5:3b` vẫn trả lời thủ đô
+nước Pháp, làm thơ, chỉ cách nấu phở (nhóm `out_of_scope` 4/12). `src/diacare/scope.py` thêm một bước tất định
+ngay sau bước nhận câu chào: câu bị coi là ngoài chủ đề thì trả câu từ chối soạn sẵn ("nằm ngoài phạm vi của DiaCare",
+kèm gợi ý các chủ đề hỗ trợ), không dự đoán nguy cơ, không gọi LLM, gắn cờ `out_of_scope`. Câu xin công thức nấu ăn
+không nói gì tới sức khoẻ nhận câu trả lời riêng: không hướng dẫn nấu, nhưng nói được calo, tinh bột của món đó.
+Bước này luôn bật, không phụ thuộc cấu hình tính năng, và cố ý nghiêng về cho qua:
+
+- Câu có dấu, chưa có lịch sử hội thoại: ngoài chủ đề khi không có từ nào về sức khoẻ, tiểu đường, ăn uống, vận
+  động, không nhắc món ăn nào trong bảng dinh dưỡng.
+- Đã có lịch sử hội thoại, hoặc câu gõ không dấu: chỉ từ chối khi có dấu hiệu ngoài chủ đề rõ (làm thơ, giá vàng,
+  bóng đá...), vì câu nối tiếp như "Tôi nên làm gì để kiểm soát tốt hơn?" không có từ khoá nào.
+- Câu kể triệu chứng hoặc dấu hiệu cấp cứu luôn được cho qua, dùng đúng hàm Rules dùng để gắn lời khuyên đi khám và
+  gọi 115 (`mentions_symptom`, `mentions_emergency`). Bản đầu của bước này từ chối nhầm "Dạo này tôi đái nhiều quá",
+  "Tôi bị sụt cân nhanh", "Hơi thở có mùi lạ"; đã sửa, và mọi từ trong danh sách triệu chứng, cấp cứu của Rules có test.
+
+Kiểm tra trên một bộ câu riêng, không lấy từ benchmark (`tests/test_scope.py`). Lần chạy đầu: 14/14 câu ngoài chủ đề
+và 3/3 câu xin công thức bị từ chối đúng, 1/32 câu trong chủ đề bị từ chối nhầm ("Tôi hay bị chuột rút ở chân về
+đêm"). Sau đó danh sách từ được sửa dựa trên chính bộ câu này, nên con số đạt hết hiện tại là trong mẫu. Trên
+benchmark, bước này nhận đúng 4 ca ngoài chủ đề và không đụng tới 62 ca còn lại; nhóm `out_of_scope` lên 12/12 là có
+sẵn theo cách làm (4 câu đó đã được xem khi thiết kế, và câu từ chối chứa cụm benchmark tìm), nên không tính p. Các ca
+khác đi đúng đường cũ, nên không chạy lại benchmark. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
@@ -553,7 +575,9 @@ tests/                  test (pytest)
 - Giao diện Streamlit không có đăng nhập nên chỉ nghe trên `127.0.0.1` (`.streamlit/config.toml`,
   `chay_local.ps1`). Đừng đổi sang `0.0.0.0` khi máy đang ở mạng chung: ai cùng mạng sẽ xem được mọi hồ sơ.
   Muốn cho máy khác vào thì dùng API và giao diện web (có tài khoản).
-- Nhóm câu ngoài chủ đề (`out_of_scope`) mới đạt 0.50: model vẫn làm thơ hoặc chỉ cách nấu ăn thay vì từ chối.
+- Câu ngoài chủ đề được chặn bằng danh sách từ (`src/diacare/scope.py`), không phải bằng hiểu nghĩa: câu ngoài chủ
+  đề có từ trùng với từ sức khoẻ ("đường đi", "ca sĩ bao nhiêu tuổi") vẫn tới LLM, và giữa hội thoại hay khi gõ
+  không dấu chỉ chặn được câu có dấu hiệu rõ. Thà để lọt còn hơn từ chối nhầm câu về sức khoẻ.
 
 ## Nguồn dữ liệu
 

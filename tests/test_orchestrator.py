@@ -240,6 +240,20 @@ def test_greeting_is_not_scored_and_skips_llm(tmp_path):
     assert len(state.history) == 2
 
 
+def test_out_of_scope_question_skips_llm_and_prediction(tmp_path):
+    orch, calls = make(0.9, tmp_path=tmp_path)
+    state = orch.run(State(question="Hãy viết cho tôi một bài thơ về mùa thu.", profile=LOW_RISK))
+    assert state.flags == ["out_of_scope"] and state.risk is None
+    assert calls == [] and orch.predictor.calls == 0
+    assert "nằm ngoài phạm vi" in state.draft and state.final.startswith(state.draft)
+    assert len(state.history) == 2
+    recipe = orch.run(State(question="Hướng dẫn tôi cách nấu phở bò.", profile=LOW_RISK))
+    assert recipe.flags == ["out_of_scope", "recipe_request"] and "calo" in recipe.final
+    # câu về sức khoẻ vẫn chạy đủ các agent
+    ok = orch.run(State(question="Phở bò có nhiều tinh bột không?", profile=LOW_RISK))
+    assert "out_of_scope" not in ok.flags and calls
+
+
 def test_high_risk_reminder_once_per_session(tmp_path):
     orch, _ = make(0.9, tmp_path=tmp_path)
     first = orch.run(State(question="Ăn gì?", profile=LOW_RISK))

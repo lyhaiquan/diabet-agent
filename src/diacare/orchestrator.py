@@ -16,6 +16,7 @@ from diacare.llm import DEFAULT_NUM_CTX
 from diacare.labs import parse_lab_text
 from diacare.memory import SummaryCache, compress_history, has_diagnosis
 from diacare.nutrition import is_nutrition_question
+from diacare.scope import classify as classify_scope, reply_for as scope_reply
 from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_NOTES, SMALL_TALK_REPLY,
                            apply_rules, is_small_talk, risk_band)
 
@@ -106,6 +107,20 @@ class Orchestrator:
             step("Orchestrator", "câu chào hỏi: trả lời ngay, không dự đoán nguy cơ, không gọi LLM")
             state.flags = ["small_talk"]
             state.final = SMALL_TALK_REPLY + "\n\n" + DISCLAIMER
+            state.history = full_history + [
+                {"role": "user", "content": state.question},
+                {"role": "assistant", "content": state.final},
+            ]
+            state.report = build_decision_report(state, request_id=req_id)
+            self._log(state)
+            return state
+        find_foods = getattr(self.nutrition_agent, "find_foods", None)  # agent hỏng: classify tự bỏ qua
+        scope = classify_scope(state.question, full_history, find_foods=find_foods)
+        if scope is not None:
+            step("Orchestrator", "câu ngoài chủ đề: trả lời từ chối soạn sẵn, không dự đoán nguy cơ, không gọi LLM")
+            state.flags = ["out_of_scope"] + (["recipe_request"] if scope == "recipe" else [])
+            state.draft = scope_reply(scope)  # câu soạn sẵn, không phải do LLM viết
+            state.final = state.draft + "\n\n" + DISCLAIMER
             state.history = full_history + [
                 {"role": "user", "content": state.question},
                 {"role": "assistant", "content": state.final},

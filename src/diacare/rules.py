@@ -317,6 +317,18 @@ _FILLER = frozenset(
     "rất lắm cả nhà you".split())
 
 
+def mentions_symptom(question):
+    """Câu có kể triệu chứng gợi ý tiểu đường (cùng tiêu chí Rules dùng để gắn SYMPTOM_NOTE)."""
+    q = _norm(question)
+    return any(t in q for t in SYMPTOM_TERMS) or bool(_SYMPTOM_PATTERN.search(q))
+
+
+def mentions_emergency(question):
+    """Câu có dấu hiệu cấp cứu (cùng tiêu chí Rules dùng để gắn EMERGENCY_NOTE)."""
+    q = _norm(question)
+    return any(t in q for t in EMERGENCY_TERMS)
+
+
 def is_small_talk(question):
     q = _norm(question).strip()
     if not q or not _GREETING.search(q):
@@ -367,10 +379,10 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, lab
     elif "prediabetes" in levels and not diagnosed:
         flags.append("lab_prediabetes_range")
         text += "\n\n" + LAB_NOTES["prediabetes"]
-    if any(t in q for t in SYMPTOM_TERMS) or _SYMPTOM_PATTERN.search(q):
+    if mentions_symptom(q):
         flags.append("symptom_referral")
         text += "\n\n" + SYMPTOM_NOTE
-    if any(t in q for t in EMERGENCY_TERMS):
+    if mentions_emergency(q):
         flags.append("emergency_referral")
         text += "\n\n" + EMERGENCY_NOTE
     text += "\n\n" + DISCLAIMER
