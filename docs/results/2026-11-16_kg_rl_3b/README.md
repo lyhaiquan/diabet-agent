@@ -9,13 +9,15 @@ So ba cấu hình trên cùng bộ ca: `v2` (dinh dưỡng, bộ nhớ, xét ngh
 
 ## Kết quả (đã chấm lại bằng luật hiện tại)
 
+Ngày 22/11 bộ chấm lại được sửa: trước đó nó không biết lượt nào có kết quả xét nghiệm nên coi nhãn `[ada_2024]` là thiếu trích nguồn. Chấm lại bằng bộ đã sửa chỉ đổi dòng `v2,kg,rl` (69 thành 71/150); McNemar không đổi. Lần đo tiếp theo, thêm lời nhắc trích nguồn vào prompt: `docs/results/2026-11-22_citation_3b/`.
+
 Sau khi chạy, Rules được sửa hai lần: mẫu "không cần dùng ... thuốc" bỏ qua cụm "mà không cần", và câu cảnh báo được nhận theo vị trí của cụm từ (xem `docs/report/baocao_chitiet.md`, mục 3.12). Số dưới đây là kết quả chấm lại bằng luật đã sửa (`rescored_summary.txt`, `mcnemar.txt`); số trong `*/report.md` là số chấm lúc chạy.
 
 | Cấu hình | Pass@3 | Pass^3 | Đạt từng lượt [Wilson 95%] |
 |---|---|---|---|
 | v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
 | v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
-| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+| v2,kg,rl | 0,56 | 0,38 | 0,47 [0,40; 0,55] (71/150) |
 
 McNemar chính xác theo ca (một ca đạt khi đạt cả 3 lượt):
 

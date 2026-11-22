@@ -44,9 +44,41 @@ def build_messages(ctx):
         f"{rl_block}"
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
+        f"{citation_reminder(ctx)}"
     )
     return [{"role": "system", "content": SYSTEM_PROMPT}, *ctx["history"],
             {"role": "user", "content": user}]
+
+
+def citation_labels(ctx):
+    """Các nhãn nguồn có trong ngữ cảnh lượt này, theo thứ tự xuất hiện, không trùng."""
+    labels = list(dict.fromkeys(d["source"] for d in ctx.get("docs") or []))
+    if ctx.get("nutrition_text"):
+        labels.append("usda_fdc")
+    if ctx.get("lab_text"):
+        labels.append("ada_2024")
+    return labels
+
+
+def citation_reminder(ctx):
+    """Nhắc trích nguồn ở CUỐI tin nhắn, ngay sau câu hỏi, kèm nhãn thật của lượt này.
+
+    Benchmark 2026-11-16 (qwen2.5:3b): 212/450 bản nháp không có nhãn nguồn nào, dù prompt hệ thống đã dặn
+    "trích nguồn dạng [tên_file]". Lời dặn đó là một câu giữa khoảng 15 chỉ dẫn, nằm đầu hội thoại, với tên giả.
+    Mô hình nhỏ theo chỉ dẫn gần cuối tốt hơn, và chép nhãn dễ hơn khi thấy nhãn thật.
+
+    Đo 2026-11-22 (docs/results/2026-11-22_citation_3b), cấu hình v2,kg,rl, 150 lượt:
+    - lời nhắc SAU câu hỏi (bản này): bản nháp tự trích nguồn 0,19 -> 0,86, đạt từng lượt 71 -> 117/150;
+    - lời nhắc TRƯỚC câu hỏi: 0,60 và 101/150. Giữ bản sau câu hỏi.
+    Cái giá: nhóm câu về thuốc 18 -> 9/18 ở bản nháp (Rules chặn nhầm câu cảnh báo, mô hình chép lại câu hỏi);
+    câu trả lời cuối vẫn an toàn vì Rules chạy sau cùng."""
+    labels = citation_labels(ctx)
+    if not labels:
+        return ""
+    allowed = ", ".join(f"[{s}]" for s in labels)
+    return ("\n\nYêu cầu trình bày: cuối mỗi đoạn hoặc mỗi gạch đầu dòng có dùng thông tin từ tài liệu, ghi nhãn "
+            f"nguồn trong ngoặc vuông, chép đúng nhãn, ví dụ: \"... [{labels[0]}].\" Nhãn được dùng: {allowed}. "
+            "Không ghi nhãn nào khác.")
 
 
 _SENT_END = re.compile(r"[.!?…](?:\*\*|\*|\)|\"|”)*(?=\s|$)")

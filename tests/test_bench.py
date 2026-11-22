@@ -402,3 +402,16 @@ def test_journal_case_fails_when_journal_not_read():
 def test_parse_journal_rejects_bad_rows(raw):
     with pytest.raises(ValueError):
         bench.parse_journal(raw, "x")
+
+
+def test_rescore_accepts_ada_label_when_case_has_labs():
+    """Bản ghi không lưu xét nghiệm; bộ chấm lại phải dò lại từ câu hỏi, nếu không [ada_2024] bị tính là thiếu nguồn."""
+    from diacare.bench import rescore_record
+    case = {"name": "labs_x", "q": "HbA1c của tôi là 7,2% thì sao?", "setup_turns": [], "need": set(), "forbid": set(),
+            "grounded": True, "draft_has": (), "draft_has_any": (), "final_has": (), "draft_groups": (), "journal": None}
+    from diacare.rules import DISCLAIMER
+    draft = "HbA1c 7,2% cao hơn ngưỡng [ada_2024]."
+    rec = {"flags": [], "draft": draft, "final": draft + " " + DISCLAIMER, "sources": ["medlineplus_blood_sugar.txt"]}
+    assert rescore_record(case, rec)[:2] == (True, [])
+    # không có xét nghiệm trong ca: nhãn đó không phải nguồn của lượt này
+    assert "không trích nguồn đã truy xuất" in rescore_record(dict(case, q="Tôi nên ăn gì?"), rec)[1]

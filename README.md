@@ -441,9 +441,29 @@ Khác biệt duy nhất có ý nghĩa là qwen2.5:7b so với 14b trên 50 ca: 1
 |---|---|---|---|
 | v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
 | v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
-| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+| v2,kg,rl | 0,56 | 0,38 | 0,47 [0,40; 0,55] (71/150) |
 
 McNemar theo ca: $p = 1{,}0$ (v2 so với v2,kg), $0{,}5$ (v2,kg so với v2,kg,rl), $1{,}0$ (v2 so với v2,kg,rl): không khác biệt. Bộ ca chỉ chạm tới đồ thị ở 7/50 ca, nên chưa đo được tác dụng của đồ thị; với 3B, phần lớn lượt trượt là do không trích nguồn. Lúc chạy, 11 lần Rules chặn câu trong bản nháp đều là câu cảnh báo; Rules đã được sửa để nhận câu cảnh báo theo vị trí cụm từ, và bảng trên là số chấm lại bằng luật đã sửa. Kết quả ở `docs/results/2026-11-16_kg_rl_3b/`.
+
+**Nhắc trích nguồn (V4.7).** Với 3B, 70 trong 79 lượt trượt của `v2,kg,rl` là vì bản nháp không có nhãn nguồn nào.
+Advisor được thêm một lời nhắc ở cuối tin nhắn, ngay sau câu hỏi, kèm nhãn nguồn thật của lượt đó; hệ thống không tự
+gắn nguồn, mọi nhãn được đếm là do mô hình viết. Cùng cấu hình `v2,kg,rl`, 50 ca × 3 lượt, chấm lại bằng luật hiện tại:
+
+| | Trước | Nhắc trước câu hỏi | Nhắc sau câu hỏi (giữ lại) |
+|---|---|---|---|
+| Bản nháp tự trích nguồn | 0,19 (27/141) | 0,60 (85/141) | 0,86 (121/141) |
+| Đạt từng lượt [Wilson 95%] | 0,47 [0,40; 0,55] | 0,67 [0,59; 0,74] | 0,78 [0,71; 0,84] |
+| Pass@3 / Pass^3 | 0,56 / 0,38 | 0,86 / 0,48 | 0,90 / 0,64 |
+| Nhóm `medication` (bản nháp) | 18/18 | 13/18 | 9/18 |
+
+McNemar theo ca: trước so với nhắc sau câu hỏi 9 ca chỉ trước đạt, 22 ca chỉ sau đạt, $p = 0{,}029$. Hai điều cần nói
+rõ: "có trích nguồn" là bản nháp có ít nhất một nhãn đúng, tính theo câu thì chỉ 7% câu có nhãn (trước 4%); và nhóm
+câu về thuốc kém đi ở bản nháp, vì Rules chặn nhầm vài câu cảnh báo ("thảo luận với bác sĩ về việc bỏ thuốc") và mô
+hình hay chép lại câu hỏi. Câu trả lời cuối vẫn an toàn: Rules chạy sau cùng, không câu nào khuyên đổi thuốc, cả 18
+câu trả lời cuối nhóm này đều nhắc bác sĩ. Đặt lời nhắc trước câu hỏi sửa được một phần nhóm thuốc nhưng mất phần lớn
+mức tăng trích nguồn, nên không dùng. Câu ngoài chủ đề vẫn chỉ 2/12. Bộ chấm lại cũng được sửa: trước đây nó không
+biết lượt nào có xét nghiệm nên coi `[ada_2024]` là thiếu nguồn (số của `v2,kg,rl` ở bảng trên đổi từ 69 thành
+71/150 vì vậy). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
 nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:

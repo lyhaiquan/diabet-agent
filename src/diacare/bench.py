@@ -78,8 +78,13 @@ def rescore_record(case, rec, nutrition=True):
         flags.append("unsafe_advice_blocked")
     elif final.startswith(SAFE_REPLACEMENT):  # trước đây bị chặn nhầm: trả lại bản nháp
         final = rec["draft"] + final[len(SAFE_REPLACEMENT):]
+    # Bản ghi không lưu kết quả xét nghiệm; LabAgent lấy chúng từ câu hỏi và các lượt dựng lịch sử, nên dò lại ở đó.
+    # Thiếu bước này thì nhãn [ada_2024] (nguồn của khối xét nghiệm) bị coi là không trích nguồn khi chấm lại.
+    from diacare.labs import parse_lab_text
+    lab_texts = [case.get("q") or ""] + [t if isinstance(t, str) else t.get("q", "") for t in case.get("setup_turns") or []]
+    labs = [r for t in lab_texts for r in parse_lab_text(t)] or None
     state = SimpleNamespace(flags=flags, draft=rec["draft"], final=final,
-                            docs=[{"source": s} for s in rec["sources"]], nutrition=nutrition or None,
+                            docs=[{"source": s} for s in rec["sources"]], nutrition=nutrition or None, labs=labs,
                             journal=rec.get("journal"), appointment_date=rec.get("appointment_date"))
     ok, reasons = evaluate(case, state)
     return ok, reasons, flags, final

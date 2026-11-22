@@ -653,7 +653,7 @@ Dự án DiaCare-MAS đã cài đặt 9 giai đoạn của lộ trình:
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
 | **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
 | **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
-| **9** | **Continuous Automated Testing & Observability**: 722 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
+| **9** | **Continuous Automated Testing & Observability**: 724 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
 
@@ -705,29 +705,49 @@ Hệ thống đã được chạy benchmark tự động trên nền tảng đá
 |---|---|---|---|
 | v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
 | v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
-| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+| v2,kg,rl | 0,56 | 0,38 | 0,47 [0,40; 0,55] (71/150) |
 
 McNemar theo ca: v2 so với v2,kg $p = 1{,}0$; v2,kg so với v2,kg,rl $p = 0{,}5$; v2 so với v2,kg,rl $p = 1{,}0$. Không cặp nào khác nhau có ý nghĩa. Ba điều đọc ra:
 
 - Bộ ca gần như không chạm tới đồ thị: Graph agent chỉ nhận ra yếu tố nguy cơ trong 21/150 lượt (7 ca). Nhóm duy nhất nhích lên là `risk_referral` (0,50 lên 0,75 từng lượt, 4 ca). Kết luận đúng là bộ ca này **chưa đo được** tác dụng của đồ thị, không phải đồ thị không có tác dụng; cần thêm ca hỏi thẳng về yếu tố nguy cơ.
-- Với mô hình 3B, benchmark chủ yếu đo thói quen trích nguồn: 68–73 trong 78–84 lượt trượt của mỗi cấu hình là do không trích nguồn, và chỉ 3–4% câu trong bản nháp có nhãn nguồn. KG và RL không đổi được điều này. Con số 0,44 không so được với 0,88 của lần chạy Kaggle (khác mô hình, máy, kho tài liệu và bộ ca).
+- Với mô hình 3B, benchmark chủ yếu đo thói quen trích nguồn: 68–73 trong 78–84 lượt trượt của mỗi cấu hình là do không trích nguồn, và chỉ 3–4% câu trong bản nháp có nhãn nguồn. KG và RL không đổi được điều này; một lời nhắc trong prompt thì đổi được (đoạn dưới). Con số 0,44 không so được với 0,88 của lần chạy Kaggle (khác mô hình, máy, kho tài liệu và bộ ca).
 - Lúc chạy, Rules chặn câu trong bản nháp ở 11 lượt; đọc lại cả 11 thì đều là câu cảnh báo ("tự giảm liều metformin ... không phải là một ý kiến tốt"), không câu nào là lời khuyên đổi thuốc thật. Rules được sửa sau đó để nhận câu cảnh báo theo vị trí của cụm từ (mục 11.3), và các số trên là kết quả chấm lại bằng luật đã sửa: không lượt nào còn bị chặn, nhóm `medication` đạt 1,00 ở cả ba cấu hình. Số chấm lúc chạy giữ trong `report.md` của từng cấu hình.
 
 Critic: trong các con số có đơn vị mà bản nháp đưa ra, 10–16% không có trong ngữ cảnh (11/102, 12/118, 18/112), phần lớn là số hướng dẫn chung như "150 phút mỗi tuần" mà mô hình lấy từ hiểu biết sẵn có. Ước lượng từ vết (chưa so trực tiếp với `DIACARE_PARALLEL=0`), chạy song song tiết kiệm khoảng 30 ms (khoảng 90 ms nếu tuần tự, khoảng 60 ms song song) trên khoảng 5,8 giây mỗi lượt. Thời gian giữa ba cấu hình không so được vì chúng chạy nối tiếp và cấu hình đầu trùng lúc với việc khác trên máy. Chi tiết ở `docs/results/2026-11-16_kg_rl_3b/`.
+
+**Nhắc trích nguồn (V4.7).** Với 3B, 70 trong 79 lượt trượt của `v2,kg,rl` là vì bản nháp không có nhãn nguồn nào.
+Advisor được thêm một lời nhắc ở cuối tin nhắn, ngay sau câu hỏi, kèm nhãn nguồn thật của lượt đó; hệ thống không tự
+gắn nguồn, mọi nhãn được đếm là do mô hình viết. Cùng cấu hình `v2,kg,rl`, 50 ca × 3 lượt, chấm lại bằng luật hiện tại:
+
+| | Trước | Nhắc trước câu hỏi | Nhắc sau câu hỏi (giữ lại) |
+|---|---|---|---|
+| Bản nháp tự trích nguồn | 0,19 (27/141) | 0,60 (85/141) | 0,86 (121/141) |
+| Đạt từng lượt [Wilson 95%] | 0,47 [0,40; 0,55] | 0,67 [0,59; 0,74] | 0,78 [0,71; 0,84] |
+| Pass@3 / Pass^3 | 0,56 / 0,38 | 0,86 / 0,48 | 0,90 / 0,64 |
+| Nhóm `medication` (bản nháp) | 18/18 | 13/18 | 9/18 |
+
+McNemar theo ca: trước so với nhắc sau câu hỏi 9 ca chỉ trước đạt, 22 ca chỉ sau đạt, $p = 0{,}029$. Hai điều cần nói
+rõ: "có trích nguồn" là bản nháp có ít nhất một nhãn đúng, tính theo câu thì chỉ 7% câu có nhãn (trước 4%); và nhóm
+câu về thuốc kém đi ở bản nháp, vì Rules chặn nhầm vài câu cảnh báo ("thảo luận với bác sĩ về việc bỏ thuốc") và mô
+hình hay chép lại câu hỏi. Câu trả lời cuối vẫn an toàn: Rules chạy sau cùng, không câu nào khuyên đổi thuốc, cả 18
+câu trả lời cuối nhóm này đều nhắc bác sĩ. Đặt lời nhắc trước câu hỏi sửa được một phần nhóm thuốc nhưng mất phần lớn
+mức tăng trích nguồn, nên không dùng. Câu ngoài chủ đề vẫn chỉ 2/12. Bộ chấm lại cũng được sửa: trước đây nó không
+biết lượt nào có xét nghiệm nên coi `[ada_2024]` là thiếu nguồn (số của `v2,kg,rl` ở bảng trên đổi từ 69 thành
+71/150 vì vậy). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 - `JournalAgent` đã được đo riêng: bộ benchmark thêm 12 ca có nhật ký gieo sẵn (tổng 62 ca, 12 nhóm). Trên máy cá nhân với `qwen2.5:3b`, 12 ca × 3 lượt: có JournalAgent Pass^3 = 0,50, tỉ lệ đạt từng lượt 0,78 (28/36); không có JournalAgent Pass^3 = 0,08, 0,08 (3/36); 6 ca chỉ đạt khi có JournalAgent, 1 ca ngược lại, McNemar theo ca $p = 0{,}125$ (với 12 ca thì chưa đạt mức 0,05). Mô hình 3B vẫn trượt một số ca dù đã có số liệu (quên trích nguồn, không nhắc ngày tái khám).
 - Trong toàn bộ 414 lượt chạy thực tế, **không ghi nhận câu trả lời nào vi phạm an toàn y tế** (không có bất kỳ gợi ý tự ý thay đổi thuốc nào vượt qua được rào chắn `SafeStream` và `apply_rules`).
 
 ## 11.2. Kiểm thử Đơn vị
 
-Hệ thống có bộ kiểm thử tự động gồm **722 bài kiểm thử** phân bổ trên 35 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **724 bài kiểm thử** phân bổ trên 35 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Lần chạy gần nhất (V4.7) trên SQLite: 713 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
+Lần chạy gần nhất (V4.7) trên SQLite: 715 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
 
 ## 11.3. Bổ sung ở V4.6: an toàn, quyền riêng tư, kho tài liệu
 

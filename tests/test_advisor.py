@@ -47,3 +47,14 @@ def test_trim_incomplete_drops_cut_sentence_and_hanging_heading():
     assert trim_incomplete("Ăn ít tinh bột.\n\n**Gợi ý thêm:**\n- Rau") == "Ăn ít tinh bột."
     # đã trọn câu thì giữ nguyên
     assert trim_incomplete("Uống đủ nước!") == "Uống đủ nước!"
+
+
+def test_citation_reminder_is_last_and_uses_real_labels():
+    from diacare.advisor import citation_reminder
+    ctx = dict(CTX, docs=[{"source": "ada.txt", "text": "a"}, {"source": "who.txt", "text": "b"},
+                          {"source": "ada.txt", "text": "c"}], nutrition_text="Cơm: 130 kcal [usda_fdc]")
+    last = build_messages(ctx)[-1]["content"]
+    assert last.rstrip().endswith("Không ghi nhãn nào khác.")
+    assert last.index("Câu hỏi:") < last.index("Yêu cầu trình bày")
+    assert '"... [ada.txt]."' in last and "[ada.txt], [who.txt], [usda_fdc]" in last
+    assert citation_reminder(dict(CTX, docs=[])) == ""  # không có tài liệu thì không đòi trích

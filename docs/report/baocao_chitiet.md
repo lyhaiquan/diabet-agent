@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 35 tệp test với 722 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 35 tệp test với 724 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -808,7 +808,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-722 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 713 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+724 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 715 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -856,15 +856,35 @@ Nhóm bộ nhớ tăng từ 0,25 lên 1,00. Nhóm ngoài chủ đề đứng yê
 |---|---|---|---|
 | v2 | 0,56 | 0,36 | 0,45 [0,38; 0,53] (68/150) |
 | v2,kg | 0,60 | 0,34 | 0,48 [0,40; 0,56] (72/150) |
-| v2,kg,rl | 0,54 | 0,38 | 0,46 [0,38; 0,54] (69/150) |
+| v2,kg,rl | 0,56 | 0,38 | 0,47 [0,40; 0,55] (71/150) |
 
 McNemar theo ca: v2 so với v2,kg $p = 1{,}0$; v2,kg so với v2,kg,rl $p = 0{,}5$; v2 so với v2,kg,rl $p = 1{,}0$. Không cặp nào khác nhau có ý nghĩa. Ba điều đọc ra:
 
 - Bộ ca gần như không chạm tới đồ thị: Graph agent chỉ nhận ra yếu tố nguy cơ trong 21/150 lượt (7 ca). Nhóm duy nhất nhích lên là `risk_referral` (0,50 lên 0,75 từng lượt, 4 ca). Kết luận đúng là bộ ca này **chưa đo được** tác dụng của đồ thị, không phải đồ thị không có tác dụng; cần thêm ca hỏi thẳng về yếu tố nguy cơ.
-- Với mô hình 3B, benchmark chủ yếu đo thói quen trích nguồn: 68–73 trong 78–84 lượt trượt của mỗi cấu hình là do không trích nguồn, và chỉ 3–4% câu trong bản nháp có nhãn nguồn. KG và RL không đổi được điều này. Con số 0,44 không so được với 0,88 của lần chạy Kaggle (khác mô hình, máy, kho tài liệu và bộ ca).
+- Với mô hình 3B, benchmark chủ yếu đo thói quen trích nguồn: 68–73 trong 78–84 lượt trượt của mỗi cấu hình là do không trích nguồn, và chỉ 3–4% câu trong bản nháp có nhãn nguồn. KG và RL không đổi được điều này; một lời nhắc trong prompt thì đổi được (đoạn dưới). Con số 0,44 không so được với 0,88 của lần chạy Kaggle (khác mô hình, máy, kho tài liệu và bộ ca).
 - Lúc chạy, Rules chặn câu trong bản nháp ở 11 lượt; đọc lại cả 11 thì đều là câu cảnh báo ("tự giảm liều metformin ... không phải là một ý kiến tốt"), không câu nào là lời khuyên đổi thuốc thật. Rules được sửa sau đó để nhận câu cảnh báo theo vị trí của cụm từ (mục 3.12), và các số trên là kết quả chấm lại bằng luật đã sửa: không lượt nào còn bị chặn, nhóm `medication` đạt 1,00 ở cả ba cấu hình. Số chấm lúc chạy giữ trong `report.md` của từng cấu hình.
 
 Critic: trong các con số có đơn vị mà bản nháp đưa ra, 10–16% không có trong ngữ cảnh (11/102, 12/118, 18/112), phần lớn là số hướng dẫn chung như "150 phút mỗi tuần" mà mô hình lấy từ hiểu biết sẵn có. Ước lượng từ vết (chưa so trực tiếp với `DIACARE_PARALLEL=0`), chạy song song tiết kiệm khoảng 30 ms (khoảng 90 ms nếu tuần tự, khoảng 60 ms song song) trên khoảng 5,8 giây mỗi lượt. Thời gian giữa ba cấu hình không so được vì chúng chạy nối tiếp và cấu hình đầu trùng lúc với việc khác trên máy. Chi tiết ở `docs/results/2026-11-16_kg_rl_3b/`.
+
+**Nhắc trích nguồn (V4.7).** Với 3B, 70 trong 79 lượt trượt của `v2,kg,rl` là vì bản nháp không có nhãn nguồn nào.
+Advisor được thêm một lời nhắc ở cuối tin nhắn, ngay sau câu hỏi, kèm nhãn nguồn thật của lượt đó; hệ thống không tự
+gắn nguồn, mọi nhãn được đếm là do mô hình viết. Cùng cấu hình `v2,kg,rl`, 50 ca × 3 lượt, chấm lại bằng luật hiện tại:
+
+| | Trước | Nhắc trước câu hỏi | Nhắc sau câu hỏi (giữ lại) |
+|---|---|---|---|
+| Bản nháp tự trích nguồn | 0,19 (27/141) | 0,60 (85/141) | 0,86 (121/141) |
+| Đạt từng lượt [Wilson 95%] | 0,47 [0,40; 0,55] | 0,67 [0,59; 0,74] | 0,78 [0,71; 0,84] |
+| Pass@3 / Pass^3 | 0,56 / 0,38 | 0,86 / 0,48 | 0,90 / 0,64 |
+| Nhóm `medication` (bản nháp) | 18/18 | 13/18 | 9/18 |
+
+McNemar theo ca: trước so với nhắc sau câu hỏi 9 ca chỉ trước đạt, 22 ca chỉ sau đạt, $p = 0{,}029$. Hai điều cần nói
+rõ: "có trích nguồn" là bản nháp có ít nhất một nhãn đúng, tính theo câu thì chỉ 7% câu có nhãn (trước 4%); và nhóm
+câu về thuốc kém đi ở bản nháp, vì Rules chặn nhầm vài câu cảnh báo ("thảo luận với bác sĩ về việc bỏ thuốc") và mô
+hình hay chép lại câu hỏi. Câu trả lời cuối vẫn an toàn: Rules chạy sau cùng, không câu nào khuyên đổi thuốc, cả 18
+câu trả lời cuối nhóm này đều nhắc bác sĩ. Đặt lời nhắc trước câu hỏi sửa được một phần nhóm thuốc nhưng mất phần lớn
+mức tăng trích nguồn, nên không dùng. Câu ngoài chủ đề vẫn chỉ 2/12. Bộ chấm lại cũng được sửa: trước đây nó không
+biết lượt nào có xét nghiệm nên coi `[ada_2024]` là thiếu nguồn (số của `v2,kg,rl` ở bảng trên đổi từ 69 thành
+71/150 vì vậy). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
 
