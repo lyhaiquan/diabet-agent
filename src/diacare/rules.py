@@ -352,8 +352,9 @@ DIAGNOSED_NOTE = (
 )
 
 
-def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, labs=None):
-    """remind_risk=False: không lặp lời nhắc nguy cơ cao (đã nhắc trước đó trong phiên)."""
+def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, labs=None, memory=None):
+    """remind_risk=False: không lặp lời nhắc nguy cơ cao (đã nhắc trước đó trong phiên).
+    memory: trí nhớ dài hạn của bệnh nhân; có dị ứng thì lọc gợi ý món dị ứng (diacare.allergy)."""
     flags = []
     text = draft
     if is_unsafe_advice(draft):
@@ -362,6 +363,10 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, lab
     elif mentions_self_dose_adjust(draft):
         flags.append("dose_adjust_note")
         text += "\n\n" + DOSE_NOTE
+    if memory:
+        from diacare.allergy import apply_allergy_rules
+        text, allergy_flags = apply_allergy_rules(text, memory, question)
+        flags += allergy_flags
     q = _norm(question)
     if diagnosed:
         flags.append("diagnosed_followup")

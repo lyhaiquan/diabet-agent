@@ -45,9 +45,17 @@ def build_messages(ctx):
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
         f"{citation_reminder(ctx)}"
+        f"\n\n{LENGTH_REMINDER}"
     )
     return [{"role": "system", "content": SYSTEM_PROMPT}, *ctx["history"],
             {"role": "user", "content": user}]
+
+
+# Benchmark 2026-11-22 (qwen2.5:3b, 150 lượt): 29 lượt chạm giới hạn 512 token và bị cắt mất phần cuối (thường là
+# lời khuyên đi khám). Lượt không bị cắt dài trung vị 114 chữ; lượt bị cắt trung vị 333 chữ, hay là danh sách dài
+# hoặc lặp lại cùng một ý. Dặn độ dài ở cuối tin nhắn, như lời nhắc trích nguồn.
+LENGTH_REMINDER = ("Trả lời ngắn gọn, khoảng 150 đến 200 chữ, tối đa 5 ý chính, không lặp lại ý đã nói; "
+                   "nếu cần khuyên đi khám thì nói ở đầu hoặc cuối câu trả lời.")
 
 
 def citation_labels(ctx):

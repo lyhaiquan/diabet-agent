@@ -274,7 +274,7 @@ class Orchestrator:
             labs_for_rules = rule_ctx["labs"] if (parse_lab_text(state.question) or not lab_noted) else []
             state.final, flags = apply_rules(
                 rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
-                remind_risk=asks_risk or not already, labs=labs_for_rules)
+                remind_risk=asks_risk or not already, labs=labs_for_rules, memory=state.memory)
             step("Rules", "kiểm tra an toàn: " + (", ".join(flags) if flags else "không bật cờ nào"))
             flags += [f for f in guard_flags + (state.grounding or {}).get("flags", []) if f not in flags]
             state.messages.append(make_message(

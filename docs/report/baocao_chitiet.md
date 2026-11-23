@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 36 tệp test với 847 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 37 tệp test với 864 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -514,6 +514,8 @@ Danh sách cờ:
 | `small_talk` | câu chào hỏi, trả lời ngay |
 | `out_of_scope` | câu ngoài chủ đề, trả câu từ chối soạn sẵn, không gọi LLM |
 | `recipe_request` | câu xin công thức nấu ăn (đi kèm `out_of_scope`) |
+| `allergen_removed` | đã bỏ câu gợi ý món người dùng bị dị ứng |
+| `allergy_reminder` | câu hỏi về ăn uống, câu trả lời chưa nhắc dị ứng: thêm câu nhắc |
 | `invalid_input` | hồ sơ không hợp lệ |
 | `system_error` | lỗi trong pipeline |
 | `context_near_limit` | token vào vượt 90% cửa sổ |
@@ -810,7 +812,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-847 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 838 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+864 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 855 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -916,7 +918,19 @@ và 3/3 câu xin công thức bị từ chối đúng, 1/32 câu trong chủ đ�
 đêm"). Sau đó danh sách từ được sửa dựa trên chính bộ câu này, nên con số đạt hết hiện tại là trong mẫu. Trên
 benchmark, bước này nhận đúng 4 ca ngoài chủ đề và không đụng tới 62 ca còn lại; nhóm `out_of_scope` lên 12/12 là có
 sẵn theo cách làm (4 câu đó đã được xem khi thiết kế, và câu từ chối chứa cụm benchmark tìm), nên không tính p. Các ca
-khác đi đúng đường cũ, nên không chạy lại benchmark. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+khác đi đúng đường cũ, nên không chạy lại benchmark.
+
+**Trả lời ngắn gọn và lọc món dị ứng (V4.7).** 29/150 lượt chạm giới hạn 512 token và bị cắt mất phần cuối; Advisor
+được dặn thêm ở dòng cuối tin nhắn "khoảng 150 đến 200 chữ, tối đa 5 ý chính". Lần chạy mới: không lượt nào bị cắt,
+token sinh trung bình 258 → 130, mỗi lượt 5,9 → 4,0 giây. Điểm benchmark gần như không đổi: bỏ nhóm ngoài chủ đề,
+117 → 119/138 = 0,86 [0,79; 0,91], McNemar $p = 0{,}61$; tính cả 50 ca là 131/150 = 0,87 [0,81; 0,92], Pass^3 0,78,
+phần tăng thêm chủ yếu là nhóm ngoài chủ đề. Cái giá: `risk_referral` 11 → 7/12 vì câu trả lời ngắn hay bỏ nhãn nguồn.
+Cùng lần đó thêm luật lọc món dị ứng (`src/diacare/allergy.py`, trong Rules): bỏ câu gợi ý chất người dùng đã khai
+dị ứng mà không kèm lời tránh, nhắc dị ứng khi câu hỏi về ăn uống mà câu trả lời không nhắc. Trên các bản nháp đã lưu
+của ca dị ứng tôm, luật bỏ đúng 3 câu gợi ý tôm thật (hai của 7B, một của 3B ở lần chạy này: "5. Tôm: 100g tôm hấp"),
+sau khi sửa hai lần bỏ nhầm câu khuyên tránh. Chi tiết ở `docs/results/2026-11-22_concise_allergy_3b/`. Phát hiện thêm,
+chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nháp mỗi lần chạy kể cả trước các thay đổi này, và
+benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
@@ -1043,6 +1057,7 @@ Bốn bài học rút ra:
 - Kho 14 tài liệu trả lời được nhiều chủ đề hơn nhưng xếp hạng kém hơn kho 5 tài liệu (recall@4 của dense 0,794 so với 0,917); thuật ngữ y khoa tiếng Việt ghép với tài liệu tiếng Anh còn yếu.
 - Critic chỉ so khớp chuỗi nên không phát hiện con số đúng đặt sai chỗ, và chưa xét câu khẳng định không có con số.
 - Benchmark không chấm độ đúng y khoa của phần giải thích.
+- Mô hình 3B đôi khi xen chữ Hán vào câu trả lời (0–9 bản nháp mỗi lần chạy 150 lượt); chưa có bước phát hiện, benchmark không chấm lỗi này.
 - Câu ngoài chủ đề được chặn bằng danh sách từ, không hiểu nghĩa: câu ngoài chủ đề có từ trùng với từ sức khoẻ vẫn tới LLM, và giữa hội thoại hay khi gõ không dấu chỉ chặn được câu có dấu hiệu rõ (mục 7.3).
 - Bộ ca 62 ca còn nhỏ, khoảng tin cậy rộng; kiểm định McNemar cho thấy các mức tăng giữa v1, v2 và all chưa có ý nghĩa thống kê (mục 7.3).
 - Gộp nhiều nguồn làm xác suất đáng tin hơn hẳn nhưng AUC chỉ nhích nhẹ; trên Pima mô hình mới còn thua mô hình cũ một chút. NHANES thiếu 10/21 chỉ số và BRFSS 2023 thiếu rau quả. Cả ba nguồn chính đều là dữ liệu Mỹ; chưa có dữ liệu người Việt. Đơn xin bộ WHO STEPS Việt Nam 2015 (có đo đường huyết lúc đói) đã gửi tới kho dữ liệu NCD của WHO và đang chờ duyệt.

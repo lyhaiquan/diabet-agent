@@ -55,7 +55,8 @@ _STOP_WORDS = (
     "nên", "nhưng", "thì", "khi", "mà", "vậy", "rồi", "nhé", "ạ", "vì", "nếu", "còn", "có", "không",
     "được", "cho", "giúp", "hãy", "với", "để", "nhưng", "và hay", "gợi", "xin", "làm", "thế",
 )
-_ALLERGY = rf"{_I}\s+(?:bị\s+)?dị ứng\s+(?:với\s+)?(\w+(?:\s+\w+){{0,2}})"
+# nhiều chất: "dị ứng đậu phộng và sữa", "dị ứng tôm, cua" (trước 2026-11-22 chỉ lấy 3 từ nên mất chất thứ hai)
+_ALLERGY = rf"{_I}\s+(?:bị\s+)?dị ứng\s+(?:với\s+)?(\w+(?:\s*,?\s+\w+){{0,6}})"
 _DIET_VEG = rf"{_I}\s+ăn chay(?!\w)"
 _DIET_NO = rf"{_I}\s+không\s+ăn\s+(?:được\s+)?(\w+(?:\s+\w+)?)"
 _BP = r"(?:huyết áp cao|tăng huyết áp|cao huyết áp)"
@@ -88,6 +89,24 @@ def _words(raw, limit):
     return " ".join(out[:limit])
 
 
+def _allergy_items(raw):
+    """'đậu phộng và sữa nên tôi' -> 'đậu phộng, sữa' (dừng ở từ nối mệnh đề, tách theo và / hay / hoặc / dấu phẩy)."""
+    words = []
+    for w in raw.replace(",", " , ").split():
+        if w in _STOP and w not in ("và", "va"):
+            break
+        words.append(w)
+    items, cur = [], []
+    for w in words + [","]:
+        if w in (",", "và", "va", "hay", "hoặc", "hoac"):
+            if cur:
+                items.append(" ".join(cur[:3]))
+            cur = []
+        else:
+            cur.append(w)
+    return ", ".join(items[:4])
+
+
 def extract_facts(text):
     """Trích (kind, content) từ một câu nói của người dùng; chỉ nhận câu khai báo ngôi thứ nhất."""
     text = _norm(text or "")
@@ -112,7 +131,7 @@ def extract_facts(text):
         for m in _RE["med"][i].finditer(t):
             add("medication", m.group(1))
         for m in _RE["allergy"][i].finditer(t):
-            add("allergy", _words(m.group(1), 3))
+            add("allergy", _allergy_items(m.group(1)))
         if _RE["veg"][i].search(t):
             add("diet", "ăn chay")
         for m in _RE["noeat"][i].finditer(t):

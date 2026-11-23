@@ -653,7 +653,7 @@ Dự án DiaCare-MAS đã cài đặt 9 giai đoạn của lộ trình:
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
 | **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
 | **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
-| **9** | **Continuous Automated Testing & Observability**: 847 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
+| **9** | **Continuous Automated Testing & Observability**: 864 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
 
@@ -763,7 +763,19 @@ và 3/3 câu xin công thức bị từ chối đúng, 1/32 câu trong chủ đ�
 đêm"). Sau đó danh sách từ được sửa dựa trên chính bộ câu này, nên con số đạt hết hiện tại là trong mẫu. Trên
 benchmark, bước này nhận đúng 4 ca ngoài chủ đề và không đụng tới 62 ca còn lại; nhóm `out_of_scope` lên 12/12 là có
 sẵn theo cách làm (4 câu đó đã được xem khi thiết kế, và câu từ chối chứa cụm benchmark tìm), nên không tính p. Các ca
-khác đi đúng đường cũ, nên không chạy lại benchmark. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+khác đi đúng đường cũ, nên không chạy lại benchmark.
+
+**Trả lời ngắn gọn và lọc món dị ứng (V4.7).** 29/150 lượt chạm giới hạn 512 token và bị cắt mất phần cuối; Advisor
+được dặn thêm ở dòng cuối tin nhắn "khoảng 150 đến 200 chữ, tối đa 5 ý chính". Lần chạy mới: không lượt nào bị cắt,
+token sinh trung bình 258 → 130, mỗi lượt 5,9 → 4,0 giây. Điểm benchmark gần như không đổi: bỏ nhóm ngoài chủ đề,
+117 → 119/138 = 0,86 [0,79; 0,91], McNemar $p = 0{,}61$; tính cả 50 ca là 131/150 = 0,87 [0,81; 0,92], Pass^3 0,78,
+phần tăng thêm chủ yếu là nhóm ngoài chủ đề. Cái giá: `risk_referral` 11 → 7/12 vì câu trả lời ngắn hay bỏ nhãn nguồn.
+Cùng lần đó thêm luật lọc món dị ứng (`src/diacare/allergy.py`, trong Rules): bỏ câu gợi ý chất người dùng đã khai
+dị ứng mà không kèm lời tránh, nhắc dị ứng khi câu hỏi về ăn uống mà câu trả lời không nhắc. Trên các bản nháp đã lưu
+của ca dị ứng tôm, luật bỏ đúng 3 câu gợi ý tôm thật (hai của 7B, một của 3B ở lần chạy này: "5. Tôm: 100g tôm hấp"),
+sau khi sửa hai lần bỏ nhầm câu khuyên tránh. Chi tiết ở `docs/results/2026-11-22_concise_allergy_3b/`. Phát hiện thêm,
+chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nháp mỗi lần chạy kể cả trước các thay đổi này, và
+benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 - `JournalAgent` đã được đo riêng: bộ benchmark thêm 12 ca có nhật ký gieo sẵn (tổng 62 ca, 12 nhóm). Trên máy cá nhân với `qwen2.5:3b`, 12 ca × 3 lượt: có JournalAgent Pass^3 = 0,50, tỉ lệ đạt từng lượt 0,78 (28/36); không có JournalAgent Pass^3 = 0,08, 0,08 (3/36); 6 ca chỉ đạt khi có JournalAgent, 1 ca ngược lại, McNemar theo ca $p = 0{,}125$ (với 12 ca thì chưa đạt mức 0,05). Mô hình 3B vẫn trượt một số ca dù đã có số liệu (quên trích nguồn, không nhắc ngày tái khám).
@@ -771,14 +783,14 @@ có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 ## 11.2. Kiểm thử Đơn vị
 
-Hệ thống có bộ kiểm thử tự động gồm **847 bài kiểm thử** phân bổ trên 36 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **864 bài kiểm thử** phân bổ trên 37 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.
 - Kiểm thử đồ thị tri thức & Neo4j GraphAgent ([`test_kg.py`](file:///C:/DATA/diacare-mas/tests/test_kg.py), [`test_graph_agent.py`](file:///C:/DATA/diacare-mas/tests/test_graph_agent.py)): 24 bài test, gồm một test đọc đồ thị thật từ Neo4j (tự bỏ qua khi Neo4j không chạy).
 - Kiểm thử chức năng dinh dưỡng, trí nhớ dài hạn, điều phối, rào chắn an toàn & giao diện ([`test_nutrition.py`](file:///C:/DATA/diacare-mas/tests/test_nutrition.py), [`test_memory.py`](file:///C:/DATA/diacare-mas/tests/test_memory.py), [`test_orchestrator.py`](file:///C:/DATA/diacare-mas/tests/test_orchestrator.py), [`test_rules.py`](file:///C:/DATA/diacare-mas/tests/test_rules.py), [`test_app.py`](file:///C:/DATA/diacare-mas/tests/test_app.py)) và các tệp còn lại: 408 bài test.
 
-Lần chạy gần nhất (V4.7) trên SQLite: 838 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
+Lần chạy gần nhất (V4.7) trên SQLite: 855 đạt, 6 bài tự bỏ qua (1 bài đọc Neo4j khi Neo4j không chạy, 5 bài riêng cho PostgreSQL khi không có máy chủ PostgreSQL), 3 bài `xfail` ghi lại các cách nói lọt luật đã biết (Mục 11.3); khoảng 3 phút trên CPU, phần lớn thời gian là nạp Sentence-BERT cho bài đo truy hồi. Các tệp bổ sung so với lần viết trước gồm kiểm thử nhật ký tự theo dõi và mục tiêu riêng (`test_journal.py`, 36 bài), dịch vụ API (`test_api.py`, 21 bài), giọng nói (`test_speech.py`, 23 bài) và các ca benchmark có nhật ký (`test_bench.py`, 36 bài).
 
 ## 11.3. Bổ sung ở V4.6: an toàn, quyền riêng tư, kho tài liệu
 

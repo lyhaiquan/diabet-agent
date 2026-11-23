@@ -493,7 +493,19 @@ và 3/3 câu xin công thức bị từ chối đúng, 1/32 câu trong chủ đ�
 đêm"). Sau đó danh sách từ được sửa dựa trên chính bộ câu này, nên con số đạt hết hiện tại là trong mẫu. Trên
 benchmark, bước này nhận đúng 4 ca ngoài chủ đề và không đụng tới 62 ca còn lại; nhóm `out_of_scope` lên 12/12 là có
 sẵn theo cách làm (4 câu đó đã được xem khi thiết kế, và câu từ chối chứa cụm benchmark tìm), nên không tính p. Các ca
-khác đi đúng đường cũ, nên không chạy lại benchmark. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
+khác đi đúng đường cũ, nên không chạy lại benchmark.
+
+**Trả lời ngắn gọn và lọc món dị ứng (V4.7).** 29/150 lượt chạm giới hạn 512 token và bị cắt mất phần cuối; Advisor
+được dặn thêm ở dòng cuối tin nhắn "khoảng 150 đến 200 chữ, tối đa 5 ý chính". Lần chạy mới: không lượt nào bị cắt,
+token sinh trung bình 258 → 130, mỗi lượt 5,9 → 4,0 giây. Điểm benchmark gần như không đổi: bỏ nhóm ngoài chủ đề,
+117 → 119/138 = 0,86 [0,79; 0,91], McNemar $p = 0{,}61$; tính cả 50 ca là 131/150 = 0,87 [0,81; 0,92], Pass^3 0,78,
+phần tăng thêm chủ yếu là nhóm ngoài chủ đề. Cái giá: `risk_referral` 11 → 7/12 vì câu trả lời ngắn hay bỏ nhãn nguồn.
+Cùng lần đó thêm luật lọc món dị ứng (`src/diacare/allergy.py`, trong Rules): bỏ câu gợi ý chất người dùng đã khai
+dị ứng mà không kèm lời tránh, nhắc dị ứng khi câu hỏi về ăn uống mà câu trả lời không nhắc. Trên các bản nháp đã lưu
+của ca dị ứng tôm, luật bỏ đúng 3 câu gợi ý tôm thật (hai của 7B, một của 3B ở lần chạy này: "5. Tôm: 100g tôm hấp"),
+sau khi sửa hai lần bỏ nhầm câu khuyên tránh. Chi tiết ở `docs/results/2026-11-22_concise_allergy_3b/`. Phát hiện thêm,
+chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nháp mỗi lần chạy kể cả trước các thay đổi này, và
+benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
@@ -575,6 +587,10 @@ tests/                  test (pytest)
 - Giao diện Streamlit không có đăng nhập nên chỉ nghe trên `127.0.0.1` (`.streamlit/config.toml`,
   `chay_local.ps1`). Đừng đổi sang `0.0.0.0` khi máy đang ở mạng chung: ai cùng mạng sẽ xem được mọi hồ sơ.
   Muốn cho máy khác vào thì dùng API và giao diện web (có tài khoản).
+- Mô hình 3B đôi khi xen chữ Hán vào câu trả lời ("32.8克糖"), 0–9 bản nháp mỗi lần chạy 150 lượt; chưa có bước
+  phát hiện hay sửa, và benchmark không chấm lỗi này.
+- Lọc món dị ứng dựa trên danh sách chất và từ tránh (`src/diacare/allergy.py`); khi stream, câu bị bỏ vẫn có thể
+  thoáng hiện trước khi câu trả lời cuối thay vào.
 - Câu ngoài chủ đề được chặn bằng danh sách từ (`src/diacare/scope.py`), không phải bằng hiểu nghĩa: câu ngoài chủ
   đề có từ trùng với từ sức khoẻ ("đường đi", "ca sĩ bao nhiêu tuổi") vẫn tới LLM, và giữa hội thoại hay khi gõ
   không dấu chỉ chặn được câu có dấu hiệu rõ. Thà để lọt còn hơn từ chối nhầm câu về sức khoẻ.
