@@ -17,7 +17,7 @@ from diacare.labs import parse_lab_text
 from diacare.memory import SummaryCache, compress_history, has_diagnosis
 from diacare.nutrition import is_nutrition_question
 from diacare.scope import classify as classify_scope, reply_for as scope_reply
-from diacare.rules import (DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_NOTES, SMALL_TALK_REPLY,
+from diacare.rules import (DIAGNOSED_NOTE, DISCLAIMER, HIGH_RISK_NOTE, HIGH_RISK_THRESHOLD, LAB_NOTES, SMALL_TALK_REPLY,
                            apply_rules, is_small_talk, risk_band)
 
 # Hỏi thẳng về nguy cơ / khám thì nhắc lại lời khuyên đi khám dù đã nhắc trong phiên.
@@ -268,13 +268,18 @@ class Orchestrator:
             already = any(HIGH_RISK_NOTE in m.get("content", "") for m in full_history
                           if m.get("role") == "assistant")
             asks_risk = any(w in state.question.lower() for w in _RISK_WORDS)
+            # Câu nhắc tái khám cho người đã chẩn đoán: một lần mỗi phiên, lượt nào cũng nhắc thì thành giọng máy.
+            # Lời nhắc triệu chứng, cấp cứu, hạ đường huyết thì vẫn lặp lại mỗi lần cần.
+            diagnosed_noted = any(DIAGNOSED_NOTE in m.get("content", "") for m in full_history
+                                  if m.get("role") == "assistant")
             # nhận xét xét nghiệm: nhắc khi người dùng vừa đưa số liệu, hoặc chưa nhắc lần nào trong phiên
             lab_noted = any(n in m.get("content", "") for m in full_history if m.get("role") == "assistant"
                             for n in LAB_NOTES.values())
             labs_for_rules = rule_ctx["labs"] if (parse_lab_text(state.question) or not lab_noted) else []
             state.final, flags = apply_rules(
                 rule_ctx["risk"], rule_ctx["draft"], rule_ctx["question"], diagnosed=rule_ctx["diagnosed"],
-                remind_risk=asks_risk or not already, labs=labs_for_rules, memory=state.memory)
+                remind_risk=asks_risk or not already, labs=labs_for_rules, memory=state.memory,
+                remind_diagnosed=not diagnosed_noted)
             step("Rules", "kiểm tra an toàn: " + (", ".join(flags) if flags else "không bật cờ nào"))
             flags += [f for f in guard_flags + (state.grounding or {}).get("flags", []) if f not in flags]
             state.messages.append(make_message(

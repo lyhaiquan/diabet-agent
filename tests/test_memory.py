@@ -232,6 +232,18 @@ def test_diagnosed_followup_replaces_referral():
     assert "high_risk_referral" in st2.flags and "diagnosed_followup" not in st2.flags
 
 
+def test_diagnosed_note_once_per_session():
+    orch, _ = make_orch(0.9)
+    st = orch.run(State(question="Tôi bị tiểu đường típ 2, tôi nên làm gì?", profile=HIGH_RISK, patient_id=5))
+    assert st.final.count("Bạn đã được chẩn đoán đái tháo đường") == 1
+    st2 = orch.run(State(question="Tối nay ăn gì?", profile=HIGH_RISK, patient_id=5, history=st.history))
+    assert "diagnosed_followup" in st2.flags and "high_risk_referral" not in st2.flags
+    assert "Bạn đã được chẩn đoán đái tháo đường" not in st2.final
+    # lời nhắc cấp cứu thì lượt nào cần cũng nhắc
+    st3 = orch.run(State(question="Tôi bị đau ngực", profile=HIGH_RISK, patient_id=5, history=st2.history))
+    assert "emergency_referral" in st3.flags
+
+
 def test_apply_rules_diagnosed():
     text, flags = apply_rules(0.9, "ok", "x", diagnosed=True)
     assert "diagnosed_followup" in flags and "high_risk_referral" not in flags

@@ -352,8 +352,11 @@ DIAGNOSED_NOTE = (
 )
 
 
-def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, labs=None, memory=None):
+def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, labs=None, memory=None,
+                remind_diagnosed=True):
     """remind_risk=False: không lặp lời nhắc nguy cơ cao (đã nhắc trước đó trong phiên).
+    remind_diagnosed=False: người đã chẩn đoán đã được nhắc tái khám trong phiên, không lặp lại câu nhắc
+    (cờ diagnosed_followup vẫn bật: nó cho biết lời nhắc nguy cơ đã được thay bằng lời nhắc tái khám).
     memory: trí nhớ dài hạn của bệnh nhân; có dị ứng thì lọc gợi ý món dị ứng (diacare.allergy)."""
     flags = []
     text = draft
@@ -370,7 +373,8 @@ def apply_rules(risk, draft, question="", diagnosed=False, remind_risk=True, lab
     q = _norm(question)
     if diagnosed:
         flags.append("diagnosed_followup")
-        text += "\n\n" + DIAGNOSED_NOTE
+        if remind_diagnosed:
+            text +="\n\n" + DIAGNOSED_NOTE
     elif risk >= HIGH_RISK_THRESHOLD and remind_risk:
         flags.append("high_risk_referral")
         text += "\n\n" + HIGH_RISK_NOTE

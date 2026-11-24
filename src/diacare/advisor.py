@@ -16,6 +16,9 @@ SYSTEM_PROMPT = (
     " giữ nguyên nhận định có sẵn trong nhật ký (cao hơn, thấp hơn hay trong mục tiêu), không tự so sánh lại,"
     " nhắc rằng bác sĩ có thể đặt mục tiêu riêng; không suy ra hay đề xuất liều thuốc từ nhật ký."
     " Nếu nhật ký có hạ đường huyết hoặc chỉ số rất cao, khuyên người dùng báo bác sĩ."
+    " Viết như một điều dưỡng tư vấn đang nói chuyện trực tiếp với người bệnh: xưng 'mình', gọi 'bạn',"
+    " giọng ân cần và bình tĩnh, câu văn liền mạch; không viết kiểu 'dựa trên tài liệu' hay 'theo thông tin"
+    " được cung cấp', không nhắc tới hệ thống, agent hay mô hình."
 )
 
 
@@ -54,8 +57,13 @@ def build_messages(ctx):
 # Benchmark 2026-11-22 (qwen2.5:3b, 150 lượt): 29 lượt chạm giới hạn 512 token và bị cắt mất phần cuối (thường là
 # lời khuyên đi khám). Lượt không bị cắt dài trung vị 114 chữ; lượt bị cắt trung vị 333 chữ, hay là danh sách dài
 # hoặc lặp lại cùng một ý. Dặn độ dài ở cuối tin nhắn, như lời nhắc trích nguồn.
-LENGTH_REMINDER = ("Trả lời ngắn gọn, khoảng 150 đến 200 chữ, tối đa 5 ý chính, không lặp lại ý đã nói; "
-                   "nếu cần khuyên đi khám thì nói ở đầu hoặc cuối câu trả lời.")
+# 2026-11-24: câu trả lời đọc như liệt kê rời rạc ("Bạn nên... [nguồn] Bạn cũng nên... [nguồn]") và hay phản ứng
+# quá mức ("báo bác sĩ ngay lập tức" cho một ly cà phê ngọt). Dặn thêm bốn nhịp của một lời tư vấn, và chỉ dùng
+# con số có trong ngữ cảnh để mô hình 3B không tự ước tính.
+LENGTH_REMINDER = ("Trả lời khoảng 120 đến 200 chữ, theo thứ tự: (1) trả lời thẳng câu hỏi trong một hai câu; "
+                   "(2) giải thích ngắn vì sao, chỉ dùng con số có trong thông tin ở trên, không tự ước tính số "
+                   "liệu; (3) hai đến ba việc cụ thể người hỏi có thể làm; (4) một câu về khi nào nên đi khám. "
+                   "Không lặp lại ý, không phóng đại mức nguy hiểm, vẫn ghi nhãn nguồn như đã dặn.")
 
 
 def citation_labels(ctx):
