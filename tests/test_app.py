@@ -4,6 +4,7 @@ from streamlit.testing.v1 import AppTest
 from pathlib import Path
 
 from diacare.factory import open_store
+from diacare.rules import DISCLAIMER
 
 APP = Path(__file__).resolve().parent.parent / "src" / "app.py"
 
@@ -176,7 +177,11 @@ def test_user_mode_hides_technical_pages_and_details(user_env):
     labels = [e.label for e in at.expander]
     assert "Chi tiết kỹ thuật" not in labels and not any(lb.startswith("Agent đã làm gì") for lb in labels)
     assert not any("Nguy cơ theo hồ sơ" in m.value for m in at.markdown)
-    assert any(c.value.startswith("Nguồn:") and "ada.txt" in c.value for c in at.caption)
+    # LLM giả không ghi nhãn nguồn: kể tài liệu đã tra (nhãn lạ thì giữ tên tệp); lời miễn trừ in nhỏ dưới bài
+    assert any(c.value.startswith("Tài liệu đã tham khảo:") and "ada.txt" in c.value for c in at.caption)
+    assert any(c.value == DISCLAIMER for c in at.caption)
+    assert not any(DISCLAIMER in m.value for m in at.markdown)
+    assert not any("Trọng tâm tư vấn do agent" in c.value for c in at.caption)  # dòng RL chỉ cho nhà phát triển
     # bật chế độ nhà phát triển thì hiện lại đủ 7 trang và chi tiết
     at.sidebar.toggle(key="dev_mode").set_value(True).run()
     assert len(at.radio(key="page").options) == 7

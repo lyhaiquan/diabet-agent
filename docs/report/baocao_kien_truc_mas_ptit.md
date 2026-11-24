@@ -578,6 +578,31 @@ Trên 5.000 trạng thái mới:
 
 Bảng này chỉ cho thấy mô hình học được tiên nghiệm, không chứng minh lời khuyên tốt hơn cho người thật. Chất lượng thật được đo bằng ước lượng ngoài chính sách SNIPS (Swaminathan và Joachims, 2015) trên các lượt có phản hồi, hiện ở trang Thống kê. Một test với người dùng mô phỏng (chỉ thích "vận động") cho thấy sau 200 lượt chính sách chuyển hẳn sang "vận động". Lúc viết báo cáo hệ có **0 phản hồi thật**.
 
+## 8.4. Coach Q-learning: lời nhắc mỗi ngày (V4.8)
+
+Từ V4.8, **agent học tăng cường chính của hệ là Coach Q-learning** (`src/diacare/coach.py`), chọn lời nhắc mỗi ngày cho người đã chẩn đoán. Bandit ở trên vẫn chọn trọng tâm trong khung chat, là trường hợp $\gamma = 0$; nút 👍/👎 của nó chỉ còn ở chế độ nhà phát triển, vì người bệnh không có lý do để chấm một "trọng tâm".
+
+**Vì sao quay lại Q-learning.** Bản Q-learning đầu bị bỏ vì bước chuyển trạng thái chỉ là giả định và phần thưởng phải chờ người dùng bấm. Ở Coach, cả trạng thái lẫn phần thưởng tính từ **nhật ký đường huyết thật** bằng chính các hàm của `diacare.journal`: lời nhắc sáng nay ảnh hưởng tới việc hôm nay có đo không, số đo ra sao, và đó là trạng thái của sáng mai. Bước chuyển $s_t \to s_{t+1}$ là có thật, nên $\gamma > 0$ có nghĩa.
+
+- **Trạng thái** (36 ô), từ nhật ký 3 ngày trước: đo đều (ít / vừa / đều) × kiểm soát (chưa đo / đạt / cao / nguy hiểm) × nhóm lời nhắc hôm qua (không / theo dõi / lối sống).
+- **Hành động**: 6 trọng tâm như bandit, mỗi trọng tâm có một câu nhắc giọng tự nhiên, không câu nào về thuốc. "Khám sớm" chỉ do mặt nạ an toàn chọn (hôm qua có hạ đường huyết hoặc ≥ 250 mg/dL). Bản đầu cho agent tự chọn "khám sớm" thì nó học dùng lời này như cách thúc người bệnh đo, cả khi chỉ số bình thường.
+- **Phần thưởng** tính từ nhật ký của chính ngày đó, không cần người dùng bấm gì: có đo $+1$, bỏ đo $-1$, cộng trung bình điểm các số đo (đạt $+0{,}5$, cao $-0{,}3$, rất cao $-1$, hạ đường huyết $-1{,}5$ / $-1{,}9$), nhắc lại đúng lời hôm qua $-0{,}3$. Bỏ đo luôn tệ hơn mọi kết quả đo, kể cả hạ đường huyết: nếu không, agent sẽ học cách làm người dễ hạ đường huyết bớt đo, tức là che giấu nó.
+- **Học**: $Q(s,a) \leftarrow Q(s,a) + \alpha\,[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$, $\alpha = 0{,}1$, $\gamma = 0{,}9$, quét lại các ngày đã ghi 200 lượt (học ngoài chính sách từ dữ liệu có sẵn). Chỉ khai thác hành động đã có dữ liệu ở trạng thái đó.
+- **Dữ liệu**: chưa có người bệnh thật theo dõi nhiều tuần, nên nhóm viết một bộ **người bệnh mô phỏng** (`src/diacare/coach_sim.py`: thói quen đo ẩn, đường huyết nền, vấn đề chính, người dễ hạ đường huyết) và sinh **30 người bệnh, mỗi người 14–28 ngày, tổng 599 ngày, 542 số đo** (`data/rl_demo/`, `tools/make_rl_demo_data.py`). Lời nhắc khi sinh dữ liệu: 60% ngẫu nhiên đều, 40% theo luật, có ghi xác suất chọn. Dữ liệu phủ 18/36 trạng thái, 72/216 ô (trạng thái, hành động).
+
+Đánh giá trên **200 người bệnh mô phỏng mới** (hạt giống khác, 21 ngày mỗi người):
+
+| Chính sách | Tổng thưởng TB / người [KTC 95%] | Tỉ lệ ngày có đo |
+|---|---|---|
+| Q-learning, $\gamma = 0{,}9$ | 1,18 [0,09; 2,28] | 0,58 |
+| Bandit, $\gamma = 0$ (cùng dữ liệu) | 1,19 [0,08; 2,31] | 0,58 |
+| Luật cố định | −0,34 [−1,57; 0,88] | 0,61 |
+| Ngẫu nhiên | −2,26 [−3,52; −1,01] | 0,48 |
+
+Q-learning hơn luật cố định +1,53 [0,39; 2,67] và hơn ngẫu nhiên +3,45 [2,28; 4,61] tổng thưởng mỗi người, nhưng **không hơn bandit $\gamma = 0$** (−0,01 [−0,68; 0,65]). Thử với 300 người bệnh (6.313 ngày) cũng vậy ($\gamma$ = 0 / 0,5 / 0,9: 4,14 / 4,19 / 3,40), nên không phải do thiếu dữ liệu: trạng thái 3 ngày không thấy rõ thói quen ẩn của người bệnh, và lời nhắc lặp lại bị phạt ngay hôm sau, nên chọn tốt cho từng ngày đã gần tối ưu. Mọi số ở đây chỉ chứng minh agent học được đúng quy luật nhóm đã cài vào mô phỏng, không chứng minh giúp được người thật.
+
+Trên giao diện: tab Hôm nay hiện "Lời nhắc hôm nay" (mỗi người một lời mỗi ngày, lưu bảng `coach_events`); trang Thống kê ở chế độ nhà phát triển hiện bảng đánh giá, chính sách học được và tổng thưởng tích lũy của người bệnh đang chọn. Demo 30 người bệnh: chạy Streamlit với `DIACARE_DB=data/rl_demo/demo.db`.
+
 ---
 
 # 9. Module OCR cho PDF Dạng Ảnh Chụp & Ảnh Phiếu Xét Nghiệm
@@ -653,7 +678,7 @@ Dự án DiaCare-MAS đã cài đặt 9 giai đoạn của lộ trình:
 | **6** | **Multimodal OCR Extension**: Hỗ trợ bóc tách phiếu xét nghiệm từ hình ảnh và tệp PDF scan không có text layer. | Tệp `ocr.py`, tích hợp 3 backend (RapidOCR, Tesseract, WinRT OCR), bộ sửa lỗi `clean_ocr_text`. | **Nghiệm thu Đạt** |
 | **7** | **Knowledge Graph & Evidence Verification**: Thiết lập đồ thị tri thức, phân tầng tri thức và kiểm chứng chéo khẳng định y văn. | Tệp `kg.py`, file Cypher `DB_diabet.cypher`, cơ sở dữ liệu đồ thị Neo4j (108 nút, 228 cạnh). | **Nghiệm thu Đạt** |
 | **8** | **Reinforcement Learning Personalization**: Contextual bandit chọn trọng tâm can thiệp, học từ phản hồi người dùng. | Tệp `rl.py`, `tools/build_rl_states.py`, `tools/train_rl.py`, `models/rl_policy.json`, bảng SQLite `rl_events`, `rl_model`. | **Đã cài đặt; chưa có phản hồi thật** |
-| **9** | **Continuous Automated Testing & Observability**: 864 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
+| **9** | **Continuous Automated Testing & Observability**: 880 bài kiểm thử tự động, trực quan hóa sơ đồ động SVG, benchmark Kaggle. | Tệp `flowviz.py`, 34 tệp test trong `tests/`, bộ benchmark 62 ca trong `eval/cases.json`. | **Nghiệm thu Đạt** |
 
 ## 10.2. 7 Nguyên tắc An toàn Y khoa Bất biến (Clinical Safety Invariants)
 
@@ -778,12 +803,18 @@ chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nh
 benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
+**Câu trả lời giọng tư vấn (V4.8).** Câu trả lời trước đọc như log ("… [medlineplus_diabetic_diet.txt] … [medlineplus_diabetic_diet.txt]") và có ba lời nhắc mẫu chồng ở cuối, lặp lại mọi lượt. Ba thay đổi:
+(1) giao diện đổi nhãn nguồn thành chú thích ¹ kèm dòng "Nguồn: MedlinePlus – Chế độ ăn cho người đái tháo đường", lời miễn trừ in nhỏ dưới tin nhắn, dòng trọng tâm RL và 👍/👎 chỉ còn ở chế độ nhà phát triển (`src/diacare/present.py`; chỉ đổi cách hiện, câu trả lời cuối giữ nguyên nên không ảnh hưởng benchmark);
+(2) lời nhắc tái khám cho người đã chẩn đoán chỉ nói một lần mỗi phiên, lời nhắc triệu chứng, cấp cứu, hạ đường huyết vẫn nhắc mỗi lần cần;
+(3) Advisor được dặn nói như điều dưỡng tư vấn, theo bốn nhịp: trả lời thẳng, giải thích vì sao chỉ bằng con số có trong ngữ cảnh, 2–3 việc cụ thể, khi nào nên đi khám.
+Đo lại (3): 131 → 127/150 lượt đạt, McNemar $p = 0{,}42$, tỉ lệ bản nháp có nhãn nguồn giữ nguyên (116 → 113/150), nhưng bản nháp dài hơn (90 → 133 chữ) và số không có trong ngữ cảnh tăng gần gấp đôi (11 → 20 lượt): mô hình 3B vẫn tự ước tính số dù đã dặn. Chi tiết ở `docs/results/2026-11-24_voice_3b/`.
+
 - `JournalAgent` đã được đo riêng: bộ benchmark thêm 12 ca có nhật ký gieo sẵn (tổng 62 ca, 12 nhóm). Trên máy cá nhân với `qwen2.5:3b`, 12 ca × 3 lượt: có JournalAgent Pass^3 = 0,50, tỉ lệ đạt từng lượt 0,78 (28/36); không có JournalAgent Pass^3 = 0,08, 0,08 (3/36); 6 ca chỉ đạt khi có JournalAgent, 1 ca ngược lại, McNemar theo ca $p = 0{,}125$ (với 12 ca thì chưa đạt mức 0,05). Mô hình 3B vẫn trượt một số ca dù đã có số liệu (quên trích nguồn, không nhắc ngày tái khám).
 - Trong toàn bộ 414 lượt chạy thực tế, **không ghi nhận câu trả lời nào vi phạm an toàn y tế** (không có bất kỳ gợi ý tự ý thay đổi thuốc nào vượt qua được rào chắn `SafeStream` và `apply_rules`).
 
 ## 11.2. Kiểm thử Đơn vị
 
-Hệ thống có bộ kiểm thử tự động gồm **864 bài kiểm thử** phân bổ trên 37 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
+Hệ thống có bộ kiểm thử tự động gồm **880 bài kiểm thử** phân bổ trên 39 tệp kiểm thử trong [`tests/`](file:///C:/DATA/diacare-mas/tests):
 - Kiểm thử hợp đồng giao tiếp, `PatientDataAgent`, cờ rà soát & `DB_diabet.cypher` ([`test_contracts.py`](file:///C:/DATA/diacare-mas/tests/test_contracts.py)): 5 bài test.
 - Kiểm thử bóc tách xét nghiệm & OCR đa phương thức ([`test_labs.py`](file:///C:/DATA/diacare-mas/tests/test_labs.py), [`test_ocr.py`](file:///C:/DATA/diacare-mas/tests/test_ocr.py)): 37 bài test.
 - Kiểm thử học tăng cường ([`test_rl.py`](file:///C:/DATA/diacare-mas/tests/test_rl.py)): 14 bài test.

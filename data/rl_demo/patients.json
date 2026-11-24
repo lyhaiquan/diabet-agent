@@ -1,0 +1,436 @@
+[
+ {
+  "code": "BN01",
+  "name": "Bệnh nhân mẫu 01 (Nguyễn)",
+  "age": 61,
+  "sex": "nam",
+  "days": 25,
+  "base_log": 0.43,
+  "habit": 0.45,
+  "mu": 115.3,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN02",
+  "name": "Bệnh nhân mẫu 02 (Trần)",
+  "age": 45,
+  "sex": "nam",
+  "days": 21,
+  "base_log": 0.42,
+  "habit": 0.2,
+  "mu": 141.7,
+  "issues": [
+   "tim mạch"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN03",
+  "name": "Bệnh nhân mẫu 03 (Lê)",
+  "age": 68,
+  "sex": "nữ",
+  "days": 25,
+  "base_log": 0.84,
+  "habit": 0.19,
+  "mu": 124.6,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN04",
+  "name": "Bệnh nhân mẫu 04 (Phạm)",
+  "age": 56,
+  "sex": "nữ",
+  "days": 14,
+  "base_log": 0.53,
+  "habit": 0.47,
+  "mu": 152.8,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN05",
+  "name": "Bệnh nhân mẫu 05 (Hoàng)",
+  "age": 54,
+  "sex": "nam",
+  "days": 17,
+  "base_log": 0.37,
+  "habit": 0.38,
+  "mu": 127.0,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN06",
+  "name": "Bệnh nhân mẫu 06 (Vũ)",
+  "age": 62,
+  "sex": "nam",
+  "days": 26,
+  "base_log": 0.41,
+  "habit": 0.45,
+  "mu": 145.6,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN07",
+  "name": "Bệnh nhân mẫu 07 (Đặng)",
+  "age": 57,
+  "sex": "nữ",
+  "days": 15,
+  "base_log": 0.55,
+  "habit": 0.45,
+  "mu": 136.7,
+  "issues": [
+   "thừa cân",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN08",
+  "name": "Bệnh nhân mẫu 08 (Bùi)",
+  "age": 63,
+  "sex": "nam",
+  "days": 19,
+  "base_log": 0.34,
+  "habit": 0.43,
+  "mu": 137.8,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN09",
+  "name": "Bệnh nhân mẫu 09 (Đỗ)",
+  "age": 56,
+  "sex": "nữ",
+  "days": 23,
+  "base_log": 0.66,
+  "habit": 0.16,
+  "mu": 141.4,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN10",
+  "name": "Bệnh nhân mẫu 10 (Ngô)",
+  "age": 69,
+  "sex": "nữ",
+  "days": 15,
+  "base_log": 0.38,
+  "habit": 0.37,
+  "mu": 133.0,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN11",
+  "name": "Bệnh nhân mẫu 11 (Nguyễn)",
+  "age": 59,
+  "sex": "nữ",
+  "days": 15,
+  "base_log": 0.82,
+  "habit": 0.46,
+  "mu": 149.2,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN12",
+  "name": "Bệnh nhân mẫu 12 (Trần)",
+  "age": 50,
+  "sex": "nam",
+  "days": 22,
+  "base_log": 0.78,
+  "habit": 0.36,
+  "mu": 149.2,
+  "issues": [
+   "thừa cân",
+   "tim mạch"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN13",
+  "name": "Bệnh nhân mẫu 13 (Lê)",
+  "age": 65,
+  "sex": "nữ",
+  "days": 14,
+  "base_log": 0.53,
+  "habit": 0.32,
+  "mu": 134.3,
+  "issues": [
+   "thừa cân",
+   "tim mạch"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN14",
+  "name": "Bệnh nhân mẫu 14 (Phạm)",
+  "age": 65,
+  "sex": "nam",
+  "days": 19,
+  "base_log": 0.32,
+  "habit": 0.49,
+  "mu": 154.5,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN15",
+  "name": "Bệnh nhân mẫu 15 (Hoàng)",
+  "age": 56,
+  "sex": "nam",
+  "days": 27,
+  "base_log": 0.6,
+  "habit": 0.37,
+  "mu": 136.3,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN16",
+  "name": "Bệnh nhân mẫu 16 (Vũ)",
+  "age": 74,
+  "sex": "nữ",
+  "days": 16,
+  "base_log": 0.25,
+  "habit": 0.4,
+  "mu": 163.6,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN17",
+  "name": "Bệnh nhân mẫu 17 (Đặng)",
+  "age": 74,
+  "sex": "nữ",
+  "days": 14,
+  "base_log": 0.73,
+  "habit": 0.31,
+  "mu": 158.6,
+  "issues": [
+   "thừa cân",
+   "tim mạch"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN18",
+  "name": "Bệnh nhân mẫu 18 (Bùi)",
+  "age": 72,
+  "sex": "nam",
+  "days": 19,
+  "base_log": 0.46,
+  "habit": 0.48,
+  "mu": 149.4,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN19",
+  "name": "Bệnh nhân mẫu 19 (Đỗ)",
+  "age": 44,
+  "sex": "nam",
+  "days": 28,
+  "base_log": 0.84,
+  "habit": 0.31,
+  "mu": 146.3,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN20",
+  "name": "Bệnh nhân mẫu 20 (Ngô)",
+  "age": 69,
+  "sex": "nữ",
+  "days": 20,
+  "base_log": 0.5,
+  "habit": 0.47,
+  "mu": 119.1,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN21",
+  "name": "Bệnh nhân mẫu 21 (Nguyễn)",
+  "age": 59,
+  "sex": "nam",
+  "days": 28,
+  "base_log": 0.73,
+  "habit": 0.37,
+  "mu": 158.0,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN22",
+  "name": "Bệnh nhân mẫu 22 (Trần)",
+  "age": 62,
+  "sex": "nam",
+  "days": 19,
+  "base_log": 0.28,
+  "habit": 0.19,
+  "mu": 169.9,
+  "issues": [
+   "thừa cân",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN23",
+  "name": "Bệnh nhân mẫu 23 (Lê)",
+  "age": 71,
+  "sex": "nữ",
+  "days": 21,
+  "base_log": 0.65,
+  "habit": 0.22,
+  "mu": 172.7,
+  "issues": [
+   "thừa cân",
+   "tim mạch"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN24",
+  "name": "Bệnh nhân mẫu 24 (Phạm)",
+  "age": 55,
+  "sex": "nam",
+  "days": 23,
+  "base_log": 0.29,
+  "habit": 0.26,
+  "mu": 160.8,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN25",
+  "name": "Bệnh nhân mẫu 25 (Hoàng)",
+  "age": 72,
+  "sex": "nữ",
+  "days": 27,
+  "base_log": 0.78,
+  "habit": 0.31,
+  "mu": 169.9,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN26",
+  "name": "Bệnh nhân mẫu 26 (Vũ)",
+  "age": 56,
+  "sex": "nam",
+  "days": 14,
+  "base_log": 0.4,
+  "habit": 0.18,
+  "mu": 149.0,
+  "issues": [
+   "thừa cân"
+  ],
+  "hypo_prone": true
+ },
+ {
+  "code": "BN27",
+  "name": "Bệnh nhân mẫu 27 (Đặng)",
+  "age": 45,
+  "sex": "nữ",
+  "days": 16,
+  "base_log": 0.26,
+  "habit": 0.22,
+  "mu": 171.3,
+  "issues": [
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN28",
+  "name": "Bệnh nhân mẫu 28 (Bùi)",
+  "age": 49,
+  "sex": "nam",
+  "days": 23,
+  "base_log": 0.59,
+  "habit": 0.12,
+  "mu": 163.1,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN29",
+  "name": "Bệnh nhân mẫu 29 (Đỗ)",
+  "age": 61,
+  "sex": "nam",
+  "days": 19,
+  "base_log": 0.32,
+  "habit": 0.35,
+  "mu": 162.8,
+  "issues": [
+   "thừa cân",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ },
+ {
+  "code": "BN30",
+  "name": "Bệnh nhân mẫu 30 (Ngô)",
+  "age": 52,
+  "sex": "nữ",
+  "days": 15,
+  "base_log": 0.78,
+  "habit": 0.18,
+  "mu": 149.4,
+  "issues": [
+   "tim mạch",
+   "ít vận động"
+  ],
+  "hypo_prone": false
+ }
+]

@@ -22,3 +22,5 @@ kaggle/rgcn_kernel/
 
 # mật khẩu PostgreSQL, khoá ký token... cho docker compose (xem .env.example)
 .env
+
+!data/rl_demo/

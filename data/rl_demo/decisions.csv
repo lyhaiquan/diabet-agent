@@ -1,0 +1,600 @@
+code,day,s_adherence,s_control,s_prev,s_urgent,action,propensity,mode,reward,n_adherence,n_control,n_prev,n_urgent
+BN01,2026-10-30,ít,chưa đo,không,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN01,2026-10-31,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN01,2026-11-01,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN01,2026-11-02,vừa,đạt,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-03,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN01,2026-11-04,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN01,2026-11-05,vừa,đạt,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-06,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN01,2026-11-07,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN01,2026-11-08,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN01,2026-11-09,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN01,2026-11-10,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-11,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN01,2026-11-12,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN01,2026-11-13,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN01,2026-11-14,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-15,vừa,đạt,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-16,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN01,2026-11-17,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN01,2026-11-18,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN01,2026-11-19,vừa,đạt,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN01,2026-11-20,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN01,2026-11-21,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN01,2026-11-22,vừa,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.3,vừa,đạt,lối sống,0
+BN01,2026-11-23,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,,,,
+BN02,2026-11-03,vừa,cao,không,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN02,2026-11-04,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,đạt,theo dõi,0
+BN02,2026-11-05,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN02,2026-11-06,đều,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN02,2026-11-07,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN02,2026-11-08,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN02,2026-11-09,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN02,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN02,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN02,2026-11-12,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,cao,lối sống,0
+BN02,2026-11-13,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN02,2026-11-14,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN02,2026-11-15,vừa,đạt,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN02,2026-11-16,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN02,2026-11-17,ít,chưa đo,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN02,2026-11-18,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN02,2026-11-19,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN02,2026-11-20,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN02,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN02,2026-11-22,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN02,2026-11-23,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,,,,
+BN03,2026-10-30,vừa,cao,không,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN03,2026-10-31,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,đạt,theo dõi,0
+BN03,2026-11-01,đều,đạt,theo dõi,0,cardio_control,0.12,ngẫu nhiên,1.5,đều,đạt,lối sống,0
+BN03,2026-11-02,đều,đạt,lối sống,0,preventive_habit,0.52,luật,0.7,đều,đạt,lối sống,0
+BN03,2026-11-03,đều,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN03,2026-11-04,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN03,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,cao,theo dõi,0
+BN03,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,cao,theo dõi,0
+BN03,2026-11-07,đều,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN03,2026-11-08,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN03,2026-11-09,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN03,2026-11-10,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN03,2026-11-11,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN03,2026-11-12,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN03,2026-11-13,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,đạt,theo dõi,0
+BN03,2026-11-14,đều,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.1,đều,đạt,lối sống,0
+BN03,2026-11-15,đều,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,1.1,đều,cao,lối sống,0
+BN03,2026-11-16,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN03,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN03,2026-11-18,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN03,2026-11-19,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,đạt,theo dõi,0
+BN03,2026-11-20,đều,đạt,theo dõi,0,preventive_habit,0.52,luật,1.5,đều,đạt,lối sống,0
+BN03,2026-11-21,đều,đạt,lối sống,0,preventive_habit,0.52,luật,-1.3,vừa,đạt,lối sống,0
+BN03,2026-11-22,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.3,vừa,đạt,lối sống,0
+BN03,2026-11-23,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,,,,
+BN04,2026-11-10,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN04,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN04,2026-11-12,đều,cao,theo dõi,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN04,2026-11-13,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN04,2026-11-14,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN04,2026-11-15,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN04,2026-11-16,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN04,2026-11-17,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.1,đều,cao,lối sống,0
+BN04,2026-11-18,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,0.7,đều,cao,theo dõi,0
+BN04,2026-11-19,đều,cao,theo dõi,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN04,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN04,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN04,2026-11-22,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN04,2026-11-23,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,0.7,,,,
+BN05,2026-11-07,vừa,đạt,không,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN05,2026-11-08,vừa,đạt,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN05,2026-11-09,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN05,2026-11-10,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN05,2026-11-11,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN05,2026-11-12,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN05,2026-11-13,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN05,2026-11-14,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN05,2026-11-15,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN05,2026-11-16,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN05,2026-11-17,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN05,2026-11-18,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN05,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN05,2026-11-20,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN05,2026-11-21,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN05,2026-11-22,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN05,2026-11-23,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,,,,
+BN06,2026-10-29,vừa,cao,không,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-10-30,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN06,2026-10-31,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN06,2026-11-01,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-11-02,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN06,2026-11-03,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN06,2026-11-04,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN06,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN06,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN06,2026-11-07,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,1.5,vừa,cao,lối sống,0
+BN06,2026-11-08,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,đều,cao,theo dõi,0
+BN06,2026-11-09,đều,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-11-10,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN06,2026-11-11,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-11-12,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-11-13,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN06,2026-11-14,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN06,2026-11-15,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN06,2026-11-16,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,đều,cao,theo dõi,0
+BN06,2026-11-17,đều,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.5,đều,cao,lối sống,0
+BN06,2026-11-18,đều,cao,lối sống,0,weight_diet,0.52,luật,1.1,đều,cao,lối sống,0
+BN06,2026-11-19,đều,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,1.2,đều,đạt,lối sống,0
+BN06,2026-11-20,đều,đạt,lối sống,0,preventive_habit,0.52,luật,0.7,đều,cao,lối sống,0
+BN06,2026-11-21,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN06,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN06,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,,,,
+BN07,2026-11-09,vừa,cao,không,0,preventive_habit,0.12,ngẫu nhiên,1.5,đều,cao,lối sống,0
+BN07,2026-11-10,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,1.1,đều,cao,theo dõi,0
+BN07,2026-11-11,đều,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN07,2026-11-12,vừa,đạt,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN07,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN07,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN07,2026-11-15,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,đều,cao,lối sống,0
+BN07,2026-11-16,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN07,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN07,2026-11-18,vừa,đạt,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN07,2026-11-19,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN07,2026-11-20,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,1.1,vừa,cao,theo dõi,0
+BN07,2026-11-21,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN07,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,đều,cao,theo dõi,0
+BN07,2026-11-23,đều,cao,theo dõi,0,weight_diet,0.52,luật,-1.0,,,,
+BN08,2026-11-05,đều,cao,không,0,glycemic_followup,0.12,ngẫu nhiên,-1.0,vừa,cao,theo dõi,0
+BN08,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN08,2026-11-07,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN08,2026-11-08,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN08,2026-11-09,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN08,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,cao,theo dõi,0
+BN08,2026-11-11,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,đạt,lối sống,0
+BN08,2026-11-12,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN08,2026-11-13,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN08,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN08,2026-11-15,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN08,2026-11-16,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN08,2026-11-17,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN08,2026-11-18,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN08,2026-11-19,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN08,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN08,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN08,2026-11-22,đều,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN08,2026-11-23,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,,,,
+BN09,2026-11-01,vừa,cao,không,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN09,2026-11-02,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN09,2026-11-03,vừa,đạt,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN09,2026-11-04,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,đạt,theo dõi,0
+BN09,2026-11-05,đều,đạt,theo dõi,0,preventive_habit,0.52,luật,1.5,đều,đạt,lối sống,0
+BN09,2026-11-06,đều,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN09,2026-11-07,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-0.2,vừa,nguy hiểm,lối sống,1
+BN09,2026-11-08,vừa,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,1.5,vừa,nguy hiểm,theo dõi,0
+BN09,2026-11-09,vừa,nguy hiểm,theo dõi,0,weight_diet,0.12,ngẫu nhiên,0.7,đều,nguy hiểm,lối sống,0
+BN09,2026-11-10,đều,nguy hiểm,lối sống,0,physical_activity,0.52,luật,1.1,đều,cao,lối sống,0
+BN09,2026-11-11,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN09,2026-11-12,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN09,2026-11-13,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN09,2026-11-14,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN09,2026-11-15,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN09,2026-11-16,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,cao,theo dõi,0
+BN09,2026-11-17,đều,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN09,2026-11-18,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN09,2026-11-19,vừa,đạt,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN09,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,đều,cao,theo dõi,0
+BN09,2026-11-21,đều,cao,theo dõi,0,weight_diet,0.52,luật,1.1,đều,cao,lối sống,0
+BN09,2026-11-22,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN09,2026-11-23,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.4,,,,
+BN10,2026-11-09,vừa,cao,không,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN10,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,cao,theo dõi,0
+BN10,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN10,2026-11-12,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN10,2026-11-13,đều,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN10,2026-11-14,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN10,2026-11-15,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,vừa,cao,theo dõi,0
+BN10,2026-11-16,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN10,2026-11-17,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN10,2026-11-18,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,1.5,đều,cao,lối sống,0
+BN10,2026-11-19,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN10,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN10,2026-11-21,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN10,2026-11-22,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,1.2,vừa,đạt,theo dõi,0
+BN10,2026-11-23,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,,,,
+BN11,2026-11-09,đều,cao,không,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN11,2026-11-10,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.4,vừa,cao,lối sống,0
+BN11,2026-11-11,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.1,vừa,nguy hiểm,lối sống,1
+BN11,2026-11-12,vừa,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,0.7,đều,nguy hiểm,theo dõi,0
+BN11,2026-11-13,đều,nguy hiểm,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,nguy hiểm,lối sống,0
+BN11,2026-11-14,đều,nguy hiểm,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN11,2026-11-15,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN11,2026-11-16,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN11,2026-11-17,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN11,2026-11-18,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN11,2026-11-19,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN11,2026-11-20,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN11,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN11,2026-11-22,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN11,2026-11-23,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,,,,
+BN12,2026-11-02,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN12,2026-11-03,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN12,2026-11-04,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN12,2026-11-05,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,vừa,cao,theo dõi,0
+BN12,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN12,2026-11-07,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,cao,theo dõi,0
+BN12,2026-11-08,đều,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN12,2026-11-09,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN12,2026-11-10,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN12,2026-11-11,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN12,2026-11-12,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN12,2026-11-13,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,cao,theo dõi,0
+BN12,2026-11-14,đều,cao,theo dõi,0,weight_diet,0.52,luật,1.5,đều,đạt,lối sống,0
+BN12,2026-11-15,đều,đạt,lối sống,0,preventive_habit,0.52,luật,1.1,đều,đạt,lối sống,0
+BN12,2026-11-16,đều,đạt,lối sống,0,preventive_habit,0.52,luật,-1.3,vừa,cao,lối sống,0
+BN12,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN12,2026-11-18,vừa,đạt,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN12,2026-11-19,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN12,2026-11-20,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN12,2026-11-21,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN12,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN12,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,,,,
+BN13,2026-11-10,vừa,đạt,không,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN13,2026-11-11,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN13,2026-11-12,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN13,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN13,2026-11-14,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN13,2026-11-15,vừa,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN13,2026-11-16,vừa,đạt,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN13,2026-11-17,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN13,2026-11-18,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN13,2026-11-19,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN13,2026-11-20,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN13,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,đều,cao,theo dõi,0
+BN13,2026-11-22,đều,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN13,2026-11-23,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,,,,
+BN14,2026-11-05,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN14,2026-11-06,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN14,2026-11-07,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN14,2026-11-08,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN14,2026-11-09,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN14,2026-11-10,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN14,2026-11-11,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN14,2026-11-12,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN14,2026-11-13,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN14,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN14,2026-11-15,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN14,2026-11-16,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.4,vừa,cao,lối sống,0
+BN14,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN14,2026-11-18,đều,cao,theo dõi,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN14,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN14,2026-11-20,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN14,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN14,2026-11-22,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN14,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,,,,
+BN15,2026-10-28,ít,chưa đo,không,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN15,2026-10-29,ít,chưa đo,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,ít,chưa đo,lối sống,0
+BN15,2026-10-30,ít,chưa đo,lối sống,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN15,2026-10-31,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN15,2026-11-01,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,1.2,đều,đạt,theo dõi,0
+BN15,2026-11-02,đều,đạt,theo dõi,0,glycemic_followup,0.12,ngẫu nhiên,-1.3,vừa,đạt,theo dõi,0
+BN15,2026-11-03,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN15,2026-11-04,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN15,2026-11-05,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN15,2026-11-06,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN15,2026-11-07,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN15,2026-11-08,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN15,2026-11-09,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN15,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN15,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN15,2026-11-12,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,cao,lối sống,0
+BN15,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN15,2026-11-14,đều,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,1.1,đều,cao,lối sống,0
+BN15,2026-11-15,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN15,2026-11-16,đều,cao,lối sống,0,physical_activity,0.52,luật,1.1,đều,cao,lối sống,0
+BN15,2026-11-17,đều,cao,lối sống,0,weight_diet,0.52,luật,1.5,đều,cao,lối sống,0
+BN15,2026-11-18,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN15,2026-11-19,đều,cao,lối sống,0,weight_diet,0.52,luật,1.5,đều,cao,lối sống,0
+BN15,2026-11-20,đều,cao,lối sống,0,physical_activity,0.52,luật,1.5,đều,cao,lối sống,0
+BN15,2026-11-21,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN15,2026-11-22,đều,cao,lối sống,0,physical_activity,0.52,luật,1.5,đều,cao,lối sống,0
+BN15,2026-11-23,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,1.5,,,,
+BN16,2026-11-08,vừa,cao,không,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN16,2026-11-09,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN16,2026-11-10,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN16,2026-11-11,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN16,2026-11-12,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN16,2026-11-13,ít,chưa đo,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN16,2026-11-14,ít,chưa đo,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,ít,chưa đo,lối sống,0
+BN16,2026-11-15,ít,chưa đo,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN16,2026-11-16,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN16,2026-11-17,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN16,2026-11-18,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN16,2026-11-19,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN16,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN16,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN16,2026-11-22,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN16,2026-11-23,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,,,,
+BN17,2026-11-10,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN17,2026-11-11,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN17,2026-11-12,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN17,2026-11-13,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.8,vừa,cao,theo dõi,0
+BN17,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN17,2026-11-15,đều,cao,theo dõi,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN17,2026-11-16,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN17,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN17,2026-11-18,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN17,2026-11-19,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN17,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN17,2026-11-21,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.1,vừa,nguy hiểm,lối sống,1
+BN17,2026-11-22,vừa,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,0.7,đều,nguy hiểm,theo dõi,0
+BN17,2026-11-23,đều,nguy hiểm,theo dõi,0,weight_diet,0.52,luật,0.7,,,,
+BN18,2026-11-05,vừa,cao,không,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN18,2026-11-06,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.8,đều,cao,lối sống,0
+BN18,2026-11-07,đều,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN18,2026-11-08,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN18,2026-11-09,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN18,2026-11-10,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN18,2026-11-11,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN18,2026-11-12,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.4,vừa,cao,lối sống,0
+BN18,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN18,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN18,2026-11-15,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN18,2026-11-16,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN18,2026-11-17,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN18,2026-11-18,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN18,2026-11-19,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN18,2026-11-20,đều,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN18,2026-11-21,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN18,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN18,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,,,,
+BN19,2026-10-27,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN19,2026-10-28,đều,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN19,2026-10-29,đều,cao,lối sống,0,weight_diet,0.52,luật,1.1,đều,cao,lối sống,0
+BN19,2026-10-30,đều,cao,lối sống,0,physical_activity,0.52,luật,1.5,đều,cao,lối sống,0
+BN19,2026-10-31,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN19,2026-11-01,đều,cao,lối sống,0,physical_activity,0.52,luật,0.7,đều,cao,lối sống,0
+BN19,2026-11-02,đều,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN19,2026-11-03,đều,cao,lối sống,0,weight_diet,0.52,luật,1.5,đều,cao,lối sống,0
+BN19,2026-11-04,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN19,2026-11-05,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN19,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN19,2026-11-07,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.1,đều,cao,lối sống,0
+BN19,2026-11-08,đều,cao,lối sống,0,weight_diet,0.52,luật,1.1,đều,cao,lối sống,0
+BN19,2026-11-09,đều,cao,lối sống,0,physical_activity,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN19,2026-11-10,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN19,2026-11-11,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN19,2026-11-12,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.1,đều,đạt,lối sống,0
+BN19,2026-11-13,đều,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,1.2,đều,đạt,lối sống,0
+BN19,2026-11-14,đều,đạt,lối sống,0,preventive_habit,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN19,2026-11-15,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN19,2026-11-16,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.4,vừa,cao,lối sống,0
+BN19,2026-11-17,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,1.5,đều,cao,lối sống,0
+BN19,2026-11-18,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN19,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,vừa,đạt,theo dõi,0
+BN19,2026-11-20,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN19,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN19,2026-11-22,đều,cao,theo dõi,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN19,2026-11-23,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,,,,
+BN20,2026-11-04,đều,cao,không,0,weight_diet,0.52,luật,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-05,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-06,vừa,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN20,2026-11-07,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN20,2026-11-08,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,1.5,vừa,cao,lối sống,0
+BN20,2026-11-09,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,đều,đạt,theo dõi,0
+BN20,2026-11-10,đều,đạt,theo dõi,0,preventive_habit,0.52,luật,1.5,đều,đạt,lối sống,0
+BN20,2026-11-11,đều,đạt,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,1.5,đều,đạt,theo dõi,0
+BN20,2026-11-12,đều,đạt,theo dõi,0,preventive_habit,0.52,luật,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-13,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,1.2,vừa,đạt,lối sống,0
+BN20,2026-11-14,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-15,vừa,đạt,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-16,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN20,2026-11-17,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,đạt,theo dõi,0
+BN20,2026-11-18,vừa,đạt,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-19,vừa,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.3,ít,chưa đo,lối sống,0
+BN20,2026-11-20,ít,chưa đo,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN20,2026-11-21,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN20,2026-11-22,vừa,đạt,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN20,2026-11-23,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,-1.0,,,,
+BN21,2026-10-27,vừa,cao,không,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-10-28,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN21,2026-10-29,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-10-30,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN21,2026-10-31,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-11-01,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-11-02,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN21,2026-11-03,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN21,2026-11-04,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN21,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN21,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN21,2026-11-07,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-11-08,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN21,2026-11-09,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN21,2026-11-10,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN21,2026-11-11,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN21,2026-11-12,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN21,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN21,2026-11-14,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN21,2026-11-15,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN21,2026-11-16,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN21,2026-11-17,đều,cao,lối sống,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN21,2026-11-18,đều,cao,lối sống,0,physical_activity,0.52,luật,0.7,đều,cao,lối sống,0
+BN21,2026-11-19,đều,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.8,đều,cao,lối sống,0
+BN21,2026-11-20,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN21,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN21,2026-11-22,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN21,2026-11-23,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,,,,
+BN22,2026-11-05,vừa,cao,không,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN22,2026-11-06,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN22,2026-11-07,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,0.4,vừa,cao,lối sống,0
+BN22,2026-11-08,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN22,2026-11-09,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN22,2026-11-10,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN22,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN22,2026-11-12,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN22,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN22,2026-11-14,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN22,2026-11-15,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN22,2026-11-16,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN22,2026-11-17,ít,chưa đo,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN22,2026-11-18,ít,chưa đo,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,ít,chưa đo,lối sống,0
+BN22,2026-11-19,ít,chưa đo,lối sống,0,weight_diet,0.12,ngẫu nhiên,1.5,vừa,đạt,lối sống,0
+BN22,2026-11-20,vừa,đạt,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.3,vừa,đạt,lối sống,0
+BN22,2026-11-21,vừa,đạt,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN22,2026-11-22,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN22,2026-11-23,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,,,,
+BN23,2026-11-03,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN23,2026-11-04,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN23,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN23,2026-11-06,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN23,2026-11-07,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN23,2026-11-08,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN23,2026-11-09,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN23,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN23,2026-11-11,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN23,2026-11-12,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN23,2026-11-13,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN23,2026-11-14,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN23,2026-11-15,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN23,2026-11-16,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN23,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN23,2026-11-18,đều,cao,theo dõi,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN23,2026-11-19,đều,cao,lối sống,0,physical_activity,0.52,luật,0.7,đều,cao,lối sống,0
+BN23,2026-11-20,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN23,2026-11-21,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN23,2026-11-22,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN23,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,,,,
+BN24,2026-11-01,ít,chưa đo,không,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN24,2026-11-02,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-03,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-04,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-05,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-06,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN24,2026-11-07,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN24,2026-11-08,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN24,2026-11-09,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.1,vừa,cao,theo dõi,0
+BN24,2026-11-10,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN24,2026-11-11,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN24,2026-11-12,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-13,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-14,ít,chưa đo,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN24,2026-11-15,ít,chưa đo,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN24,2026-11-16,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN24,2026-11-17,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN24,2026-11-18,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN24,2026-11-19,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN24,2026-11-20,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN24,2026-11-21,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN24,2026-11-22,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN24,2026-11-23,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,,,,
+BN25,2026-10-28,vừa,cao,không,0,preventive_habit,0.12,ngẫu nhiên,0.1,đều,nguy hiểm,lối sống,1
+BN25,2026-10-29,đều,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,-1.0,vừa,nguy hiểm,theo dõi,0
+BN25,2026-10-30,vừa,nguy hiểm,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,nguy hiểm,lối sống,0
+BN25,2026-10-31,vừa,nguy hiểm,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,ít,chưa đo,lối sống,0
+BN25,2026-11-01,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN25,2026-11-02,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN25,2026-11-03,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN25,2026-11-04,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN25,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN25,2026-11-06,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.35,vừa,nguy hiểm,lối sống,1
+BN25,2026-11-07,vừa,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,-1.0,vừa,nguy hiểm,theo dõi,0
+BN25,2026-11-08,vừa,nguy hiểm,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,nguy hiểm,lối sống,0
+BN25,2026-11-09,vừa,nguy hiểm,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN25,2026-11-10,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN25,2026-11-11,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN25,2026-11-12,đều,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN25,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN25,2026-11-14,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN25,2026-11-15,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN25,2026-11-16,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN25,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN25,2026-11-18,đều,cao,theo dõi,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN25,2026-11-19,đều,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN25,2026-11-20,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN25,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-0.4,vừa,nguy hiểm,theo dõi,1
+BN25,2026-11-22,vừa,nguy hiểm,theo dõi,1,urgent_eval,1.0,mặt nạ an toàn,0.7,vừa,nguy hiểm,theo dõi,0
+BN25,2026-11-23,vừa,nguy hiểm,theo dõi,0,glycemic_followup,0.52,luật,0.7,,,,
+BN26,2026-11-10,vừa,cao,không,0,physical_activity,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN26,2026-11-11,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,-1.0,vừa,cao,theo dõi,0
+BN26,2026-11-12,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN26,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN26,2026-11-14,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN26,2026-11-15,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN26,2026-11-16,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN26,2026-11-17,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,đều,cao,theo dõi,0
+BN26,2026-11-18,đều,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN26,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,đạt,theo dõi,0
+BN26,2026-11-20,vừa,đạt,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN26,2026-11-21,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN26,2026-11-22,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN26,2026-11-23,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.1,,,,
+BN27,2026-11-08,vừa,cao,không,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN27,2026-11-09,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN27,2026-11-10,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN27,2026-11-11,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN27,2026-11-12,vừa,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN27,2026-11-13,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN27,2026-11-14,ít,chưa đo,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN27,2026-11-15,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN27,2026-11-16,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN27,2026-11-17,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN27,2026-11-18,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN27,2026-11-19,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN27,2026-11-20,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN27,2026-11-21,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN27,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN27,2026-11-23,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,,,,
+BN28,2026-11-01,vừa,cao,không,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN28,2026-11-02,vừa,cao,theo dõi,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-03,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN28,2026-11-04,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,cao,theo dõi,0
+BN28,2026-11-05,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN28,2026-11-06,đều,cao,theo dõi,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-07,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-08,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN28,2026-11-09,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-10,vừa,cao,lối sống,0,cardio_control,0.12,ngẫu nhiên,-1.3,vừa,cao,lối sống,0
+BN28,2026-11-11,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN28,2026-11-12,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN28,2026-11-13,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN28,2026-11-14,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN28,2026-11-15,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN28,2026-11-16,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,đều,cao,theo dõi,0
+BN28,2026-11-17,đều,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN28,2026-11-18,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,vừa,cao,theo dõi,0
+BN28,2026-11-20,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,0.7,vừa,cao,lối sống,0
+BN28,2026-11-21,vừa,cao,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN28,2026-11-22,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN28,2026-11-23,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,,,,
+BN29,2026-11-05,ít,chưa đo,không,0,preventive_habit,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN29,2026-11-06,ít,chưa đo,lối sống,0,weight_diet,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN29,2026-11-07,ít,chưa đo,lối sống,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN29,2026-11-08,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,1.5,vừa,đạt,theo dõi,0
+BN29,2026-11-09,vừa,đạt,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,-1.0,vừa,đạt,lối sống,0
+BN29,2026-11-10,vừa,đạt,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.3,vừa,đạt,lối sống,0
+BN29,2026-11-11,vừa,đạt,lối sống,0,glycemic_followup,0.52,luật,0.7,vừa,cao,theo dõi,0
+BN29,2026-11-12,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,-1.3,vừa,cao,theo dõi,0
+BN29,2026-11-13,vừa,cao,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,vừa,cao,lối sống,0
+BN29,2026-11-14,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN29,2026-11-15,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,-1.3,ít,chưa đo,theo dõi,0
+BN29,2026-11-16,ít,chưa đo,theo dõi,0,physical_activity,0.12,ngẫu nhiên,-1.0,ít,chưa đo,lối sống,0
+BN29,2026-11-17,ít,chưa đo,lối sống,0,glycemic_followup,0.52,luật,-1.0,ít,chưa đo,theo dõi,0
+BN29,2026-11-18,ít,chưa đo,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN29,2026-11-19,vừa,cao,theo dõi,0,glycemic_followup,0.52,luật,0.4,vừa,cao,theo dõi,0
+BN29,2026-11-20,vừa,cao,theo dõi,0,cardio_control,0.12,ngẫu nhiên,0.35,đều,nguy hiểm,lối sống,1
+BN29,2026-11-21,đều,nguy hiểm,lối sống,1,urgent_eval,1.0,mặt nạ an toàn,-1.0,vừa,nguy hiểm,theo dõi,0
+BN29,2026-11-22,vừa,nguy hiểm,theo dõi,0,glycemic_followup,0.52,luật,-1.0,vừa,nguy hiểm,theo dõi,0
+BN29,2026-11-23,vừa,nguy hiểm,theo dõi,0,cardio_control,0.12,ngẫu nhiên,-1.0,,,,
+BN30,2026-11-09,vừa,cao,không,0,physical_activity,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN30,2026-11-10,đều,cao,lối sống,0,weight_diet,0.52,luật,1.5,đều,cao,lối sống,0
+BN30,2026-11-11,đều,cao,lối sống,0,physical_activity,0.52,luật,1.5,đều,cao,lối sống,0
+BN30,2026-11-12,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,1.5,đều,đạt,theo dõi,0
+BN30,2026-11-13,đều,đạt,theo dõi,0,preventive_habit,0.52,luật,0.7,đều,cao,lối sống,0
+BN30,2026-11-14,đều,cao,lối sống,0,glycemic_followup,0.12,ngẫu nhiên,0.7,đều,cao,theo dõi,0
+BN30,2026-11-15,đều,cao,theo dõi,0,preventive_habit,0.12,ngẫu nhiên,0.7,đều,cao,lối sống,0
+BN30,2026-11-16,đều,cao,lối sống,0,weight_diet,0.52,luật,-1.0,vừa,cao,lối sống,0
+BN30,2026-11-17,vừa,cao,lối sống,0,physical_activity,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN30,2026-11-18,vừa,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,1.1,vừa,cao,lối sống,0
+BN30,2026-11-19,vừa,cao,lối sống,0,glycemic_followup,0.52,luật,0.7,đều,cao,theo dõi,0
+BN30,2026-11-20,đều,cao,theo dõi,0,glycemic_followup,0.12,ngẫu nhiên,0.4,đều,cao,theo dõi,0
+BN30,2026-11-21,đều,cao,theo dõi,0,weight_diet,0.52,luật,0.7,đều,cao,lối sống,0
+BN30,2026-11-22,đều,cao,lối sống,0,physical_activity,0.52,luật,0.7,đều,cao,lối sống,0
+BN30,2026-11-23,đều,cao,lối sống,0,preventive_habit,0.12,ngẫu nhiên,-1.0,,,,

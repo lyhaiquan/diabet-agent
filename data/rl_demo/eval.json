@@ -1,0 +1,82 @@
+{
+ "data": {
+  "source": "dữ liệu mô phỏng (diacare.coach_sim), không phải người thật",
+  "patients": 30,
+  "transitions": 599,
+  "seed": 7,
+  "behavior_epsilon": 0.6
+ },
+ "coverage": {
+  "cells_seen": 72,
+  "cells_total": 216,
+  "states_seen": 18,
+  "states_total": 36
+ },
+ "paired_difference": {
+  "Q-learning - Bandit (gamma 0)": {
+   "mean": -0.01,
+   "ci95": [
+    -0.68,
+    0.65
+   ]
+  },
+  "Q-learning - Luật cố định": {
+   "mean": 1.53,
+   "ci95": [
+    0.39,
+    2.67
+   ]
+  },
+  "Q-learning - Ngẫu nhiên": {
+   "mean": 3.45,
+   "ci95": [
+    2.28,
+    4.61
+   ]
+  }
+ },
+ "logged_mean_reward": -0.022,
+ "eval_on_new_simulated_patients": {
+  "Q-learning (gamma 0,9)": {
+   "n": 200,
+   "mean_return": 1.18,
+   "ci95": [
+    0.09,
+    2.28
+   ],
+   "logged_days": 0.576,
+   "in_target": 0.327
+  },
+  "Bandit (gamma 0)": {
+   "n": 200,
+   "mean_return": 1.19,
+   "ci95": [
+    0.08,
+    2.31
+   ],
+   "logged_days": 0.575,
+   "in_target": 0.338
+  },
+  "Luật cố định": {
+   "n": 200,
+   "mean_return": -0.34,
+   "ci95": [
+    -1.57,
+    0.88
+   ],
+   "logged_days": 0.608,
+   "in_target": 0.315
+  },
+  "Ngẫu nhiên": {
+   "n": 200,
+   "mean_return": -2.26,
+   "ci95": [
+    -3.52,
+    -1.01
+   ],
+   "logged_days": 0.479,
+   "in_target": 0.361
+  }
+ },
+ "note": "Đánh giá trên người bệnh mô phỏng mới, 21 ngày mỗi người. Động lực do nhóm tự đặt."
+}

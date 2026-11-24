@@ -89,6 +89,17 @@ CREATE TABLE IF NOT EXISTS rl_events (
     rated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_rl_events_session ON rl_events(session_id);
+CREATE TABLE IF NOT EXISTS coach_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    day TEXT NOT NULL,
+    state_json TEXT NOT NULL,
+    action TEXT NOT NULL,
+    propensity REAL NOT NULL,
+    mode TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (patient_id, day)
+);
 CREATE TABLE IF NOT EXISTS rl_model (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     model_json TEXT NOT NULL,
@@ -370,6 +381,26 @@ class Store:
                           " ON CONFLICT(id) DO UPDATE SET model_json = excluded.model_json,"
                           " updated_at = excluded.updated_at", (_dumps(model), _now()))
         self.conn.commit()
+
+    def add_coach_event(self, patient_id, day, nudge):
+        """Lời nhắc Q-learning của một ngày (mỗi người một lời mỗi ngày; gọi lại cùng ngày thì giữ lời cũ).
+        Phần thưởng không lưu ở đây: tính lại được từ nhật ký (diacare.coach.day_reward)."""
+        self.conn.execute(
+            "INSERT INTO coach_events (patient_id, day, state_json, action, propensity, mode, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (patient_id, day) DO NOTHING",
+            (patient_id, str(day), _dumps(nudge["state"]), nudge["action"], nudge["propensity"], nudge.get("mode"),
+             _now()))
+        self.conn.commit()
+        return self.coach_events(patient_id, day=day)[-1]
+
+    def coach_events(self, patient_id, day=None):
+        sql, args = "SELECT * FROM coach_events WHERE patient_id = ?", [patient_id]
+        if day is not None:
+            sql += " AND day = ?"
+            args.append(str(day))
+        rows = self.conn.execute(sql + " ORDER BY day", args).fetchall()
+        return [{"day": r["day"], "state": json.loads(r["state_json"]), "action": r["action"],
+                 "propensity": r["propensity"], "mode": r["mode"]} for r in rows]
 
     def load_rl_model(self):
         row = self.conn.execute("SELECT model_json FROM rl_model WHERE id = 1").fetchone()

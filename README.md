@@ -7,7 +7,7 @@ Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
 1. **Dự đoán nguy cơ từ nhiều nguồn**: mô hình học trên CDC BRFSS 2015, BRFSS 2023 và NHANES 2013–2020 (khoảng 535 nghìn người, 21 chỉ số), xác suất đã hiệu chỉnh; kiểm tra ngoài trên Pima (NIDDK); mô hình triệu chứng từ UCI 529.
 2. **Tri thức + RAG + Đồ thị tri thức (KG) + LLM**: truy xuất tài liệu (MedlinePlus, WHO) và đồ thị tri thức 5 loại cạnh rồi để LLM chạy cục bộ qua Ollama viết câu trả lời.
-3. **Học tăng cường (RL)**: contextual bandit chọn trọng tâm can thiệp cá nhân hoá và học từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn.
+3. **Học tăng cường (RL)**: agent Q-learning chọn lời nhắc mỗi ngày cho người đã chẩn đoán, học từ nhật ký đường huyết (có đo không, chỉ số có đạt mục tiêu không), có mặt nạ an toàn; huấn luyện và đánh giá trên 30 người bệnh mô phỏng. Trong khung chat, một contextual bandit ($\gamma = 0$) chọn trọng tâm tư vấn.
 4. **Luật an toàn**: chặn lời khuyên đổi thuốc, chuyển khám khi có triệu chứng, cấp cứu, xét nghiệm vượt ngưỡng.
 
 ## Kiến trúc
@@ -21,13 +21,15 @@ flowchart LR
     O --> R[Retriever<br/>RAG · sbert]
     O --> G[Graph<br/>Neo4j / NetworkX KG]
     O --> N[Nutrition<br/>bảng USDA]
-    O --> RL[RL Agent<br/>bandit · học từ 👍/👎]
+    O --> RL[RL trọng tâm chat<br/>bandit γ = 0]
     O --> C[Context<br/>cắt ngữ cảnh theo agent]
     C --> A[Advisor<br/>LLM Ollama qwen2.5]
     A --> RU[Rules<br/>lọc an toàn + cờ]
     RU --> F[Trả lời cuối]
     M & L -.-> DB[(SQLite / PostgreSQL)]
     F -.-> LOG[(log từng bước agent)]
+    J[Nhật ký đường huyết] --> QC[Coach Q-learning<br/>lời nhắc mỗi ngày]
+    QC -.-> DB
 ```
 
 Orchestrator gọi các agent **theo thứ tự cố định**; bốn agent chỉ đọc câu hỏi và hồ sơ (Predictor, Retriever, Graph,
@@ -43,7 +45,8 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
 | Retriever | `src/diacare/retriever.py` | Truy xuất dense (sbert), tuỳ chọn lai BM25 + RRF |
 | Graph (KG) | `src/diacare/kg.py` | Đồ thị tri thức 5 loại cạnh (ADA 2024, luật, USDA, thống kê BRFSS, khẳng định KB đã kiểm chứng) trên Neo4j hoặc NetworkX |
 | Nutrition | `src/diacare/nutrition.py` | Nhận món ăn Việt, tra USDA FoodData Central, xử lý từ đa nghĩa |
-| RL | `src/diacare/rl.py` | Contextual bandit chọn trọng tâm tư vấn, học từ phản hồi người dùng (bảng `rl_events`, `rl_model`) |
+| Coach (Q-learning) | `src/diacare/coach.py`, `coach_sim.py` | Chọn lời nhắc mỗi ngày từ nhật ký 3 ngày qua; bảng Q 36 × 6, học ngoài chính sách (bảng `coach_events`, `models/q_coach.json`) |
+| RL trọng tâm chat | `src/diacare/rl.py` | Contextual bandit ($\gamma = 0$) chọn trọng tâm tư vấn cho Advisor; 👍/👎 chỉ hiện ở chế độ nhà phát triển |
 | Advisor | `src/diacare/advisor.py`, `llm.py` | Gọi Ollama `/api/chat`, hỗ trợ stream |
 | Rules | `src/diacare/rules.py` | Chặn lời khuyên đổi thuốc, gắn cờ chuyển khám / cấp cứu / xét nghiệm |
 | Critic (bước kiểm tra, không phải agent) | `src/diacare/critic.py` | So bản nháp với ngữ cảnh: nhãn nguồn lạ, con số có đơn vị không có trong ngữ cảnh; chỉ gắn cờ |
@@ -380,24 +383,43 @@ diện với Graph agent đọc từ Neo4j. Hướng dẫn trình bày và bản
 
 ## Học tăng cường (Reinforcement Learning)
 
-`src/diacare/rl.py`, **bật mặc định**. `RLAgent` chọn 1 trong 6 trọng tâm tư vấn (`urgent_eval`, `glycemic_followup`,
-`weight_diet`, `physical_activity`, `cardio_control`, `preventive_habit`), đưa vào ngữ cảnh Advisor
-(`RL_TOKEN_BUDGET = 120` token), rồi **học từ phản hồi 👍/👎** mà người dùng bấm dưới câu trả lời.
+Hai agent, cùng 6 trọng tâm an toàn (`urgent_eval`, `glycemic_followup`, `weight_diet`, `physical_activity`,
+`cardio_control`, `preventive_habit`):
 
-- Bài toán: contextual bandit (học tăng cường một bước, $\gamma = 0$). Trạng thái là vector 13 đặc trưng
-  $\phi(s)$; mỗi hành động có một mô hình ridge tuyến tính $\hat r_a(s) = w_a^\top \phi(s)$, $w_a = A_a^{-1} b_a$.
-  Một phản hồi cập nhật $A_a \mathrel{+}= \phi\phi^\top$, $b_a \mathrel{+}= r\phi$ với $r = \pm 1$.
-- Chọn hành động: mặt nạ an toàn (xét nghiệm báo động hoặc triệu chứng thì luôn `urgent_eval`), ngoài ra
-  epsilon-greedy với $\varepsilon = 0{,}1$ (`DIACARE_RL_EPSILON`; benchmark đặt 0). Rules vẫn chạy sau cùng.
-- Lưu trữ: mỗi quyết định và xác suất chọn vào bảng SQLite `rl_events`; mô hình đã học vào `rl_model`.
-  Trang Thống kê hiện số phản hồi và ước lượng ngoài chính sách SNIPS.
-- Khởi động: tiên nghiệm lâm sàng thang $[-1, 1]$ trên trạng thái lấy theo phân bố thật của 253.680 người BRFSS
-  (`kb/rl/brfss_state_freq.json`). Điểm tiên nghiệm trên 5.000 trạng thái mới: chính sách 0,850, ngẫu nhiên 0,173,
-  cận trên 0,902. Đây chỉ là điểm xuất phát; chưa có phản hồi của người dùng thật.
+### Coach Q-learning: lời nhắc mỗi ngày (`src/diacare/coach.py`)
+
+Mỗi sáng, người đã chẩn đoán thấy một "Lời nhắc hôm nay" ở tab Hôm nay. Lời nhắc hôm nay làm đổi hành vi ngày mai
+(có đo không, chỉ số ra sao), nên đây là bài toán nhiều bước, có $s_t \to s_{t+1}$ thật.
+
+- Trạng thái (36 ô) tính từ nhật ký 3 ngày qua bằng các hàm của `diacare.journal`: đo đều (ít / vừa / đều) × kiểm soát
+  (chưa đo / đạt / cao / nguy hiểm) × nhóm lời nhắc hôm qua.
+- Phần thưởng tính từ nhật ký của chính ngày đó, **không cần người dùng bấm gì**: có đo +1, bỏ đo −1, cộng điểm số đo
+  (đạt +0,5, cao −0,3, rất cao −1, hạ đường huyết −1,5 / −1,9), nhắc lại đúng lời hôm qua −0,3. Bỏ đo luôn tệ hơn mọi
+  kết quả đo, để agent không học cách làm người bệnh bớt đo.
+- $Q(s,a) \leftarrow Q(s,a) + \alpha[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$, $\alpha = 0{,}1$, $\gamma = 0{,}9$, học ngoài
+  chính sách từ các ngày đã ghi.
+- An toàn: hôm qua có hạ đường huyết hoặc ≥ 250 mg/dL thì luôn "khám sớm"; ngoài lúc đó agent không được chọn "khám sớm".
+- Dữ liệu: **30 người bệnh mô phỏng**, 14–28 ngày mỗi người, 599 ngày (`data/rl_demo/`, `python tools/make_rl_demo_data.py --db`).
+  Trên 200 người bệnh mô phỏng mới, tổng thưởng TB mỗi người: Q-learning 1,18, luật cố định −0,34, ngẫu nhiên −2,26;
+  Q-learning hơn luật cố định +1,53 [0,39; 2,67] nhưng **không hơn bandit $\gamma = 0$** (−0,01 [−0,68; 0,65]).
+  Chi tiết và cách đọc: `docs/results/2026-11-24_q_learning/`.
+
+### Bandit trọng tâm chat (`src/diacare/rl.py`)
+
+Trong khung chat, `RLAgent` chọn 1 trong 6 trọng tâm và đưa vào ngữ cảnh Advisor (`RL_TOKEN_BUDGET = 120` token).
+Mỗi lượt hỏi là một bài toán riêng, không có trạng thái kế tiếp: contextual bandit, tức Q-learning với $\gamma = 0$.
+
+- Trạng thái là vector 13 đặc trưng $\phi(s)$; mỗi hành động có một mô hình ridge tuyến tính $\hat r_a(s) = w_a^\top \phi(s)$.
+- Mặt nạ an toàn (xét nghiệm báo động hoặc triệu chứng thì luôn `urgent_eval`), ngoài ra epsilon-greedy $\varepsilon = 0{,}1$
+  (`DIACARE_RL_EPSILON`; benchmark đặt 0). Rules vẫn chạy sau cùng.
+- Khởi động từ tiên nghiệm lâm sàng trên trạng thái lấy theo phân bố BRFSS (`kb/rl/brfss_state_freq.json`).
+- Phản hồi 👍/👎 nay **chỉ hiện ở chế độ nhà phát triển** (người bệnh không chấm "trọng tâm"), nên ở chế độ người dùng
+  agent này không học thêm; benchmark chưa đo được tác dụng của nó ($p = 0{,}5$).
 
 ```bash
-python tools/build_rl_states.py    # phân bố trạng thái từ BRFSS (cần tệp CSV) -> kb/rl/brfss_state_freq.json
-python tools/train_rl.py           # chính sách khởi động -> models/rl_policy.json
+python tools/make_rl_demo_data.py --db   # coach Q-learning: dữ liệu giả, huấn luyện, đánh giá -> models/q_coach.json
+python tools/build_rl_states.py          # bandit: phân bố trạng thái từ BRFSS (cần tệp CSV)
+python tools/train_rl.py                 # bandit: chính sách khởi động -> models/rl_policy.json
 ```
 
 ## Đánh giá
@@ -508,6 +530,12 @@ chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nh
 benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
+**Câu trả lời giọng tư vấn (V4.8).** Câu trả lời trước đọc như log ("… [medlineplus_diabetic_diet.txt] … [medlineplus_diabetic_diet.txt]") và có ba lời nhắc mẫu chồng ở cuối, lặp lại mọi lượt. Ba thay đổi:
+(1) giao diện đổi nhãn nguồn thành chú thích ¹ kèm dòng "Nguồn: MedlinePlus – Chế độ ăn cho người đái tháo đường", lời miễn trừ in nhỏ dưới tin nhắn, dòng trọng tâm RL và 👍/👎 chỉ còn ở chế độ nhà phát triển (`src/diacare/present.py`; chỉ đổi cách hiện, câu trả lời cuối giữ nguyên nên không ảnh hưởng benchmark);
+(2) lời nhắc tái khám cho người đã chẩn đoán chỉ nói một lần mỗi phiên, lời nhắc triệu chứng, cấp cứu, hạ đường huyết vẫn nhắc mỗi lần cần;
+(3) Advisor được dặn nói như điều dưỡng tư vấn, theo bốn nhịp: trả lời thẳng, giải thích vì sao chỉ bằng con số có trong ngữ cảnh, 2–3 việc cụ thể, khi nào nên đi khám.
+Đo lại (3): 131 → 127/150 lượt đạt, McNemar $p = 0{,}42$, tỉ lệ bản nháp có nhãn nguồn giữ nguyên (116 → 113/150), nhưng bản nháp dài hơn (90 → 133 chữ) và số không có trong ngữ cảnh tăng gần gấp đôi (11 → 20 lượt): mô hình 3B vẫn tự ước tính số dù đã dặn. Chi tiết ở `docs/results/2026-11-24_voice_3b/`.
+
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
 nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
 
@@ -565,6 +593,8 @@ tests/                  test (pytest)
 
 ## Hạn chế đã biết
 
+- Coach Q-learning mới chỉ được huấn luyện và đánh giá trên người bệnh mô phỏng do nhóm tự viết; trên mô phỏng đó Q-learning ($\gamma = 0{,}9$) không hơn bandit ($\gamma = 0$). Chưa thử trên người thật.
+- Prompt giọng tư vấn làm mô hình 3B tự đưa ra con số nhiều hơn (11 → 20/150 lượt); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng.
 - Mức nguy cơ chỉ tính từ 21 câu hỏi lối sống trong hồ sơ, không dùng xét nghiệm hay triệu chứng (hai thứ này được xét
   riêng bằng cờ). Ba nguồn huấn luyện đều là dữ liệu Mỹ; NHANES thiếu 10/21 chỉ số, BRFSS 2023 thiếu rau quả.
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt. Ba cách nói

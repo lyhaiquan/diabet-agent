@@ -1,3 +1,4 @@
+import json
 import os
 
 import matplotlib
@@ -7,6 +8,8 @@ import streamlit as st
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
+from diacare.coach import STATES, history_rewards, load_coach  # noqa: E402
+from diacare.journal import now_vn  # noqa: E402
 from diacare.factory import ROOT, build_orchestrator, open_store  # noqa: E402
 from diacare.flowviz import flow_html  # noqa: E402
 from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
@@ -16,8 +19,10 @@ from diacare.memory import KIND_LABELS, has_diagnosis  # noqa: E402
 from diacare.ocr import UploadRejected  # noqa: E402
 from diacare.orchestrator import Orchestrator  # noqa: E402
 from diacare.predictor import compare_models  # noqa: E402
-from diacare.rl import ACTION_LABELS, off_policy_report  # noqa: E402
-from diacare.rules import BINARY_FEATURES, FEATURE_RANGES, SafeStream, risk_band, validate_profile  # noqa: E402
+from diacare.present import TITLES, present, sources_line, streaming_view  # noqa: E402
+from diacare.rl import ACTION_IDS, ACTION_LABELS, off_policy_report  # noqa: E402
+from diacare.rules import (BINARY_FEATURES, DISCLAIMER, FEATURE_RANGES, SafeStream, risk_band,  # noqa: E402
+                           validate_profile)
 from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
 from diacare.typewriter import Typewriter  # noqa: E402
@@ -267,7 +272,7 @@ def _render_kg(kg):
             st.code(kg["query"], language="cypher")
 
 
-def _render_meta(meta, dev=True, diagnosed=False):
+def _render_meta(meta, dev=True, diagnosed=False, cited=False):
     flags = meta.get("flags", [])
     if "small_talk" in flags or "out_of_scope" in flags:  # câu chào / ngoài chủ đề: không dự đoán, không hiện nguy cơ
         return
@@ -275,9 +280,10 @@ def _render_meta(meta, dev=True, diagnosed=False):
         lab_level = meta.get("lab_level")
         if lab_level in ("diabetes", "low") and not diagnosed or lab_level == "low" or "symptom_referral" in flags:
             st.warning("Có dấu hiệu cần đi khám. Hãy liên hệ bác sĩ, đừng chỉ dựa vào trợ lý này.")
-        sources = meta.get("sources", [])
-        if sources:
-            st.caption("Nguồn: " + ", ".join(sources))
+        # Câu trả lời đã có chú thích nguồn thì dòng nguồn nằm ngay dưới bài; không thì kể tài liệu đã tra.
+        titles = list(dict.fromkeys(TITLES.get(s.removesuffix(".txt"), s) for s in meta.get("sources", [])))
+        if titles and not cited:
+            st.caption("Tài liệu đã tham khảo: " + "; ".join(titles))
         return
     risk = meta.get("risk")
     parts = []
@@ -332,6 +338,27 @@ def _render_meta(meta, dev=True, diagnosed=False):
             col.metric(label, u.get(key, "-"))
 
 
+def _streaming(text, cursor=" ▌"):
+    """Chữ đang stream: không thoáng hiện nhãn tên tệp nguồn (câu cuối sẽ có chú thích ¹ ²)."""
+    if text.endswith(cursor):
+        return streaming_view(text[: -len(cursor)]) + cursor
+    return streaming_view(text)
+
+
+def _render_answer(content, dev):
+    """Người bệnh thấy bài có chú thích nguồn và lời miễn trừ in nhỏ; chế độ nhà phát triển thấy nguyên văn."""
+    if dev:
+        st.write(content)
+        return False
+    body, notes, disclaimer = present(content)
+    st.markdown(body)
+    if notes:
+        st.caption(sources_line(notes))
+    if disclaimer:
+        st.caption(DISCLAIMER)
+    return bool(notes)
+
+
 def _ask(store, base, patient, question, status=None, box=None):
     """status: khung tiến trình agent (st.status); box: chỗ hiện chữ đang stream (st.empty)."""
     sid = st.session_state["session_id"]
@@ -341,7 +368,7 @@ def _ask(store, base, patient, question, status=None, box=None):
     on_step = (lambda e: status.markdown(_trace_line(e))) if status is not None else None
     # Chỉ hiện từng câu đã qua bộ lọc an toàn: lời khuyên đổi thuốc không kịp hiện ra dù một giây.
     # Typewriter gõ phần đã được duyệt ra từng từ một để chữ chảy đều thay vì nhảy cả câu.
-    typer = Typewriter(box.markdown) if box is not None else None
+    typer = Typewriter(lambda t: box.markdown(_streaming(t))) if box is not None else None
     stream = SafeStream(typer) if box is not None else None
     state = orch.run(State(question=question, profile=patient["profile"], history=history,
                            patient_id=patient["id"]), on_token=stream, on_step=on_step)
@@ -426,16 +453,20 @@ def _render_messages(store, base=None):
         with st.chat_message(m["role"]):
             info = meta.get(i)
             flags = info["flags"] if info else []
+            cited = False
             if "system_error" in flags:
                 st.error(m["content"])
+            elif m["role"] == "assistant":
+                cited = _render_answer(m["content"], dev)
             else:
                 st.write(m["content"])
             if "invalid_input" in flags:
                 st.warning("Dữ liệu hồ sơ chưa hợp lệ.")
-            if m["role"] == "assistant" and m.get("rl_event_id") and base is not None:
+            # Trọng tâm do agent RL chọn và nút 👍/👎 là thông tin cho nhà phát triển, không hiện với người bệnh.
+            if dev and m["role"] == "assistant" and m.get("rl_event_id") and base is not None:
                 _render_rl_feedback(store, base, m["rl_event_id"])
             if m["role"] == "assistant" and info:
-                _render_meta(info, dev=dev, diagnosed=diagnosed)
+                _render_meta(info, dev=dev, diagnosed=diagnosed, cited=cited)
 
 
 def render_history(store):
@@ -541,8 +572,49 @@ def render_stats(store, base=None):
         fig.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+    _render_q_coach(store)
     if base is not None:
         _render_rl_stats(store, base)
+
+
+def _render_q_coach(store):
+    """Agent Q-learning nhắc việc hằng ngày: kết quả trên dữ liệu mô phỏng, chính sách học được, lịch sử nhắc."""
+    coach = load_coach()
+    if coach is None:
+        return
+    st.subheader("Agent Q-learning: lời nhắc hằng ngày")
+    meta = coach.meta or {}
+    cov = coach.coverage()
+    st.caption(f"Học ngoài chính sách từ {meta.get('transitions', '?')} ngày của {meta.get('patients', '?')} người "
+               f"bệnh ({meta.get('source', '')}). γ = {coach.gamma}. Dữ liệu phủ {cov['states_seen']}/"
+               f"{cov['states_total']} trạng thái, {cov['cells_seen']}/{cov['cells_total']} ô (trạng thái, hành động).")
+    ev_path = ROOT / "data" / "rl_demo" / "eval.json"
+    if ev_path.exists():
+        ev = json.loads(ev_path.read_text(encoding="utf-8"))
+        st.dataframe([{"Chính sách": k, "Tổng thưởng TB / người": v["mean_return"],
+                       "KTC 95%": f"[{v['ci95'][0]}; {v['ci95'][1]}]", "Tỉ lệ ngày có đo": v["logged_days"],
+                       "Số đo đạt mục tiêu": v["in_target"]}
+                      for k, v in ev["eval_on_new_simulated_patients"].items()], hide_index=True)
+        st.caption(ev.get("note", ""))
+    rows = []
+    for i, s in enumerate(STATES):
+        if coach.counts[i].sum():
+            st_ = {"adherence": s[0], "control": s[1], "prev": s[2], "urgent": False}
+            a = coach.act(st_)[0]
+            rows.append({"Đo 3 ngày qua": s[0], "Kiểm soát": s[1], "Nhắc hôm qua": s[2],
+                         "Lời nhắc chọn": ACTION_LABELS[a], "Q": round(float(coach.q[i, ACTION_IDS.index(a)]), 2),
+                         "Số ngày dữ liệu": int(coach.counts[i].sum())})
+    with st.expander(f"Chính sách học được ({len(rows)} trạng thái có dữ liệu)"):
+        st.dataframe(rows, hide_index=True)
+    pid = st.session_state.get("session_patient")
+    hist = history_rewards(store, pid, store.get_targets(pid), today=now_vn().date()) if pid else []
+    if hist:
+        st.markdown(f"**Lịch sử lời nhắc của người bệnh đang chọn** ({len(hist)} ngày)")
+        df = pd.DataFrame([{"Ngày": h["day"], "Lời nhắc": ACTION_LABELS[h["action"]], "Cách chọn": h["mode"],
+                            "Phần thưởng": h["reward"]} for h in hist])
+        df["Tổng thưởng tích lũy"] = df["Phần thưởng"].cumsum()
+        st.line_chart(df.set_index("Ngày")["Tổng thưởng tích lũy"])
+        st.dataframe(df, hide_index=True)
 
 
 _NO_TRANSLATE_JS = """<script>

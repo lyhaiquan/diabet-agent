@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from diacare import journal
+from diacare.coach import daily_nudge, load_coach
 from diacare.labs import classify
 from diacare.memory import has_diagnosis
 from diacare.visit_report import build_visit_pdf, glucose_chart_png
@@ -114,6 +115,12 @@ def bp_weight_forms(store, patient_id):
 
 # ---- Hôm nay ----------------------------------------------------------------
 
+@st.cache_resource
+def _coach():
+    """Agent Q-learning chọn lời nhắc mỗi ngày (diacare.coach); None nếu chưa huấn luyện."""
+    return load_coach()
+
+
 def render_today(store, patient_id):
     if patient_id is None:
         st.info("Hãy tạo hồ sơ ở thanh bên để bắt đầu.")
@@ -125,6 +132,10 @@ def render_today(store, patient_id):
     _show_messages(journal.alerts(readings, now=now))
     targets = journal.resolve_targets(store.get_targets(patient_id))
     _show_messages(journal.reminders(readings, store.get_appointment(patient_id), now=now, targets=targets))
+    coach = _coach()
+    if coach is not None and has_diagnosis(store.list_memories(patient_id)):
+        nudge = daily_nudge(store, coach, patient_id, now.date())
+        st.info("**Lời nhắc hôm nay.** " + nudge["text"], icon=":material/lightbulb:")
 
     st.markdown("#### Ghi đường huyết")
     glucose_form(store, patient_id, prefix="today")

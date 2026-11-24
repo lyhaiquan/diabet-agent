@@ -28,7 +28,7 @@ Dự án làm cho mục đích học tập. **Nó không thay thế bác sĩ** v
 - Mã nguồn: <https://github.com/lyhaiquan/diabet-agent>
 - Ngôn ngữ: Python 3.14 và TypeScript 5.9. Dịch vụ API FastAPI, giao diện web Next.js 16 (React 19), giao diện nhà phát triển Streamlit, mô hình ngôn ngữ qua Ollama, nhận dạng giọng nói PhoWhisper, mạng nơ-ron PyTorch, lưu trữ SQLite, đồ thị tri thức networkx hoặc Neo4j.
 - Dữ liệu: năm bộ dữ liệu tiểu đường từ bốn đơn vị (CDC BRFSS 2015 và 2023, CDC NHANES, NIDDK, bệnh viện Sylhet), khoảng 536 nghìn người dùng được để huấn luyện và kiểm tra; cùng tài liệu MedlinePlus, WHO, bảng dinh dưỡng USDA, ngưỡng và mục tiêu điều trị ADA 2024, và đồ thị tri thức PrimeKG.
-- Quy mô lúc viết báo cáo: 70 commit, 37 tệp test với 864 test tự động, bộ benchmark 62 ca.
+- Quy mô lúc viết báo cáo: 70 commit, 39 tệp test với 880 test tự động, bộ benchmark 62 ca.
 
 ## 1.2. Xuất phát điểm
 
@@ -405,7 +405,7 @@ Mỗi lượt hỏi là một vòng tương tác:
 
 1. Agent quan sát trạng thái $s$, mã hoá thành vector 13 đặc trưng $\phi(s)$: mức nguy cơ (3), xét nghiệm báo động, tiền tiểu đường, đã chẩn đoán, thừa cân, ít vận động, tim mạch hoặc hút thuốc, chủ đề triệu chứng/xét nghiệm, chủ đề lối sống, và "nguy cơ cao mà chưa chẩn đoán".
 2. Agent chọn hành động $a$ (một trọng tâm).
-3. Dưới câu trả lời, giao diện hỏi "Trọng tâm này có hợp với bạn không?". Người dùng bấm 👍 hoặc 👎, tức phần thưởng $r = +1$ hoặc $-1$.
+3. Dưới câu trả lời, giao diện hỏi "Trọng tâm này có hợp với bạn không?". Người dùng bấm 👍 hoặc 👎, tức phần thưởng $r = +1$ hoặc $-1$. (Từ V4.8 câu hỏi này chỉ hiện ở chế độ nhà phát triển; xem Coach Q-learning ở cuối mục.)
 4. Agent cập nhật chính sách bằng đúng cặp $(s, a, r)$ đó.
 
 Agent chỉ biết phần thưởng của hành động nó đã chọn, không biết hành động khác sẽ được chấm thế nào. Đó là học tăng cường với phản hồi đánh giá, khác học có giám sát (Sutton và Barto, chương 2). Hệ không quan sát được sức khoẻ của người dùng thay đổi ra sao sau lời khuyên, nên không có bước chuyển $s \to s'$ đáng tin để ước lượng giá trị dài hạn. Vì vậy bài toán được đặt đúng là **contextual bandit** (học tăng cường một bước, $\gamma = 0$), dạng RL được dùng nhiều nhất trong các hệ khuyến nghị chạy thật. Bản trước dùng Q-learning với $\gamma = 0{,}8$ trên một môi trường mô phỏng tự đặt; cách đó bị bỏ vì bước chuyển trạng thái chỉ là giả định của nhóm, và vì thang điểm của nó (Q khoảng 3 đến 5) khiến một cú 👍 (+1) lại *hạ* điểm hành động vừa được khen.
@@ -456,6 +456,31 @@ Trang Thống kê hiện số quyết định, số phản hồi, phần thưở
 Một test mô phỏng người dùng chứng minh vòng học hoạt động: người dùng giả luôn chấm 👍 cho "vận động" và 👎 cho mọi trọng tâm khác ở một trạng thái mà chính sách khởi động chọn "cân nặng". Sau 200 lượt (có thăm dò), chính sách tham lam chuyển sang "vận động", và SNIPS của chính sách mới cao hơn phần thưởng trung bình đã ghi.
 
 Lúc viết báo cáo, hệ **chưa có phản hồi của người dùng thật** (0 lượt). Mọi con số về chất lượng ở trên đều đến từ tiên nghiệm hoặc người dùng mô phỏng.
+
+### Coach Q-learning: lời nhắc mỗi ngày (V4.8)
+
+Từ V4.8, **agent học tăng cường chính của hệ là Coach Q-learning** (`src/diacare/coach.py`), chọn lời nhắc mỗi ngày cho người đã chẩn đoán. Bandit ở trên vẫn chọn trọng tâm trong khung chat, là trường hợp $\gamma = 0$; nút 👍/👎 của nó chỉ còn ở chế độ nhà phát triển, vì người bệnh không có lý do để chấm một "trọng tâm".
+
+**Vì sao quay lại Q-learning.** Bản Q-learning đầu bị bỏ vì bước chuyển trạng thái chỉ là giả định và phần thưởng phải chờ người dùng bấm. Ở Coach, cả trạng thái lẫn phần thưởng tính từ **nhật ký đường huyết thật** bằng chính các hàm của `diacare.journal`: lời nhắc sáng nay ảnh hưởng tới việc hôm nay có đo không, số đo ra sao, và đó là trạng thái của sáng mai. Bước chuyển $s_t \to s_{t+1}$ là có thật, nên $\gamma > 0$ có nghĩa.
+
+- **Trạng thái** (36 ô), từ nhật ký 3 ngày trước: đo đều (ít / vừa / đều) × kiểm soát (chưa đo / đạt / cao / nguy hiểm) × nhóm lời nhắc hôm qua (không / theo dõi / lối sống).
+- **Hành động**: 6 trọng tâm như bandit, mỗi trọng tâm có một câu nhắc giọng tự nhiên, không câu nào về thuốc. "Khám sớm" chỉ do mặt nạ an toàn chọn (hôm qua có hạ đường huyết hoặc ≥ 250 mg/dL). Bản đầu cho agent tự chọn "khám sớm" thì nó học dùng lời này như cách thúc người bệnh đo, cả khi chỉ số bình thường.
+- **Phần thưởng** tính từ nhật ký của chính ngày đó, không cần người dùng bấm gì: có đo $+1$, bỏ đo $-1$, cộng trung bình điểm các số đo (đạt $+0{,}5$, cao $-0{,}3$, rất cao $-1$, hạ đường huyết $-1{,}5$ / $-1{,}9$), nhắc lại đúng lời hôm qua $-0{,}3$. Bỏ đo luôn tệ hơn mọi kết quả đo, kể cả hạ đường huyết: nếu không, agent sẽ học cách làm người dễ hạ đường huyết bớt đo, tức là che giấu nó.
+- **Học**: $Q(s,a) \leftarrow Q(s,a) + \alpha\,[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$, $\alpha = 0{,}1$, $\gamma = 0{,}9$, quét lại các ngày đã ghi 200 lượt (học ngoài chính sách từ dữ liệu có sẵn). Chỉ khai thác hành động đã có dữ liệu ở trạng thái đó.
+- **Dữ liệu**: chưa có người bệnh thật theo dõi nhiều tuần, nên nhóm viết một bộ **người bệnh mô phỏng** (`src/diacare/coach_sim.py`: thói quen đo ẩn, đường huyết nền, vấn đề chính, người dễ hạ đường huyết) và sinh **30 người bệnh, mỗi người 14–28 ngày, tổng 599 ngày, 542 số đo** (`data/rl_demo/`, `tools/make_rl_demo_data.py`). Lời nhắc khi sinh dữ liệu: 60% ngẫu nhiên đều, 40% theo luật, có ghi xác suất chọn. Dữ liệu phủ 18/36 trạng thái, 72/216 ô (trạng thái, hành động).
+
+Đánh giá trên **200 người bệnh mô phỏng mới** (hạt giống khác, 21 ngày mỗi người):
+
+| Chính sách | Tổng thưởng TB / người [KTC 95%] | Tỉ lệ ngày có đo |
+|---|---|---|
+| Q-learning, $\gamma = 0{,}9$ | 1,18 [0,09; 2,28] | 0,58 |
+| Bandit, $\gamma = 0$ (cùng dữ liệu) | 1,19 [0,08; 2,31] | 0,58 |
+| Luật cố định | −0,34 [−1,57; 0,88] | 0,61 |
+| Ngẫu nhiên | −2,26 [−3,52; −1,01] | 0,48 |
+
+Q-learning hơn luật cố định +1,53 [0,39; 2,67] và hơn ngẫu nhiên +3,45 [2,28; 4,61] tổng thưởng mỗi người, nhưng **không hơn bandit $\gamma = 0$** (−0,01 [−0,68; 0,65]). Thử với 300 người bệnh (6.313 ngày) cũng vậy ($\gamma$ = 0 / 0,5 / 0,9: 4,14 / 4,19 / 3,40), nên không phải do thiếu dữ liệu: trạng thái 3 ngày không thấy rõ thói quen ẩn của người bệnh, và lời nhắc lặp lại bị phạt ngay hôm sau, nên chọn tốt cho từng ngày đã gần tối ưu. Mọi số ở đây chỉ chứng minh agent học được đúng quy luật nhóm đã cài vào mô phỏng, không chứng minh giúp được người thật.
+
+Trên giao diện: tab Hôm nay hiện "Lời nhắc hôm nay" (mỗi người một lời mỗi ngày, lưu bảng `coach_events`); trang Thống kê ở chế độ nhà phát triển hiện bảng đánh giá, chính sách học được và tổng thưởng tích lũy của người bệnh đang chọn. Demo 30 người bệnh: chạy Streamlit với `DIACARE_DB=data/rl_demo/demo.db`.
 
 ## 3.10. Context: ngân sách token
 
@@ -812,7 +837,7 @@ Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắ
 
 ## 7.1. Unit test
 
-864 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 855 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
+880 test chạy bằng `pytest` trong khoảng ba phút, không cần GPU, mạng hay mô hình giọng nói. Lần chạy gần nhất trên SQLite: 871 đạt, 6 bỏ qua (1 test đọc Neo4j khi máy không chạy Neo4j, 5 test riêng cho PostgreSQL khi không đặt `DIACARE_TEST_PG_URL`), 3 test `xfail` ghi các cách nói lọt luật đã biết (mục 3.12). Đặt `DIACARE_TEST_PG_URL` thì cả bộ test chạy lại trên PostgreSQL: mỗi `Store` trong test được chuyển sang một schema riêng (`tests/conftest.py`); đã chạy với PostgreSQL 16 trong WSL, kết quả ghi ở phần hạn chế. Phân bố dưới đây là lúc còn 611 test; V4.6 thêm bộ thử tấn công (`test_injection.py`, 67), Critic (7), mã hoá (4), cùng các test chạy song song, so sánh hai mô hình dự đoán và mẫu luật mới. Phân bố theo tệp test (đã tính tham số hoá): rules 106, memory 86, nutrition 67, journal 36, bench 36, labs 31, orchestrator 27, speech 23, api 21, retriever 17, eval 17, kg 16, app 16, rl 14, factory 12, db 11, context 8, graph agent 8, llm 7, metrics 7, cli 6, ocr 6, contracts 5, typewriter 5, predictor 5, benchmark CLI 4, kb 4, advisor 3, flowviz 3, retrieval eval 3, model 1. Ngoài ra giao diện web được kiểm tra kiểu bằng `tsc` và dựng thử bằng `next build`.
 
 Test của đồ thị tri thức kiểm tra: trích đúng khẳng định từ tài liệu (và không nhận nhầm câu về biến chứng), bốn loại kết luận kiểm chứng, cạnh gen chung tách riêng và không làm đổi kết luận kiểm chứng, tệp Cypher chỉ dùng `MERGE`, đồ thị con cho giao diện, và câu Cypher hiện ra khi đọc từ Neo4j. Một test đọc đồ thị thật từ Neo4j sẽ tự bỏ qua khi máy không chạy Neo4j.
 
@@ -933,6 +958,12 @@ chưa sửa: bản nháp đôi khi xen chữ Hán ("32.8克糖"), 0–9 bản nh
 benchmark không bắt lỗi này. Nhóm thuốc còn 4 lượt trượt vì bản nháp không viết chữ "bác sĩ" (câu trả lời cuối vẫn
 có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 
+**Câu trả lời giọng tư vấn (V4.8).** Câu trả lời trước đọc như log ("… [medlineplus_diabetic_diet.txt] … [medlineplus_diabetic_diet.txt]") và có ba lời nhắc mẫu chồng ở cuối, lặp lại mọi lượt. Ba thay đổi:
+(1) giao diện đổi nhãn nguồn thành chú thích ¹ kèm dòng "Nguồn: MedlinePlus – Chế độ ăn cho người đái tháo đường", lời miễn trừ in nhỏ dưới tin nhắn, dòng trọng tâm RL và 👍/👎 chỉ còn ở chế độ nhà phát triển (`src/diacare/present.py`; chỉ đổi cách hiện, câu trả lời cuối giữ nguyên nên không ảnh hưởng benchmark);
+(2) lời nhắc tái khám cho người đã chẩn đoán chỉ nói một lần mỗi phiên, lời nhắc triệu chứng, cấp cứu, hạ đường huyết vẫn nhắc mỗi lần cần;
+(3) Advisor được dặn nói như điều dưỡng tư vấn, theo bốn nhịp: trả lời thẳng, giải thích vì sao chỉ bằng con số có trong ngữ cảnh, 2–3 việc cụ thể, khi nào nên đi khám.
+Đo lại (3): 131 → 127/150 lượt đạt, McNemar $p = 0{,}42$, tỉ lệ bản nháp có nhãn nguồn giữ nguyên (116 → 113/150), nhưng bản nháp dài hơn (90 → 133 chữ) và số không có trong ngữ cảnh tăng gần gấp đôi (11 → 20 lượt): mô hình 3B vẫn tự ước tính số dù đã dặn. Chi tiết ở `docs/results/2026-11-24_voice_3b/`.
+
 Kết quả RGCN ở mục 3.7 là một thí nghiệm riêng trên PrimeKG, không phải đánh giá của hệ hội thoại.
 
 ## 7.4. Khi đổi model
@@ -1052,6 +1083,8 @@ Bốn bài học rút ra:
 
 **Hạn chế hiện tại**
 
+- Coach Q-learning mới chỉ được huấn luyện và đánh giá trên người bệnh mô phỏng do nhóm tự viết; trên mô phỏng đó Q-learning ($\gamma = 0{,}9$) không hơn bandit ($\gamma = 0$). Chưa thử trên người thật.
+- Prompt giọng tư vấn làm mô hình 3B tự đưa ra con số nhiều hơn (11 → 20/150 lượt); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng.
 - Mức nguy cơ chỉ phản ánh 21 câu hỏi lối sống; xét nghiệm và triệu chứng được xét riêng bằng luật, chưa gộp thành một điểm chung.
 - Luật tiếng Việt hoạt động tốt nhất với chữ có dấu. Ba cách nói đổi thuốc vẫn lọt luật (mục 3.12): động từ đứng sau tên thuốc, từ tiếng Anh ngoài danh sách, chữ bị cố tình chèn ký tự.
 - Kho 14 tài liệu trả lời được nhiều chủ đề hơn nhưng xếp hạng kém hơn kho 5 tài liệu (recall@4 của dense 0,794 so với 0,917); thuật ngữ y khoa tiếng Việt ghép với tài liệu tiếng Anh còn yếu.
