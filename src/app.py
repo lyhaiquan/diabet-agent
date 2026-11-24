@@ -27,6 +27,8 @@ from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
 from diacare.typewriter import Typewriter  # noqa: E402
 from journal_ui import render_journal, render_today, render_visit  # noqa: E402
+import checkin_ui  # noqa: E402
+from meal_ui import render_meal  # noqa: E402
 
 LABELS = {
     "HighBP": "huyết áp cao",
@@ -53,7 +55,7 @@ LABELS = {
 }
 FIELDS = tuple(FEATURE_RANGES)
 # Người bệnh chỉ thấy 4 trang; ba trang kỹ thuật chỉ hiện ở chế độ nhà phát triển (DIACARE_DEV=1 hoặc nút gạt).
-USER_PAGES = ("Hôm nay", "Nhật ký", "Tư vấn", "Tái khám")
+USER_PAGES = ("Hôm nay", "Nhật ký", "Bữa ăn", "Tư vấn", "Tái khám")
 DEV_PAGES = ("Hoạt động agent", "Lịch sử", "Thống kê")
 
 
@@ -410,8 +412,14 @@ def render_chat(store, base, patient_id):
     else:
         st.caption("Hỏi về ăn uống, vận động, thuốc, kết quả xét nghiệm. Trợ lý không chẩn đoán và không khuyên "
                    "đổi thuốc; mọi thay đổi điều trị cần hỏi bác sĩ.")
+    sid = st.session_state["session_id"]
+    # Trợ lý chủ động hỏi (diacare.checkin): mỗi ngày mở lời một lần cho người đã chẩn đoán
+    checkin_ui.maybe_open(store, patient, sid, is_diagnosed(store, patient_id))
     question = st.chat_input("Nhập câu hỏi, vd \"Bữa sáng ăn bánh mì trứng có ổn không?\"")
+    if question and checkin_ui.handle_input(store, patient, sid, question):
+        question = None  # là câu trả lời số đo / "chưa đo": đã xử lý, không gửi cho pipeline tư vấn
     _render_messages(store, base)
+    checkin_ui.render_card(store, patient, sid)
     if question:
         with st.chat_message("user"):
             st.write(question)
@@ -665,6 +673,8 @@ def main():
         render_today(store, patient_id)
     elif page == "Nhật ký":
         render_journal(store, patient_id, _import_labs)
+    elif page == "Bữa ăn":
+        render_meal(store, patient_id)
     elif page == "Tái khám":
         render_visit(store, patient_id)
     elif page == "Tư vấn":

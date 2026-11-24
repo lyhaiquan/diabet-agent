@@ -62,6 +62,32 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
   - lập bản tóm tắt PDF một trang mang đi khám;
   - trang Tư vấn đọc nhật ký 14 ngày gần nhất (JournalAgent): trợ lý trả lời theo số đo của chính người dùng.
     Nhật ký được tóm tắt sẵn kèm nhận định cao hơn, thấp hơn hay trong mục tiêu, vì mô hình 3B hay tự so sai.
+  - **trợ lý chủ động hỏi** (`src/diacare/checkin.py`, `src/checkin_ui.py`): mỗi ngày một lần, khi người đã chẩn đoán
+    mở trang Tư vấn, trợ lý mở lời trước thay vì đợi người dùng gõ. Nó chọn một điều đáng hỏi nhất từ nhật ký: vừa có
+    số đo hạ đường huyết hoặc rất cao trong 24 giờ, hôm nay chưa đo, mấy hôm cao liền, hoặc đã đo đủ thì hỏi có cần
+    tư vấn gì không. Kèm theo là lời nhắc hôm nay của agent Q-learning (cùng lời với tab Hôm nay). Người dùng trả lời
+    bằng chữ:
+    - có số đo ("6,5", "7,8 sau ăn lúc 12h", "tối qua 9 giờ đo 8,1"): hiện thẻ xác nhận giá trị, đơn vị, thời điểm
+      đo, ngày giờ; chỉ ghi vào nhật ký khi bấm **Lưu**, rồi trợ lý báo trong hay ngoài mục tiêu, kèm lời khuyên an
+      toàn soạn sẵn nếu hạ đường huyết hoặc rất cao;
+    - "chưa đo": một câu soạn sẵn, lượt hỏi vẫn mở để lát nữa gõ số vẫn ghi được;
+    - kể triệu chứng ("run tay, vã mồ hôi", "không ổn") ngay sau câu hỏi về số đo nguy hiểm: nhắc lại lời khuyên an
+      toàn soạn sẵn (quy tắc 15–15, gọi 115 nếu lả đi), không chờ LLM;
+    - câu hỏi hay lời kể khác (kể cả "8,5 lúc đói có cao không?"): chuyển cho pipeline tư vấn như mọi câu hỏi, có lời
+      mở đầu trong lịch sử để mô hình hiểu ngữ cảnh.
+
+    Mọi câu của trợ lý ở đây là câu soạn sẵn từ dữ liệu nhật ký, không do LLM viết, và không chạy trong
+    `orchestrator.run`, nên benchmark không đổi. Lượt hỏi mỗi ngày lưu ở bảng `checkins`. Ghi số đo đều đặn hơn
+    cũng là thứ agent Q-learning được thưởng (có đo +1, bỏ đo −1).
+  - **trang Bữa ăn: chụp khay cơm, ước lượng tinh bột** (`src/diacare/meal_scan.py`, `src/meal_ui.py`): người dùng
+    tải hoặc chụp ảnh khay cơm; agent bữa ăn gửi ảnh cho dịch vụ **Calo Khay** (project xử lý ảnh riêng của nhóm:
+    YOLO26s-seg + DINOv2 nhận diện 44 món căng tin, ước lượng gram theo diện tích so với đĩa) qua HTTP
+    `POST /api/scan`. DiaCare hiện bảng món để kiểm tra: món mô hình chưa chắc phải tích **Đúng món** (hoặc đổi tên theo
+    gợi ý) mới lưu được; gram sửa được, nhất là **cơm** (mô hình chưa đo được cơm, đang để mức trung bình 228 g, mà cơm
+    là phần nhiều tinh bột nhất). Tinh bột tính theo bảng `data/nutrition/calo_khay_carb.csv`, ra một **khoảng**:
+    thấp = gram × (1 − sai số) × carb, cao = gram × (1 + sai số) × carb cận trên; sai số gram ±30% (mức của Calo Khay),
+    ±50% cho gram "trung bình" (cơm 228 g, hoặc không thấy đĩa), gram người dùng tự sửa thì ±15%. Đồ uống ghi "chưa tính". Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi
+    chú). Không con số nào do LLM viết; đây là ước lượng để theo dõi, không dùng để tính liều insulin.
 
   Giao diện mặc định là chế độ người dùng. Log agent, đồ thị tri thức và thống kê chỉ hiện khi bật **Chế độ nhà phát
   triển** (nút gạt ở thanh bên, hoặc `DIACARE_DEV=1`).
@@ -304,6 +330,22 @@ Lưu ý khi dùng:
 - Gặp tiếng ồn không phải lời nói, Whisper có thể "bịa" ra một câu. Vì vậy mọi số đo nghe được đều phải được xác nhận
   trước khi lưu.
 
+### Dịch vụ nhận diện món Calo Khay (trang Bữa ăn)
+
+Calo Khay cần torch, ultralytics, transformers nên chạy trong môi trường riêng, không cài vào DiaCare. Bấm đúp
+**`chay_calo_khay.bat`**: nó chạy backend FastAPI có sẵn của Calo Khay ở `http://127.0.0.1:8010`, dùng SQLite trong
+`data/calo_khay/` (không cần MySQL). Đường dẫn mặc định `D:\CVision\Final_Project_Digital_Image_Processing` và
+`D:\food-labeling\.venv\Scripts\python.exe`; đổi bằng biến `CALO_KHAY_DIR`, `CALO_KHAY_PY`. Nạp model khoảng 15
+giây (chạy offline, DINOv2 đã có trong cache Hugging Face; máy mới lần đầu cần mạng, xoá hai dòng
+`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE` trong file .bat); mỗi ảnh khoảng 0,4–1 giây trên GPU RTX 3050 Ti. Chưa bật dịch vụ thì trang Bữa ăn báo cách bật, các trang khác
+vẫn chạy bình thường.
+
+Bảng tinh bột sinh bằng `python tools/build_carb_table.py`: đọc cột `carb(g)` của Nutrition5k `ingredients_metadata`
+(USDA FNDDS), cùng nguồn với cột kcal của Calo Khay. Món không có trong Nutrition5k hoặc chỉ có nguyên liệu chính
+(thịt kho, cá kho, gà sốt chua ngọt, giò chả có bột độn, tôm tẩm bột...) có thêm **cận trên** theo tỉ lệ giả định ghi
+trong script (nước kho ngọt 10%, bột độn 10%...), vì với người tiểu đường ước thấp là chiều nguy hiểm. Mục
+"spring rolls" của Nutrition5k chỉ 4% carb (như cuốn tươi) nên nem rán dùng "egg rolls" (29%).
+
 ### Chạy trên Kaggle (GPU miễn phí)
 
 `kaggle/build_app_notebook.py` đóng gói code thành notebook. Notebook cài Ollama, tải `qwen2.5:7b`, chạy Streamlit và
@@ -317,6 +359,40 @@ kaggle kernels push -p kaggle/app_kernel
 
 `kaggle/build_notebook.py` tạo notebook benchmark tương tự.
 
+### Chỉ chạy model 7B trên Kaggle, giao diện ở máy mình
+
+Máy yếu không chạy nổi `qwen2.5:7b` thì để Kaggle chạy model, còn giao diện, dữ liệu và nhật ký vẫn ở máy mình.
+Notebook (`kaggle/build_ollama_notebook.py`) chỉ cài Ollama, tải `qwen2.5:7b` và mở Cloudflare quick tunnel. Tunnel trỏ
+vào một cổng chặn (`src/diacare/ollama_gate.py`), không trỏ thẳng vào Ollama. Cổng chặn chỉ cho qua yêu cầu có header
+`Authorization: Bearer <token>` đúng, và chỉ các đường `/api/chat`, `/api/tags`, `/api/version`, `/gate/stop`: người có
+link mà không có token không dùng được GPU, cũng không kéo hay xoá được model.
+
+**Tự động, không mở web Kaggle** (cần Kaggle CLI đã đăng nhập, xem `kaggle/save_token.ps1`): bấm đúp
+**`chay_kaggle.bat`**. Bên trong là `python tools/kaggle_llm.py up`:
+
+1. Tạo token một lần, lưu ở `kaggle/ollama_token.local` (gitignore), nhúng vào notebook riêng tư.
+2. `kaggle kernels push`: Kaggle chạy notebook ở chế độ Batch trên GPU T4, bản này phục vụ luôn trong Batch.
+3. Đợi hàng đợi GPU, đọc `kaggle kernels logs -f` tới khi notebook in link `*.trycloudflare.com`, gọi thử bằng token,
+   lưu phiên ở `kaggle/ollama_session.local.json`.
+4. Mở DiaCare với `qwen2.5:7b` qua link đó. Tắt giao diện bằng Ctrl+C thì script gọi `kaggle_llm.py down`, notebook
+   tự thoát và trả GPU.
+
+Thời gian bật phụ thuộc hàng đợi GPU của Kaggle: lần thử ngày 24/11/2026 có lần chạy ngay (sẵn sàng sau 3,8 phút), có lần phải xếp hàng 19 phút (sẵn sàng sau 23 phút), nên hãy bật trước khi demo. Qua tunnel, câu trả lời vẫn hiện dần từng đoạn (đã đo: khoảng cách lớn nhất giữa hai đoạn 0,15 s); câu đầu sau khi bật chờ khoảng 12 s, các câu sau bắt đầu hiện sau khoảng 1 s. Notebook cũng tự tắt khi 30 phút không có yêu cầu nào (`--idle`) hoặc sau 4 giờ, nên đóng cửa sổ hay quên tắt cũng
+không tốn mãi giờ GPU (Kaggle cho 30 giờ/tuần). Các lệnh lẻ:
+
+```bash
+python tools/kaggle_llm.py up       # bật (dùng lại phiên đang chạy nếu còn)
+python tools/kaggle_llm.py status   # trạng thái notebook và thử gọi
+python tools/kaggle_llm.py down     # tắt
+```
+
+**Bằng tay trên web:** `python kaggle/build_ollama_notebook.py`, `kaggle kernels push -p kaggle/ollama_kernel`, mở
+notebook, Edit, bật GPU T4 và Internet, Run All. Notebook in link và token; ở máy mình chạy
+`chay_local.ps1 -Kaggle <link>` và dán token.
+
+Mỗi lượt hỏi, lời nhắn gửi cho model (gồm tài liệu và hồ sơ đã tóm tắt trong prompt) đi qua Internet tới Kaggle, nên
+đây là cách cho demo, không dùng cho dữ liệu người bệnh thật.
+
 ## Biến môi trường
 
 | Biến | Mặc định | Ý nghĩa |
@@ -325,6 +401,8 @@ kaggle kernels push -p kaggle/app_kernel
 | `DIACARE_MODEL` | `qwen2.5:3b` | tên model Ollama |
 | `DIACARE_NUM_CTX` | `4096` | cửa sổ context gửi cho Ollama |
 | `DIACARE_OLLAMA_URL` | `http://localhost:11434` | địa chỉ Ollama khi không chạy cùng máy (Docker Compose đặt `http://ollama:11434`) |
+| `DIACARE_CALO_URL` | `http://127.0.0.1:8010` | địa chỉ dịch vụ nhận diện món Calo Khay (trang Bữa ăn) |
+| `DIACARE_OLLAMA_TOKEN` | (trống) | token gửi kèm mỗi yêu cầu (`Authorization: Bearer`), cho Ollama trên Kaggle qua cổng chặn |
 | `DIACARE_EMBED` | `sbert` | `sbert` hoặc `hash` (demo) |
 | `DIACARE_MIN_SCORE` | `0.2` (sbert), `0` (hash) | ngưỡng điểm truy xuất |
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
@@ -578,16 +656,20 @@ python -m pytest -q
 ```
 src/app.py              giao diện Streamlit
 src/journal_ui.py       ba trang Hôm nay, Nhật ký, Tái khám
+src/checkin_ui.py       trợ lý chủ động hỏi trên trang Tư vấn (thẻ xác nhận số đo)
+src/meal_ui.py          trang Bữa ăn (ảnh khay cơm -> Calo Khay -> xác nhận món -> khoảng tinh bột)
 src/api/                dịch vụ FastAPI (main.py) và mật khẩu, token (security.py)
 web/                    giao diện Next.js (app/: các trang, lib/api.ts: gọi API và đọc luồng SSE)
 src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
 kb/                     14 tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
-data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC)
-tools/                  công cụ tạo thống kê KG (build_kg_stats.py), nạp Neo4j (kg_neo4j.py), huấn luyện RL (train_rl.py)
+data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC), bảng tinh bột 45 lớp Calo Khay (calo_khay_carb.csv)
+tools/                  công cụ tạo thống kê KG (build_kg_stats.py), nạp Neo4j (kg_neo4j.py), huấn luyện RL (train_rl.py),
+                        dữ liệu demo Q-learning (make_rl_demo_data.py), bật/tắt 7B trên Kaggle (kaggle_llm.py),
+                        bảng tinh bột Calo Khay (build_carb_table.py)
 eval/                   bộ ca benchmark, chấm điểm, đánh giá truy xuất
-kaggle/                 sinh notebook Kaggle (giao diện và benchmark)
+kaggle/                 sinh notebook Kaggle (giao diện, benchmark, chỉ model 7B)
 docs/results/           kết quả các lần chạy benchmark
 tests/                  test (pytest)
 ```
@@ -633,4 +715,5 @@ tests/                  test (pytest)
 - Pima Indians Diabetes (NIDDK, OpenML id 37); Early Stage Diabetes Risk Prediction (UCI id 529).
 - MedlinePlus (U.S. National Library of Medicine), WHO Diabetes fact sheet: trích để học tập, giữ ghi nguồn.
 - USDA FoodData Central.
+- Nutrition5k (Thames et al., CVPR 2021), `ingredients_metadata.csv` (USDA FNDDS): carb các món Calo Khay.
 - Ngưỡng xét nghiệm: American Diabetes Association, Standards of Care in Diabetes 2024.

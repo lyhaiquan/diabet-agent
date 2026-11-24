@@ -1,0 +1,118 @@
+{
+ "image": {
+  "w": 960,
+  "h": 1280
+ },
+ "plate_found": true,
+ "items": [
+  {
+   "id": 1,
+   "cls": "potato",
+   "name": "khoai tây",
+   "conf": 0.99,
+   "needs_confirm": false,
+   "suggestions": [],
+   "area_px": 88179,
+   "area_ratio": 0.1555,
+   "grams": 84,
+   "gram_method": "area",
+   "kcal": 65,
+   "source": "model"
+  },
+  {
+   "id": 2,
+   "cls": "stir_fried_vegetables",
+   "name": "rau xào thập cẩm",
+   "conf": 0.487,
+   "needs_confirm": true,
+   "suggestions": [
+    "pork_broccoli"
+   ],
+   "area_px": 88045,
+   "area_ratio": 0.1553,
+   "grams": 54,
+   "gram_method": "area",
+   "kcal": 17,
+   "source": "model"
+  },
+  {
+   "id": 3,
+   "cls": "rice",
+   "name": "cơm trắng",
+   "conf": 0.987,
+   "needs_confirm": false,
+   "suggestions": [],
+   "area_px": 78558,
+   "area_ratio": 0.1386,
+   "grams": 228,
+   "gram_method": "rice_mean",
+   "kcal": 296,
+   "source": "model"
+  },
+  {
+   "id": 4,
+   "cls": "fried_tofu",
+   "name": "đậu phụ rán",
+   "conf": 0.841,
+   "needs_confirm": false,
+   "suggestions": [
+    "roasted_cinnamon_pork"
+   ],
+   "area_px": 38002,
+   "area_ratio": 0.067,
+   "grams": 52,
+   "gram_method": "area",
+   "kcal": 38,
+   "source": "model"
+  },
+  {
+   "id": 5,
+   "cls": "boiled_egg",
+   "name": "trứng luộc",
+   "conf": 0.978,
+   "needs_confirm": false,
+   "suggestions": [
+    "chayote"
+   ],
+   "area_px": 22766,
+   "area_ratio": 0.0402,
+   "grams": 36,
+   "gram_method": "area",
+   "kcal": 56,
+   "source": "model"
+  },
+  {
+   "id": 6,
+   "cls": "quail_egg",
+   "name": "trứng cút",
+   "conf": 0.986,
+   "needs_confirm": false,
+   "suggestions": [
+    "braised_egg",
+    "fried_egg"
+   ],
+   "area_px": 21268,
+   "area_ratio": 0.0375,
+   "grams": 29,
+   "gram_method": "area",
+   "kcal": 45,
+   "source": "model"
+  }
+ ],
+ "total": {
+  "grams": 483,
+  "kcal": 517,
+  "error_pct": 30,
+  "daily_pct": 26
+ },
+ "warnings": [],
+ "model_version": "food_seg_v4_final+dino",
+ "timing_ms": {
+  "decode": 126,
+  "segment": 739,
+  "plate": 108,
+  "depth": 3,
+  "grams": 12,
+  "total": 998
+ }
+}

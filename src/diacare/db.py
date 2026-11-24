@@ -101,6 +101,29 @@ CREATE TABLE IF NOT EXISTS coach_events (
     created_at TEXT NOT NULL,
     UNIQUE (patient_id, day)
 );
+CREATE TABLE IF NOT EXISTS checkins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    day TEXT NOT NULL,
+    session_id INTEGER,
+    topic_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT NOT NULL,
+    UNIQUE (patient_id, day)
+);
+CREATE TABLE IF NOT EXISTS meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER NOT NULL,
+    eaten_at TEXT NOT NULL,
+    slot TEXT,
+    items_json TEXT NOT NULL,
+    carb_g REAL NOT NULL,
+    carb_low REAL NOT NULL,
+    carb_high REAL NOT NULL,
+    kcal REAL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_meals_patient ON meals(patient_id, eaten_at);
 CREATE TABLE IF NOT EXISTS coach_model (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     model_json TEXT NOT NULL,
@@ -410,6 +433,56 @@ class Store:
         return [{"day": r["day"], "state": json.loads(r["state_json"]), "action": r["action"],
                  "propensity": r["propensity"], "mode": r["mode"], "learned_reward": r["learned_reward"]}
                 for r in rows]
+
+    def claim_checkin(self, patient_id, day, session_id, topic):
+        """Lượt trợ lý chủ động hỏi của một ngày (diacare.checkin): mỗi người một lượt mỗi ngày. True nếu vừa giành
+        được lượt (lúc đó mới ghi lời mở đầu), False nếu hôm nay đã hỏi rồi (Streamlit chạy lại trang mỗi cú bấm)."""
+        cur = self.conn.execute(
+            "INSERT INTO checkins (patient_id, day, session_id, topic_json, status, created_at)"
+            " VALUES (?, ?, ?, ?, 'open', ?) ON CONFLICT (patient_id, day) DO NOTHING",
+            (patient_id, str(day), session_id, _dumps(topic), _now()))
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def get_checkin(self, patient_id, day):
+        r = self.conn.execute("SELECT * FROM checkins WHERE patient_id = ? AND day = ?",
+                              (patient_id, str(day))).fetchone()
+        if r is None:
+            return None
+        return {"day": r["day"], "session_id": r["session_id"], "topic": json.loads(r["topic_json"]),
+                "status": r["status"]}
+
+    def close_checkin(self, patient_id, day, status="done"):
+        self.conn.execute("UPDATE checkins SET status = ? WHERE patient_id = ? AND day = ?",
+                          (status, patient_id, str(day)))
+        self.conn.commit()
+
+    # ---------- bữa ăn quét ảnh (agent bữa ăn, Calo Khay) ----------
+    def add_meal(self, patient_id, eaten_at, slot, items, carb_g, carb_low, carb_high, kcal=None):
+        """items: danh sách món đã xác nhận (tên, gram, carb) — mã hoá như ghi chú, vì là dữ liệu ăn uống cá nhân."""
+        if hasattr(eaten_at, "isoformat"):
+            eaten_at = eaten_at.isoformat()
+        cur = self.conn.execute(
+            "INSERT INTO meals (patient_id, eaten_at, slot, items_json, carb_g, carb_low, carb_high, kcal, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (patient_id, eaten_at, slot, self._e(json.dumps(items, ensure_ascii=False)), float(carb_g),
+             float(carb_low), float(carb_high), None if kcal is None else float(kcal), _now()))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def list_meals(self, patient_id):
+        rows = self.conn.execute("SELECT * FROM meals WHERE patient_id = ? ORDER BY eaten_at ASC, id ASC",
+                                 (patient_id,)).fetchall()
+        out = []
+        for r in rows:
+            m = self._row(r, "items_json")
+            m["items"] = json.loads(m.pop("items_json") or "[]")
+            out.append(m)
+        return out
+
+    def delete_meal(self, meal_id, patient_id):
+        self.conn.execute("DELETE FROM meals WHERE id = ? AND patient_id = ?", (meal_id, patient_id))
+        self.conn.commit()
 
     def mark_coach_learned(self, patient_id, day, reward):
         """Ghi phần thưởng đã học cho một ngày, đúng một lần. True nếu vừa ghi (chưa ai học ngày này)."""

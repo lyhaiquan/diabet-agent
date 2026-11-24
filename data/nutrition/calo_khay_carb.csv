@@ -1,0 +1,46 @@
+class,name_vi,carb_per_100g,carb_high,kcal_per_100g,match,nutrition5k_mix,high_mix,note
+rice,cơm trắng,28.0,28.0,130.0,khớp,white rice,,"phần lớn carb của khay; số gram cơm sai nhiều nhất, nên sửa tay"
+fried_tofu,đậu phụ rán,1.9,1.9,73.0,chỉ nguyên liệu,tofu,,đậu chưa rán; rán không thêm carb đáng kể
+betel_leaf_pork,chả lá lốt,8.1,8.1,286.0,gần đúng,meatballs,,thịt viên
+bean_sprouts_bamboo,giá xào măng,5.9,5.9,30.0,chỉ nguyên liệu,bean sprouts,,
+minced_pork_corn,thịt băm xào ngô,17.8,21.0,115.0,tính theo công thức,16% ground pork + 84% corn,corn,"40 g thịt + 204 g ngô (công thức mytour.vn, như bảng kcal); cận trên coi như toàn ngô"
+bell_pepper_chicken,gà xào ớt chuông,2.1,4.1,165.0,ước tính,70% chicken + 30% mixed vegetables,90% chicken + 10% barbecue sauce,70% gà + 30% ớt chuông; cận trên nếu có sốt ngọt 10%
+rolled_omelette,trứng cuộn,0.6,0.6,154.0,khớp,omelets,,
+pumpkin,bí đỏ,6.5,6.5,25.9,gần đúng,pumpkins,,
+boiled_egg,trứng luộc,1.2,1.2,155.5,khớp,hard boiled eggs,,
+drink,đồ uống,,,,không tính,,,"đồ uống không tính (trà sữa, nước ngọt có thể nhiều carb hơn cả khay)"
+coconut_braised_pork,thịt kho (nước dừa),0.0,4.1,238.0,chỉ nguyên liệu,pork,90% pork + 10% barbecue sauce,"chưa tính đường, nước dừa kho; cận trên tính nước kho ngọt 10%"
+chinese_sausage,lạp xưởng,4.2,18.6,344.6,gần đúng,sausage,85% sausage + 15% sugar,"xúc xích kiểu Mỹ; lạp xưởng tẩm đường, cận trên tính 15% đường"
+fried_chicken,gà rán,1.9,15.0,246.1,khớp,fried chicken,chicken nuggets,cận trên nếu tẩm bột dày (như gà viên chiên)
+leafy_greens,rau xanh,5.3,5.3,28.0,gần đúng,mixed greens,,
+pork_broccoli,thịt xào súp lơ,3.5,7.0,35.0,ước tính,50% pork + 50% broccoli,broccoli,50% thịt + 50% súp lơ
+cutlet,thịt lợn chiên,0.0,15.0,230.8,gần đúng,pork chops,chicken nuggets,cận trên nếu tẩm bột chiên xù
+chayote,su su,5.1,5.1,24.0,khớp,chayote squash,,
+pork_floss,ruốc / chà bông,11.0,33.2,369.0,ước tính,jerky,75% jerky + 25% sugar,"Nutrition5k không có chà bông; tính như thịt khô, cận trên thêm 25% đường"
+quail_egg,trứng cút,1.2,1.2,155.5,gần đúng,eggs,,trứng gà
+egg_meatloaf,chả trứng,1.3,7.2,212.0,ước tính,50% eggs + 50% ground pork,40% eggs + 35% ground pork + 25% noodles,trứng + thịt; cận trên nếu có 25% miến
+sausage,xúc xích,4.2,12.9,344.6,khớp,sausage,90% sausage + 10% corn starch,cận trên nếu có 10% bột độn
+potato,khoai tây,17.0,18.0,77.0,gần đúng,potatoes,roasted potatoes,luộc; cận trên khi xào/chiên
+soup,canh,3.4,6.9,35.5,gần đúng,chicken soup,mixed vegetables,"dao động lớn theo loại canh; canh bí, khoai thì nhiều carb hơn"
+boiled_pork,thịt luộc,0.0,0.0,238.0,gần đúng,pork,,
+radish,củ cải,3.4,3.4,16.0,khớp,radishes,,
+braised_egg,trứng kho,1.2,5.2,155.5,chỉ nguyên liệu,hard boiled eggs,90% hard boiled eggs + 10% barbecue sauce,chưa tính nước kho; cận trên tính nước kho ngọt 10%
+water_spinach,rau muống,4.0,4.0,23.0,gần đúng,spinach (cooked),,rau khác loài
+braised_fish,cá kho,0.0,4.1,90.0,chỉ nguyên liệu,fish,90% fish + 10% barbecue sauce,"chưa tính đường, nước kho; cận trên tính nước kho ngọt 10%"
+pork_roll,giò lụa,1.5,10.5,145.0,gần đúng,ham,90% ham + 10% corn starch,cận trên nếu có 10% bột độn
+shrimp_spring_roll,nem / chả giò tôm,28.7,39.0,154.3,gần đúng,egg rolls,dumplings,"mục 'spring rolls' của Nutrition5k chỉ 4% carb (như cuốn tươi không bánh), quá thấp cho nem rán có vỏ -> dùng 'egg rolls'; cận trên như bánh bao/há cảo"
+fried_egg,trứng rán,0.8,0.8,196.0,khớp,fried eggs,,
+sweet_sour_chicken,gà sốt chua ngọt,15.0,21.5,250.0,ước tính,chicken nuggets,75% chicken nuggets + 25% barbecue sauce,gà tẩm bột chiên; cận trên tính 25% sốt chua ngọt
+dog_meat_rua_man,rựa mận / giả cầy,0.0,4.1,193.1,ước tính,pork,90% pork + 10% barbecue sauce,thịt kho riềng mẻ; cận trên tính nước sốt 10%
+pork_with_tofu,đậu sốt thịt,1.7,5.8,153.7,ước tính,60% tofu + 40% ground pork,90% tofu + 10% barbecue sauce,60% đậu + 40% thịt; cận trên tính sốt cà chua/ngọt 10%
+silkworm_pupae,nhộng,0.0,4.1,206.0,ước tính,pork,90% pork + 10% barbecue sauce,"Nutrition5k không có nhộng; món đạm, coi như ít carb; cận trên nếu rim ngọt"
+stir_fried_vegetables,rau xào thập cẩm,6.9,6.9,32.0,chỉ nguyên liệu,mixed vegetables,,
+fried_anchovy,cá cơm rim,0.0,6.1,210.0,gần đúng,anchovies,85% anchovies + 15% barbecue sauce,cá cơm rim thường ngọt; cận trên tính 15% nước rim
+peanuts,lạc,16.1,16.1,567.5,khớp,peanuts,,
+fried_shrimp,tôm chiên,0.2,11.0,99.0,chỉ nguyên liệu,shrimp,tempura,tôm chưa chiên; cận trên nếu tẩm bột
+bean_sprouts_green_beans,giá xào đậu que,6.5,6.5,31.0,chỉ nguyên liệu,50% bean sprouts + 50% green beans,,
+cabbage,bắp cải luộc,3.2,3.2,21.0,khớp,cabbage,,
+fried_pork_skin,bì lợn chiên,0.0,0.0,544.0,gần đúng,pork,,bì lợn gần như không có carb
+fish_ball,cá viên,9.1,18.3,140.0,ước tính,90% fish + 10% corn starch,80% fish + 20% corn starch,Nutrition5k không có cá viên; cá + 10-20% bột
+stir_fried_gizzard,mề xào,0.0,4.1,135.0,gần đúng,chicken,90% chicken + 10% barbecue sauce,mề tính như thịt gà; cận trên nếu xào sốt ngọt
+roasted_cinnamon_pork,chả quế,1.4,10.4,235.0,gần đúng,ground pork,90% ground pork + 10% corn starch,chả quế; cận trên nếu có 10% bột độn

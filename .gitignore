@@ -13,6 +13,10 @@ reports/
 kaggle/*.ipynb
 kaggle/kernel/
 kaggle/app_kernel/
+kaggle/ollama_kernel/
+# token cong chan + phien Kaggle dang chay (tools/kaggle_llm.py)
+kaggle/*.local
+kaggle/*.local.json
 
 # mat khau Neo4j cuc bo (tools/kg_neo4j.py)
 neo4j.local.json

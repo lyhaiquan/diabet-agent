@@ -28,7 +28,9 @@ def make_llm(kind=None, model=None, num_ctx=None):
     num_ctx = int(num_ctx or os.environ.get("DIACARE_NUM_CTX") or DEFAULT_NUM_CTX)
     # DIACARE_OLLAMA_URL: địa chỉ gốc của Ollama khi không chạy cùng máy (vd http://ollama:11434 trong Docker Compose)
     base = (os.environ.get("DIACARE_OLLAMA_URL") or "http://localhost:11434").rstrip("/")
-    return OllamaLLM(model=model, num_ctx=num_ctx, url=base + "/api/chat")
+    # DIACARE_OLLAMA_TOKEN: token của cổng chặn khi Ollama chạy trên Kaggle qua tunnel (kaggle/build_ollama_notebook.py)
+    token = os.environ.get("DIACARE_OLLAMA_TOKEN") or None
+    return OllamaLLM(model=model, num_ctx=num_ctx, url=base + "/api/chat", token=token)
 
 
 def make_embed_fn(kind=None):

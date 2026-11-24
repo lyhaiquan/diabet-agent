@@ -1,6 +1,7 @@
 import json
 import re
 import threading
+import urllib.error
 import urllib.request
 import zlib
 
@@ -32,8 +33,11 @@ class _PerThreadUsage:
 class OllamaLLM(_PerThreadUsage):
     def __init__(self, model="qwen2.5:7b", url="http://localhost:11434/api/chat",
                  num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=300,
-                 num_predict=DEFAULT_NUM_PREDICT):
+                 num_predict=DEFAULT_NUM_PREDICT, token=None):
         self.model, self.url, self.num_ctx = model, url, num_ctx
+        # token: khi Ollama chạy ở máy khác qua tunnel công khai (kaggle/build_ollama_notebook.py), cổng chặn phía đó
+        # chỉ cho qua yêu cầu có header "Authorization: Bearer <token>"
+        self.token = token
         self.temperature, self.timeout, self.num_predict = temperature, timeout, num_predict
         self.last_usage = {}
 
@@ -44,8 +48,17 @@ class OllamaLLM(_PerThreadUsage):
             "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,
                         "num_predict": self.num_predict},
         }).encode()
-        req = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+        headers = {"Content-Type": "application/json"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        req = urllib.request.Request(self.url, body, headers)
+        try:
+            resp = urllib.request.urlopen(req, timeout=self.timeout)
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise RuntimeError("Ollama từ xa từ chối yêu cầu: sai hoặc thiếu DIACARE_OLLAMA_TOKEN") from e
+            raise
+        with resp:
             if on_token is None:
                 data = json.load(resp)
                 text = data["message"]["content"]

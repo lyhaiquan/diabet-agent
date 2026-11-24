@@ -47,7 +47,7 @@ def test_app_runs_and_shows_demo_banner(env):
     at = new_app().run()
     assert not at.exception
     assert any("demo" in i.value.lower() for i in at.info)
-    assert list(at.radio(key="page").options) == ["Hôm nay", "Nhật ký", "Tư vấn", "Tái khám",
+    assert list(at.radio(key="page").options) == ["Hôm nay", "Nhật ký", "Bữa ăn", "Tư vấn", "Tái khám",
                                                   "Hoạt động agent", "Lịch sử", "Thống kê"]
 
 
@@ -163,11 +163,11 @@ def test_low_profile_with_diabetes_labs_explains_risk(env):
     assert any("không dùng xét nghiệm hay triệu chứng" in c.value for c in at.caption)
 
 
-# ---- chế độ người dùng (mặc định): Hôm nay, Nhật ký, Tư vấn, Tái khám ----
+# ---- chế độ người dùng (mặc định): Hôm nay, Nhật ký, Bữa ăn, Tư vấn, Tái khám ----
 
 def test_user_mode_hides_technical_pages_and_details(user_env):
     at = new_app().run()
-    assert list(at.radio(key="page").options) == ["Hôm nay", "Nhật ký", "Tư vấn", "Tái khám"]
+    assert list(at.radio(key="page").options) == ["Hôm nay", "Nhật ký", "Bữa ăn", "Tư vấn", "Tái khám"]
     create_patient(at, diagnosed=True)
     store = open_store()
     pid = store.list_patients()[0]["id"]
@@ -182,9 +182,9 @@ def test_user_mode_hides_technical_pages_and_details(user_env):
     assert any(c.value == DISCLAIMER for c in at.caption)
     assert not any(DISCLAIMER in m.value for m in at.markdown)
     assert not any("Trọng tâm tư vấn do agent" in c.value for c in at.caption)  # dòng RL chỉ cho nhà phát triển
-    # bật chế độ nhà phát triển thì hiện lại đủ 7 trang và chi tiết
+    # bật chế độ nhà phát triển thì hiện lại đủ 8 trang và chi tiết
     at.sidebar.toggle(key="dev_mode").set_value(True).run()
-    assert len(at.radio(key="page").options) == 7
+    assert len(at.radio(key="page").options) == 8
     assert "Chi tiết kỹ thuật" in [e.label for e in at.expander]
     at.radio(key="page").set_value("Thống kê").run()
     at.sidebar.toggle(key="dev_mode").set_value(False).run()
@@ -257,3 +257,89 @@ def test_visit_page_sets_and_resets_custom_targets(user_env):
     next(b for b in at.button if b.label == "Dùng lại mục tiêu chung").click()
     at.run()
     assert open_store().get_targets(1) is None
+
+
+def _assistant_texts(at):
+    return [" ".join(md.value for md in m.markdown) for m in at.chat_message if m.name == "assistant"]
+
+
+def test_checkin_opener_once_and_reading_saved_after_confirm(user_env):
+    from diacare.journal import now_vn
+    at = create_patient(new_app().run(), name="Lan", diagnosed=True)
+    assert not at.exception
+    texts = _assistant_texts(at)
+    assert len(texts) == 1 and texts[0].startswith("Chào Lan!") and "đường huyết" in texts[0]
+    store = open_store()
+    pid = store.list_patients()[0]["id"]
+    assert store.get_checkin(pid, now_vn().date())["status"] == "open"
+    at.run()  # chạy lại trang: không hỏi lại
+    at.radio(key="page").set_value("Hôm nay").run()
+    at.radio(key="page").set_value("Tư vấn").run()
+    assert len(_assistant_texts(at)) == 1
+
+    at.chat_input[0].set_value("6,5 lúc đói").run()
+    assert not at.exception
+    assert open_store().list_readings(pid) == []  # chưa bấm Lưu thì chưa ghi
+    assert at.selectbox(key="ci_ctx_1").value == "fasting"
+    at.button(key="ci_save_1").click().run()
+    assert not at.exception
+    rows = open_store().list_readings(pid)
+    assert len(rows) == 1 and abs(rows[0]["value"] - 6.5 * 18.0) < 1.5 and rows[0]["context"] == "fasting"
+    texts = _assistant_texts(at)
+    assert "Mình đã ghi 6,5 mmol/L" in texts[-1] and "trong mục tiêu" in texts[-1]
+    assert open_store().get_checkin(pid, now_vn().date())["status"] == "done"
+    assert len(open_store().runs()) == 0  # không gọi pipeline tư vấn
+
+
+def test_checkin_not_yet_and_question_go_their_way(user_env):
+    at = create_patient(new_app().run(), name="Lan", diagnosed=True)
+    at.chat_input[0].set_value("chưa đo").run()
+    assert "Không sao" in _assistant_texts(at)[-1]
+    assert len(open_store().runs()) == 0
+    at.chat_input[0].set_value("Đường huyết 8,5 lúc đói có cao không?").run()
+    assert not at.exception
+    assert len(open_store().runs()) == 1  # câu hỏi có số vẫn đi pipeline tư vấn, không thành thẻ lưu
+    assert "checkin_card" not in at.session_state
+
+
+def test_no_checkin_for_undiagnosed(user_env):
+    at = create_patient(new_app().run(), name="An")
+    assert _assistant_texts(at) == []
+
+
+# ---- trang Bữa ăn (agent bữa ăn, Calo Khay) ----
+
+def _fake_scan(at, needs_confirm):
+    from diacare import meal_scan
+    items = [{"cls": "rice", "name": "cơm trắng", "grams": 228, "conf": 0.99, "needs_confirm": False,
+              "suggestions": [], "gram_method": "rice_mean", "gram_source": "model"},
+             {"cls": "stir_fried_vegetables", "name": "rau xào thập cẩm", "grams": 54, "conf": 0.49,
+              "needs_confirm": needs_confirm, "suggestions": ["pork_broccoli"], "gram_method": "area",
+              "gram_source": "model"}]
+    at.session_state["meal_scan"] = {"n": 1, "items": items, "warnings": [], "image": None}
+    return meal_scan
+
+
+def test_meal_page_save_needs_every_dish_checked(user_env):
+    at = create_patient(new_app().run(), page="Bữa ăn")
+    assert not at.exception
+    _fake_scan(at, needs_confirm=True)
+    at.run()
+    assert not at.exception
+    assert any("cơm" in i.value for i in at.info)              # nhắc sửa gram cơm
+    assert any("tinh bột" in m.value for m in at.markdown)
+    assert at.button(key="meal_save_1").disabled                # còn món chưa xác nhận
+
+
+def test_meal_page_saves_meal(user_env):
+    at = create_patient(new_app().run(), page="Bữa ăn")
+    _fake_scan(at, needs_confirm=False)
+    at.run()
+    at.button(key="meal_save_1").click().run()
+    assert not at.exception
+    store = open_store()
+    meals = store.list_meals(store.list_patients()[0]["id"])
+    assert len(meals) == 1 and [it["name"] for it in meals[0]["items"]] == ["cơm trắng", "rau xào thập cẩm"]
+    assert meals[0]["carb_low"] < meals[0]["carb_g"] < meals[0]["carb_high"]
+    assert any("Đã lưu bữa ăn" in s.value for s in at.success)
+    assert "meal_scan" not in at.session_state
