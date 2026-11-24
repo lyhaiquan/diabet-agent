@@ -36,11 +36,12 @@ def _hint(it, table):
 
 
 def to_frame(items, table):
+    # kiểu cột ghi rõ: bảng rỗng (tự nhập món) thì pandas đoán "object" và data_editor từ chối cột checkbox
     return pd.DataFrame({
-        "Món": [it["name"] for it in items],
-        "Gram": [int(it["grams"]) for it in items],
-        "Đúng món": [not it.get("needs_confirm") for it in items],
-        "Ghi chú": [_hint(it, table) for it in items],
+        "Món": pd.Series([it["name"] for it in items], dtype="object"),
+        "Gram": pd.Series([int(it["grams"]) for it in items], dtype="int64"),
+        "Đúng món": pd.Series([not it.get("needs_confirm") for it in items], dtype="bool"),
+        "Ghi chú": pd.Series([_hint(it, table) for it in items], dtype="object"),
     })
 
 
@@ -67,7 +68,7 @@ def rows_to_items(df, original, table):
             grams = 0
         orig = original[i] if isinstance(i, int) and 0 <= i < len(original) else None
         same = orig is not None and int(orig["grams"]) == grams
-        if not bool(row.get("Đúng món")):
+        if orig is not None and not bool(row.get("Đúng món")):  # dòng người dùng tự thêm thì đã là món họ chọn
             pending += 1
         items.append({"cls": cls, "name": name, "grams": grams, "gram_source": "model" if same else "user",
                       "gram_method": orig.get("gram_method") if same else None})
@@ -106,6 +107,9 @@ def _confirm(store, patient_id, table):
         st.markdown("**Kiểm tra lại các món trước khi lưu**")
         if scan.get("image"):
             st.image(scan["image"], width=320)
+        elif not items:
+            st.caption("Bấm dấu **+** ở cuối bảng để thêm món, chọn tên món rồi nhập số gram cả phần bạn ăn "
+                       "(cả bát phở gồm nước, cả ổ bánh mì).")
         for w in scan.get("warnings", []):
             if w in WARNINGS:
                 st.warning(WARNINGS[w])
@@ -143,7 +147,7 @@ def _confirm(store, patient_id, table):
             st.session_state.pop(SCAN, None)
             st.session_state["meal_saved"] = True
             st.rerun()
-        if b2.button("Bỏ ảnh này", key=f"meal_drop_{n}"):
+        if b2.button("Bỏ ảnh này" if scan.get("image") else "Huỷ", key=f"meal_drop_{n}"):
             st.session_state.pop(SCAN, None)
             st.rerun()
 
@@ -196,11 +200,18 @@ def render_meal(store, patient_id):
         return
     st.subheader("Bữa ăn")
     st.caption("Chụp ảnh khay cơm: DiaCare nhận diện món (Calo Khay), ước lượng gram và lượng tinh bột của bữa. "
-               "Bạn kiểm tra lại từng món rồi mới lưu.")
+               "Bạn kiểm tra lại từng món rồi mới lưu. Bữa không phải khay cơm (phở, bún, bánh mì, trái cây) thì "
+               "tự nhập món.")
     if st.session_state.pop("meal_saved", False):
         st.success("Đã lưu bữa ăn. Nhớ đo đường huyết 1–2 giờ sau ăn để biết bữa này ảnh hưởng thế nào nhé.")
     table = _table()
     if not st.session_state.get(SCAN):
         _scan_upload(table)
+        if st.button("Tự nhập món (không có ảnh)", key="meal_manual_btn",
+                     help="Cho bữa không phải khay cơm (phở, bún, bánh mì, trái cây...): chọn món và gram ở bảng"):
+            n = st.session_state.get("meal_scan_n", 0) + 1
+            st.session_state["meal_scan_n"] = n
+            st.session_state[SCAN] = {"n": n, "items": [], "warnings": [], "image": None}
+            st.rerun()
     _confirm(store, patient_id, table)
     _history(store, patient_id)

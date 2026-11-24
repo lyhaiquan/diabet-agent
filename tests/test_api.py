@@ -2,6 +2,7 @@ import base64
 import io
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -616,3 +617,107 @@ def test_no_nudge_for_undiagnosed(client):
     pid = new_patient(client, auth, diagnosed=False)
     assert client.get(f"/patients/{pid}/today", headers=auth).json()["nudge"] is None
     assert client.post(f"/patients/{pid}/nudge/feedback", json={"value": "up"}, headers=auth).status_code == 404
+
+
+# ---- trợ lý chủ động hỏi trên web (cùng logic với Streamlit) ----
+
+def test_checkin_flow_reading_needs_confirmation(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    r = client.post(f"/patients/{pid}/checkin/open", json={}, headers=auth).json()
+    assert r["opened"] and r["pending"]
+    sid = r["session_id"]
+    msgs = client.get(f"/patients/{pid}/sessions/{sid}/messages", headers=auth).json()
+    assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and "chưa thấy số đường huyết" in msgs[0]["content"]
+    # gọi lần hai không kèm phiên (React dev chạy effect hai lần, hoặc tab khác): trả về đúng phiên đang đợi
+    assert client.post(f"/patients/{pid}/checkin/open", json={}, headers=auth).json() == {
+        "session_id": sid, "opened": False, "pending": True}
+    # mở lại trang: không hỏi lần hai trong ngày
+    again = client.post(f"/patients/{pid}/checkin/open", json={"session_id": sid}, headers=auth).json()
+    assert not again["opened"] and again["pending"]
+    # "chưa đo" -> câu soạn sẵn, lượt hỏi vẫn mở
+    r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "chưa đo"}, headers=auth).json()
+    assert r["handled"] and "Không sao" in r["reply"] and r["pending"]
+    # số đo -> thẻ xác nhận, CHƯA lưu
+    r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "sáu phẩy năm lúc đói"},
+                    headers=auth).json()
+    card = r["card"]
+    assert r["handled"] and card["reading"]["value"] == 6.5 and card["reading"]["context"] == "fasting"
+    assert client.get(f"/patients/{pid}/readings", headers=auth).json() == []
+    bad = dict(card["reading"], value=65)  # sửa tay thành số vô lý: máy chủ kiểm tra lại
+    assert client.post(f"/patients/{pid}/checkin/save", json={"session_id": sid, "reading": bad,
+                       "measured_at": card["measured_at"]}, headers=auth).status_code == 422
+    r = client.post(f"/patients/{pid}/checkin/save", json={"session_id": sid, "reading": card["reading"],
+                    "measured_at": card["measured_at"], "context": "fasting"}, headers=auth)
+    assert r.status_code == 201 and "Mình đã ghi 6,5 mmol/L" in r.json()["reply"]
+    readings = client.get(f"/patients/{pid}/readings", headers=auth).json()
+    assert len(readings) == 1 and readings[0]["context"] == "fasting"
+    # lượt hỏi đã đóng: câu sau đi vào pipeline tư vấn
+    r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "7,0"}, headers=auth).json()
+    assert r == {"handled": False, "pending": False}
+
+
+def test_checkin_question_goes_to_chat_and_others_blocked(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    sid = client.post(f"/patients/{pid}/checkin/open", json={}, headers=auth).json()["session_id"]
+    other = register(client, email="b@example.com")
+    assert client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "6,5"},
+                       headers=other).status_code == 404
+    r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "Ăn chuối có sao không?"},
+                    headers=auth).json()
+    assert r == {"handled": False, "pending": False}
+    assert client.post(f"/patients/{pid}/checkin/cancel", json={"session_id": sid}, headers=auth).json()["reply"]
+
+
+def test_checkin_not_opened_for_undiagnosed(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=False)
+    r = client.post(f"/patients/{pid}/checkin/open", json={}, headers=auth).json()
+    assert r == {"session_id": None, "opened": False, "pending": False}
+
+
+# ---- bữa ăn trên web ----
+
+def test_meal_scan_estimate_save_list(client, monkeypatch):
+    from diacare import meal_scan
+    scan = json.loads((Path(__file__).parent / "fixtures" / "calo_scan_B212.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(meal_scan, "scan", lambda data, name, ctype: scan)
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    dishes = client.get("/meals/dishes", headers=auth).json()
+    assert any(d["cls"] == "pho_bo" and d["manual"] for d in dishes) and any(d["cls"] == "rice" for d in dishes)
+    r = client.post("/meals/scan", files={"image": ("khay.jpg", b"\xff\xd8fake", "image/jpeg")}, headers=auth)
+    assert r.status_code == 200 and r.json()["items"]
+    items = [{"cls": it["cls"], "grams": it["grams"], "model_grams": it["grams"], "gram_method": it["gram_method"]}
+             for it in r.json()["items"] if it["cls"]]
+    est = client.post(f"/patients/{pid}/meals/estimate", json={"items": items}, headers=auth).json()
+    assert est["carb_low"] <= est["carb_g"] <= est["carb_high"] and "tinh bột" in est["text"] and "**" not in est["text"]
+    # tự thêm một bát phở (không có gram mô hình) -> gram người dùng
+    items.append({"cls": "pho_bo", "grams": 600})
+    est2 = client.post(f"/patients/{pid}/meals/estimate", json={"items": items}, headers=auth).json()
+    assert est2["carb_g"] > est["carb_g"] + 50
+    assert client.post(f"/patients/{pid}/meals/estimate", json={"items": [{"cls": "khong_co", "grams": 1}]},
+                       headers=auth).status_code == 422
+    eaten = (NOW - timedelta(hours=1)).isoformat()
+    r = client.post(f"/patients/{pid}/meals", json={"items": items, "eaten_at": eaten, "slot": "dinner"}, headers=auth)
+    assert r.status_code == 201
+    client.post(f"/patients/{pid}/readings/glucose", json={"value": 9.0, "context": "after_meal",
+                "measured_at": (NOW - timedelta(minutes=5)).isoformat()}, headers=auth)
+    meals = client.get(f"/patients/{pid}/meals", headers=auth).json()
+    assert len(meals) == 1 and "9 mmol/L sau 55 phút" in meals[0]["after_meal"].replace(",0", "")
+    other = register(client, email="b@example.com")
+    assert client.get(f"/patients/{pid}/meals", headers=other).status_code == 404
+    assert client.delete(f"/patients/{pid}/meals/{meals[0]['id']}", headers=auth).status_code == 204
+    assert client.get(f"/patients/{pid}/meals", headers=auth).json() == []
+
+
+def test_meal_scan_service_down(client, monkeypatch):
+    from diacare import meal_scan
+
+    def down(*a, **k):
+        raise meal_scan.CaloKhayError("Chưa kết nối được dịch vụ nhận diện món.")
+    monkeypatch.setattr(meal_scan, "scan", down)
+    auth = register(client)
+    r = client.post("/meals/scan", files={"image": ("k.jpg", b"x", "image/jpeg")}, headers=auth)
+    assert r.status_code == 503 and "dịch vụ nhận diện" in r.json()["detail"]

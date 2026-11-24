@@ -137,3 +137,65 @@ def test_last_usage_is_per_thread():
     [t.start() for t in ts]
     [t.join(5) for t in ts]
     assert seen == {"a": 100, "b": 1000}
+
+
+# ---- thời gian chờ và lỗi kết nối (V4.9) ----
+import socket
+import threading
+import urllib.error
+
+import pytest
+
+from diacare.llm import LOCAL_TIMEOUT, REMOTE_TIMEOUT, LLMUnavailable
+
+
+def test_default_timeout_shorter_for_remote():
+    assert OllamaLLM().timeout == LOCAL_TIMEOUT
+    assert OllamaLLM(token="x" * 20).timeout == REMOTE_TIMEOUT < LOCAL_TIMEOUT
+    assert OllamaLLM(token="x" * 20, timeout=5).timeout == 5
+
+
+def test_factory_timeout_env(monkeypatch):
+    from diacare.factory import make_llm
+    monkeypatch.delenv("DIACARE_OLLAMA_TOKEN", raising=False)
+    monkeypatch.delenv("DIACARE_OLLAMA_TIMEOUT", raising=False)
+    assert make_llm("ollama").timeout == LOCAL_TIMEOUT
+    monkeypatch.setenv("DIACARE_OLLAMA_TIMEOUT", "12")
+    assert make_llm("ollama").timeout == 12
+
+
+def test_silent_server_gives_clear_timeout_error():
+    """Máy chủ nhận kết nối nhưng không trả lời (đường hầm treo): báo lỗi rõ sau đúng thời gian chờ."""
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    conns = []
+    t = threading.Thread(target=lambda: conns.append(srv.accept()), daemon=True)
+    t.start()
+    llm = OllamaLLM(url=f"http://127.0.0.1:{srv.getsockname()[1]}/api/chat", token="x" * 20, timeout=0.5)
+    try:
+        with pytest.raises(LLMUnavailable, match="không trả lời trong 0.5 giây.*Kaggle"):
+            llm([{"role": "user", "content": "hi"}])
+    finally:
+        srv.close()
+        for c, _ in conns:
+            c.close()
+
+
+def test_refused_connection_message_local_vs_remote(monkeypatch):
+    def fake_urlopen(req, timeout=None):
+        raise urllib.error.URLError(ConnectionRefusedError(10061, "refused"))
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(LLMUnavailable, match="Ollama đã chạy chưa"):
+        OllamaLLM()([{"role": "user", "content": "hi"}])
+    with pytest.raises(LLMUnavailable, match="chay_kaggle.bat"):
+        OllamaLLM(token="x" * 20)([{"role": "user", "content": "hi"}])
+
+
+def test_tunnel_gone_status(monkeypatch):
+    def fake_urlopen(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 530, "origin unreachable", {}, None)
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(LLMUnavailable, match="mã 530"):
+        OllamaLLM(token="x" * 20)([{"role": "user", "content": "hi"}])
+

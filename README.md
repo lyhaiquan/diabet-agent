@@ -84,6 +84,12 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     được nhận dạng bằng PhoWhisper ngay trên máy, rồi chữ nghe được hiện trong ô để sửa và bấm **Gửi** (Whisper có thể
     "bịa" câu khi gặp tiếng ồn, nên không gửi thẳng). Sau đó đi đúng đường của câu gõ chữ; số đọc bằng chữ ("sáu phẩy
     năm", "bảy rưỡi") được đổi thành số.
+
+    **Trên web** (V4.9): trang Tư vấn của giao diện Next.js mở lời giống hệt, qua `POST .../checkin/open`,
+    `.../checkin/reply`, `.../checkin/save`, `.../checkin/cancel`. Streamlit và API cùng gọi các hàm `open_for_day`,
+    `handle_reply`, `save_reading` trong `checkin.py`, nên cả hai giao diện chung một lượt hỏi mỗi ngày (mở lời ở
+    Streamlit thì web không hỏi lại). Số đo vẫn chỉ lưu khi bấm **Lưu vào nhật ký** trên thẻ xác nhận; máy chủ kiểm tra
+    lại giá trị trước khi lưu. Micro trên web điền chữ nghe được vào ô nhập, rồi đi cùng đường với câu gõ.
   - **trang Bữa ăn: chụp khay cơm, ước lượng tinh bột** (`src/diacare/meal_scan.py`, `src/meal_ui.py`): người dùng
     tải hoặc chụp ảnh khay cơm; agent bữa ăn gửi ảnh cho dịch vụ **Calo Khay** (project xử lý ảnh riêng của nhóm:
     YOLO26s-seg + DINOv2 nhận diện 44 món căng tin, ước lượng gram theo diện tích so với đĩa) qua HTTP
@@ -93,6 +99,15 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     thấp = gram × (1 − sai số) × carb, cao = gram × (1 + sai số) × carb cận trên; sai số gram ±30% (mức của Calo Khay),
     ±50% cho gram "trung bình" (cơm 228 g, hoặc không thấy đĩa), gram người dùng tự sửa thì ±15%. Đồ uống ghi "chưa tính". Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi
     chú). Không con số nào do LLM viết; đây là ước lượng để theo dõi, không dùng để tính liều insulin.
+
+    **Bữa không phải khay cơm** (V4.9): nút **Tự nhập món (không có ảnh)** mở bảng trống; bảng tinh bột có thêm 20 món
+    người dùng tự chọn (phở, bún bò, bún chả, bánh cuốn, bánh mì, cháo, mì gói, xôi, khoai lang, ngô, yến mạch và 9 loại
+    quả). Gram là cả phần ăn (cả bát phở gồm nước); món tự thêm tính sai số gram ±15%. Ví dụ một bát phở bò 600 g:
+    khoảng 52–88 g tinh bột.
+
+    **Trên web** (V4.9): trang **Bữa ăn** của Next.js làm đủ các bước trên. Trình duyệt gửi ảnh cho API
+    (`POST /meals/scan`), API mới gọi Calo Khay; tinh bột tính ở máy chủ (`POST .../meals/estimate`) để hai giao diện
+    ra cùng một khoảng. Lưu, xem, xoá bữa: `POST/GET .../meals`, `DELETE .../meals/{mid}`.
 
     **Nối với đường huyết:** mỗi bữa được ghép với lần đo đầu tiên 45 phút – 3 giờ sau bữa (cột "Đường huyết sau ăn";
     trong khoảng đó mà chưa đo thì trang nhắc đo). Trang Tư vấn đọc cả phần này (bữa gần nhất, đường huyết sau bữa,
@@ -204,6 +219,9 @@ Mở `http://localhost:8000/docs` để xem và thử mọi endpoint. Bấm **Au
 | Xét nghiệm | `GET/POST /patients/{id}/labs` (gõ chữ), `POST .../labs/file` (ảnh, PDF; tối đa 10 MB) |
 | Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `POST .../questions/{qid}/done`, `GET .../visit-report.pdf` |
 | Tư vấn | `POST /patients/{id}/chat` (JSON, hoặc `"stream": true` để nhận luồng SSE), `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` (👍/👎 cho agent RL) |
+| Trợ lý chủ động hỏi | `POST .../checkin/open` (mở lời mỗi ngày một lần), `.../checkin/reply` (`handled=false` thì gửi câu cho `/chat`; có `card` thì hiện thẻ xác nhận), `.../checkin/save`, `.../checkin/cancel` |
+| Bữa ăn | `GET /meals/dishes`, `POST /meals/scan` (ảnh -> Calo Khay, chưa lưu), `POST .../meals/estimate`, `GET/POST .../meals`, `DELETE .../meals/{mid}` |
+| Lời nhắc | `POST .../nudge/feedback` (👍/👎 cho lời nhắc Q-learning hôm nay) |
 
 Luồng SSE của `/chat` gửi lần lượt các sự kiện:
 
@@ -249,7 +267,10 @@ Trong `web/` có giao diện cho người bệnh, ưu tiên màn hình điện t
   Nhắc đo là thông báo của trình duyệt: chọn tối đa 4 mốc giờ, tới giờ mà 2 giờ trước đó chưa có số đo thì nhắc.
   Chỉ hoạt động khi DiaCare đang mở trên trình duyệt (tab nền cũng được); chưa phải thông báo đẩy.
 - **Nhật ký**: đường huyết; huyết áp và cân nặng; xét nghiệm, có chụp ảnh phiếu.
-- **Tư vấn**: chữ hiện dần qua SSE, có nút 👍/👎 cho agent RL.
+- **Bữa ăn**: chụp ảnh khay cơm (trên điện thoại mở thẳng camera sau) hoặc tự nhập món, kiểm tra từng món và gram,
+  xem khoảng tinh bột, lưu; bảng các bữa 7 ngày kèm đường huyết sau ăn.
+- **Tư vấn**: chữ hiện dần qua SSE, có nút 👍/👎 cho agent RL. Người đã chẩn đoán được trợ lý hỏi trước mỗi ngày một
+  lần; số đo trong câu trả lời hiện thẻ xác nhận.
 - **Tái khám**: lịch hẹn, mục tiêu đường huyết riêng do bác sĩ đặt, câu hỏi cho bác sĩ, tải PDF.
   Mặc định so với mục tiêu chung ADA 2024 (trước ăn 4,4–7,2; sau ăn dưới 10,0 mmol/L). Nhập mục tiêu riêng thì mọi
   thống kê, biểu đồ, PDF và trợ lý Tư vấn đều dùng mục tiêu đó. Ngưỡng hạ đường huyết (3,9) không đổi.
@@ -371,7 +392,9 @@ Bảng tinh bột sinh bằng `python tools/build_carb_table.py`: đọc cột `
 (USDA FNDDS), cùng nguồn với cột kcal của Calo Khay. Món không có trong Nutrition5k hoặc chỉ có nguyên liệu chính
 (thịt kho, cá kho, gà sốt chua ngọt, giò chả có bột độn, tôm tẩm bột...) có thêm **cận trên** theo tỉ lệ giả định ghi
 trong script (nước kho ngọt 10%, bột độn 10%...), vì với người tiểu đường ước thấp là chiều nguy hiểm. Mục
-"spring rolls" của Nutrition5k chỉ 4% carb (như cuốn tươi) nên nem rán dùng "egg rolls" (29%).
+"spring rolls" của Nutrition5k chỉ 4% carb (như cuốn tươi) nên nem rán dùng "egg rolls" (29%). 20 món nhập tay
+(`EXTRA` trong script) tính theo cùng cách, tỉ lệ khẩu phần điển hình ghi ở cột `note`; kcal của chúng tính từ cột
+`cal/g` của Nutrition5k (45 lớp Calo Khay vẫn lấy kcal từ bảng của Calo Khay).
 
 ### Chạy trên Kaggle (GPU miễn phí)
 
@@ -417,6 +440,12 @@ python tools/kaggle_llm.py down     # tắt
 notebook, Edit, bật GPU T4 và Internet, Run All. Notebook in link và token; ở máy mình chạy
 `chay_local.ps1 -Kaggle <link>` và dán token.
 
+**Khi đường hầm treo hoặc notebook đã tắt** (V4.9): có token thì DiaCare chỉ chờ 90 giây (Ollama trên máy: 300 giây;
+đổi bằng `DIACARE_OLLAMA_TIMEOUT`), rồi trả lời người dùng bằng một câu nói rõ chuyện gì xảy ra thay cho "Hệ thống
+đang gặp sự cố": máy chủ mô hình không trả lời trong 90 giây, hay không kết nối được (mã 502/530 của Cloudflare khi
+notebook đã tắt), kèm cách xử lý (chạy lại `chay_kaggle.bat` hoặc chuyển sang mô hình trên máy). Benchmark 7B có một
+lượt treo hết 300 giây, trong khi lượt bình thường mất khoảng 7 giây.
+
 Mỗi lượt hỏi, lời nhắn gửi cho model (gồm tài liệu và hồ sơ đã tóm tắt trong prompt) đi qua Internet tới Kaggle, nên
 đây là cách cho demo, không dùng cho dữ liệu người bệnh thật.
 
@@ -430,6 +459,7 @@ Mỗi lượt hỏi, lời nhắn gửi cho model (gồm tài liệu và hồ s�
 | `DIACARE_OLLAMA_URL` | `http://localhost:11434` | địa chỉ Ollama khi không chạy cùng máy (Docker Compose đặt `http://ollama:11434`) |
 | `DIACARE_CALO_URL` | `http://127.0.0.1:8010` | địa chỉ dịch vụ nhận diện món Calo Khay (trang Bữa ăn) |
 | `DIACARE_OLLAMA_TOKEN` | (trống) | token gửi kèm mỗi yêu cầu (`Authorization: Bearer`), cho Ollama trên Kaggle qua cổng chặn |
+| `DIACARE_OLLAMA_TIMEOUT` | `300` (máy), `90` (có token) | số giây chờ mỗi lần đọc từ Ollama trước khi báo lỗi cho người dùng |
 | `DIACARE_EMBED` | `sbert` | `sbert` hoặc `hash` (demo) |
 | `DIACARE_MIN_SCORE` | `0.2` (sbert), `0` (hash) | ngưỡng điểm truy xuất |
 | `DIACARE_KB` | `kb/` | thư mục tài liệu tri thức |
@@ -577,8 +607,9 @@ Khác biệt duy nhất có ý nghĩa là qwen2.5:7b so với 14b trên 50 ca: 1
 | Bản nháp xen chữ Hán | 8 | **0** |
 | Giây LLM mỗi lượt (trung bình) | 3,0 | 7,3 |
 
-McNemar theo ca: 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt (một yêu cầu treo do đường hầm), $p = 0{,}0018$. 7B vẫn tự đưa số
-không có trong ngữ cảnh ở 23/150 lượt. Chi tiết: `docs/results/2026-11-24_7b_kaggle/`.
+McNemar theo ca: 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt (một yêu cầu treo do đường hầm), $p = 0{,}0018$. Critic gắn cờ
+số không có trong ngữ cảnh ở 23/150 lượt của 7B, nhưng đọc từng câu thì chỉ 5 lượt là số thật sự không có căn cứ (mục
+dưới). Chi tiết: `docs/results/2026-11-24_7b_kaggle/`.
 
 **Đồ thị tri thức và RL** (V4.6). Máy cá nhân, `qwen2.5:3b`, kho 14 tài liệu, 50 ca × 3 lượt, bỏ nhóm nhật ký, đã chấm lại:
 
@@ -659,6 +690,23 @@ có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 (3) Advisor được dặn nói như điều dưỡng tư vấn, theo bốn nhịp: trả lời thẳng, giải thích vì sao chỉ bằng con số có trong ngữ cảnh, 2–3 việc cụ thể, khi nào nên đi khám.
 Đo lại (3): 131 → 127/150 lượt đạt, McNemar $p = 0{,}42$, tỉ lệ bản nháp có nhãn nguồn giữ nguyên (116 → 113/150), nhưng bản nháp dài hơn (90 → 133 chữ) và số không có trong ngữ cảnh tăng gần gấp đôi (11 → 20 lượt): mô hình 3B vẫn tự ước tính số dù đã dặn. Chi tiết ở `docs/results/2026-11-24_voice_3b/`.
 
+**Số "không có trong ngữ cảnh" là gì (V4.9).** Đọc từng câu chứa số bị Critic gắn cờ ở lần chạy 3B (20 lượt) và 7B
+(23 lượt), chia ba nhóm:
+
+| Nhóm | 3B | 7B |
+|---|---|---|
+| có trong `kb/` nhưng lượt đó không truy hồi tới (150 phút/tuần, HbA1c 5,7 %, 130/180 mg/dL) | 5 | 3 |
+| khuyến cáo chuẩn không có trong `kb/` (30 phút vận động mỗi ngày, quy tắc 15 phút khi hạ đường huyết, ngủ 7–9 giờ) | 11 | 15 |
+| không có căn cứ hoặc sai (gram, kcal của món; "FPG trên 160 mg/dL thì đi khám ngay"; 58 % gán nhầm cho WHO) | **4** | **5** |
+
+Số thật sự không có căn cứ tập trung ở gram/kcal món ăn và ngưỡng chẩn đoán, nên prompt hệ thống được dặn thêm: chỉ
+nêu gram, kcal, đạm, tinh bột của món có trong bảng dinh dưỡng, và chỉ nêu ngưỡng chẩn đoán, tỉ lệ phần trăm khi có
+trong tài liệu. Chạy lại 150 lượt (3B): đạt 127 → 124/150 (McNemar theo ca 9 so với 6, $p = 0{,}61$, không khác biệt có
+ý nghĩa), lượt bị gắn cờ 20 → 17, số không có căn cứ 4 → 2 trên cả 150 lượt. Đổi lại, ở bốn nhóm hay có số (diet,
+nutrition, memory, risk_referral) có 6 ca chỉ đạt trước và 2 ca chỉ đạt sau, phần lớn vì bản nháp nhóm diet không còn
+gắn nhãn nguồn. Mẫu nhỏ, nên cả hai chiều chỉ là chiều hướng; lời dặn đang được giữ.
+Chi tiết ở `docs/results/2026-11-24_numfix_3b/`.
+
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
 nhân, `qwen2.5:3b`, embedding băm, 12 ca × 3 lượt:
 
@@ -701,7 +749,7 @@ python -m pytest -q
 src/app.py              giao diện Streamlit
 src/journal_ui.py       ba trang Hôm nay, Nhật ký, Tái khám
 src/checkin_ui.py       trợ lý chủ động hỏi trên trang Tư vấn (thẻ xác nhận số đo)
-src/meal_ui.py          trang Bữa ăn (ảnh khay cơm -> Calo Khay -> xác nhận món -> khoảng tinh bột)
+src/meal_ui.py          trang Bữa ăn (ảnh khay cơm -> Calo Khay -> xác nhận món -> khoảng tinh bột; hoặc tự nhập món)
 src/diacare/mcp_server.py  MCP server (stdio) mở các công cụ tất định của DiaCare
 src/api/                dịch vụ FastAPI (main.py) và mật khẩu, token (security.py)
 web/                    giao diện Next.js (app/: các trang, lib/api.ts: gọi API và đọc luồng SSE)
@@ -709,7 +757,7 @@ src/cli.py              giao diện dòng lệnh
 src/train_predictor.py  huấn luyện MLP bản cũ trên BRFSS 2015 (V1)
 src/diacare/            các agent (memory, labs, ocr, kg, nutrition, rl, advisor, rules), context, DB, sơ đồ động (flowviz.py)
 kb/                     14 tài liệu tri thức (MedlinePlus, WHO) + thống kê đồ thị (kb/graph/brfss_associations.json)
-data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC), bảng tinh bột 45 lớp Calo Khay (calo_khay_carb.csv)
+data/nutrition/         bảng dinh dưỡng món Việt (từ USDA FDC), bảng tinh bột 45 lớp Calo Khay + 20 món nhập tay (calo_khay_carb.csv)
 tools/                  công cụ tạo thống kê KG (build_kg_stats.py), nạp Neo4j (kg_neo4j.py), huấn luyện RL (train_rl.py),
                         dữ liệu demo Q-learning (make_rl_demo_data.py), bật/tắt 7B trên Kaggle (kaggle_llm.py),
                         bảng tinh bột Calo Khay (build_carb_table.py)
@@ -722,7 +770,12 @@ tests/                  test (pytest)
 ## Hạn chế đã biết
 
 - Coach Q-learning mới chỉ được huấn luyện và đánh giá trên người bệnh mô phỏng do nhóm tự viết; trên mô phỏng đó Q-learning ($\gamma = 0{,}9$) không hơn bandit ($\gamma = 0$). Chưa thử trên người thật.
-- Prompt giọng tư vấn làm mô hình 3B tự đưa ra con số nhiều hơn (11 → 20/150 lượt); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng.
+- Mô hình vẫn đôi khi đưa số không có căn cứ (phân loại tay: 3B 2/150 lượt sau lời dặn mới, 4/150 trước đó; 7B 5/150
+  ở lần chạy trước lời dặn; chủ yếu gram, kcal của món và ngưỡng chẩn đoán); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng. Phần lớn số bị gắn cờ
+  là khuyến cáo chuẩn mà `kb/` không có (30 phút vận động, quy tắc 15 phút); thêm một trang khuyến cáo có nguồn vào
+  `kb/` sẽ giảm cờ giả nhưng đổi ngữ cảnh của mọi ca benchmark, nên chưa làm.
+- Critic không bắt số dạng khoảng ("45-60 gram"), số dính liền chữ ("100g ngũ cốc") hay kèm chữ Hán ("32.8克").
+- Bảng tinh bột chỉ có 44 món căng tin Calo Khay nhận diện được và 20 món nhập tay; món khác chưa tính được.
 - Mức nguy cơ chỉ tính từ 21 câu hỏi lối sống trong hồ sơ, không dùng xét nghiệm hay triệu chứng (hai thứ này được xét
   riêng bằng cờ). Ba nguồn huấn luyện đều là dữ liệu Mỹ; NHANES thiếu 10/21 chỉ số, BRFSS 2023 thiếu rau quả.
 - Luật triệu chứng và lọc thuốc dựa trên chữ tiếng Việt có dấu; câu gõ không dấu có thể không kích hoạt. Ba cách nói

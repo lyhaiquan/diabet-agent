@@ -12,11 +12,13 @@ const ICONS = {
   today: "M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10",
   journal: "M4 19h16M6 16V9m5 7V5m5 11v-5m4 5V8",
   chat: "M4 5h16v11H8l-4 4z",
+  meals: "M4 11h16a8 8 0 0 1-16 0zM8 7c0-2 2-2 2-4m4 4c0-2 2-2 2-4",
   visit: "M7 3v3m10-3v3M4 8h16M5 5h14v15H5zM9 13h6m-6 4h4",
 };
 const NAV: { href: string; label: string; icon: keyof typeof ICONS }[] = [
   { href: "/today", label: "Hôm nay", icon: "today" },
   { href: "/journal", label: "Nhật ký", icon: "journal" },
+  { href: "/meals", label: "Bữa ăn", icon: "meals" },
   { href: "/chat", label: "Tư vấn", icon: "chat" },
   { href: "/visit", label: "Tái khám", icon: "visit" },
 ];

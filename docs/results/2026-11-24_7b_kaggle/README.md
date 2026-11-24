@@ -50,9 +50,10 @@ Theo nhóm (7B): mọi nhóm đạt 1,00 trừ `memory` 0,75, `medication` 0,94,
 - Đây là khác biệt có ý nghĩa thống kê thứ hai trong mọi phép so sánh đã làm (lần trước: 7B so với 14B,
   $p = 0{,}003$). Harness được chỉnh nhiều nhất quanh bản 3B (lời nhắc trích nguồn, giọng tư vấn), nhưng 7B vẫn hơn rõ:
   trích nguồn tốt hơn và không xen chữ Hán.
-- **7B vẫn tự đưa số** không có trong ngữ cảnh ở 23/150 lượt, không ít hơn 3B. Lời dặn "giải thích vì sao bằng con số"
-  của prompt giọng tư vấn có lẽ gợi mô hình ước tính số; đổi mô hình không sửa được điều này.
+- Critic gắn cờ số không có trong ngữ cảnh ở 23/150 lượt của 7B, không ít hơn 3B. Đọc từng câu (sau lần chạy này)
+  thì phần lớn là khuyến cáo chuẩn (30 phút vận động, quy tắc 15 phút) hoặc số có trong `kb/` mà lượt đó không truy
+  hồi tới; chỉ 5 lượt là số thật sự không có căn cứ. Xem `docs/results/2026-11-24_numfix_3b/`.
 - 7B chậm hơn khoảng 2,4 lần mỗi lượt, một phần do đường hầm (mỗi lượt đi qua Internet tới Kaggle). Lời nhắn gửi cho
   mô hình đi ra ngoài máy, nên cách chạy này dùng cho demo và benchmark, không dùng cho dữ liệu người bệnh thật.
-- Một lượt treo 300 giây cho thấy đường hầm miễn phí có lúc không ổn định; giao diện nên đặt thời gian chờ ngắn hơn
-  khi dùng Kaggle.
+- Một lượt treo 300 giây cho thấy đường hầm miễn phí có lúc không ổn định. Đã sửa sau lần chạy này: khi Ollama ở xa
+  (có token), DiaCare chỉ chờ 90 giây rồi báo lỗi rõ cho người dùng (`DIACARE_OLLAMA_TIMEOUT` để đổi).

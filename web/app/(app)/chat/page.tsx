@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckinCard } from "@/components/CheckinCard";
 import { MicButton } from "@/components/MicButton";
 import { ErrorText, Notice } from "@/components/Notice";
-import { api, chatStream, type ChatMessage, type ChatResult, type Focus } from "@/lib/api";
+import { api, chatStream, type ChatMessage, type ChatResult, type CheckinReply, type Focus } from "@/lib/api";
 import { getSpeakPref, setSpeakPref, speak, stopSpeaking } from "@/lib/voice";
 import { usePatient } from "@/lib/session";
 
@@ -13,6 +14,11 @@ const SUGGESTIONS = [
   "Đi bộ bao lâu mỗi ngày là đủ?",
   "Quên uống thuốc buổi sáng thì sao?",
 ];
+
+/** Câu soạn sẵn (lời mở đầu của trợ lý) dùng **chữ đậm**; hiện thành chữ đậm thay vì dấu sao. */
+function Bold({ text }: { text: string }) {
+  return <>{text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part))}</>;
+}
 
 type Item = ChatMessage & { result?: ChatResult; pending?: boolean; steps?: string[] };
 
@@ -57,6 +63,9 @@ export default function ChatPage() {
   const [speakOn, setSpeakOn] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [noVoice, setNoVoice] = useState(false);
+  // trợ lý chủ động hỏi: phiên này đang đợi câu trả lời; thẻ xác nhận số đo vừa đọc được (chưa lưu)
+  const [checkinPending, setCheckinPending] = useState(false);
+  const [card, setCard] = useState<CheckinReply["card"] | null>(null);
 
   useEffect(() => {
     setSpeakOn(getSpeakPref());
@@ -79,15 +88,21 @@ export default function ChatPage() {
     }
   }
 
-  // Mở lại phiên gần nhất nếu có
+  // Mở lại phiên gần nhất nếu có, rồi để trợ lý mở lời (mỗi ngày một lần, chỉ với người đã chẩn đoán)
   useEffect(() => {
-    api.sessions(patient.id).then(async (list) => {
+    let alive = true;
+    (async () => {
+      const list = await api.sessions(patient.id);
       const last = list.find((s) => s.n_messages > 0);
-      if (last) {
-        setSessionId(last.id);
-        setItems(await api.messages(patient.id, last.id));
-      }
-    }).catch((e) => setError(e.message));
+      const ci = await api.checkinOpen(patient.id, last?.id ?? null);
+      if (!alive) return;
+      setCheckinPending(ci.pending);
+      setCard(null);
+      const sid = ci.session_id ?? last?.id ?? null;
+      setSessionId(sid);
+      setItems(sid ? await api.messages(patient.id, sid) : []);
+    })().catch((e) => setError(e.message));
+    return () => { alive = false; };
   }, [patient.id]);
 
   useEffect(() => {
@@ -106,6 +121,25 @@ export default function ChatPage() {
     setInput("");
     stopSpeaking();
     setSpeaking(false);
+    setCard(null);
+    try {
+      if (checkinPending && sessionId != null) {
+        // câu trả lời cho câu hỏi chủ động: số đo -> thẻ xác nhận, "chưa đo"/triệu chứng -> câu soạn sẵn
+        const r = await api.checkinReply(patient.id, sessionId, q);
+        setCheckinPending(r.pending);
+        if (r.handled) {
+          setItems((xs) => [...xs, { role: "user", content: q }, ...(r.reply ? [{ role: "assistant" as const, content: r.reply }] : [])]);
+          if (r.card) setCard(r.card);
+          else if (r.reply && speakOn) readAloud(r.reply);
+          setBusy(false);
+          return;
+        }
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+      return;
+    }
     setItems((xs) => [...xs, { role: "user", content: q }, { role: "assistant", content: "", pending: true, steps: [] }]);
     try {
       const result = await chatStream(patient.id, q, sessionId, {
@@ -128,6 +162,15 @@ export default function ChatPage() {
   function newSession() {
     setSessionId(null);
     setItems([]);
+    setCard(null);
+    setCheckinPending(false);
+  }
+
+  function cardDone(reply: string, saved: boolean) {
+    setCard(null);
+    setCheckinPending(!saved); // bấm "Không đúng" thì vẫn đợi người dùng gõ lại số đo
+    setItems((xs) => [...xs, { role: "assistant", content: reply }]);
+    if (speakOn) readAloud(reply);
   }
 
   return (
@@ -160,7 +203,7 @@ export default function ChatPage() {
         )}
         {items.map((m, i) => (
           <div key={i} className={`bubble ${m.role === "user" ? "bubble-user" : "bubble-bot"}`}>
-            {m.content || (m.pending ? "Đang suy nghĩ..." : "")}
+            {m.content ? <Bold text={m.content} /> : m.pending ? "Đang suy nghĩ..." : ""}
             {m.pending && m.steps && m.steps.length > 0 && (
               <div className="steps">Các agent đã chạy: {m.steps.join(" → ")}</div>
             )}
@@ -173,6 +216,10 @@ export default function ChatPage() {
             )}
           </div>
         ))}
+        {card && sessionId != null && (
+          <CheckinCard patientId={patient.id} sessionId={sessionId} reading={card.reading} measuredAt={card.measured_at}
+                       onDone={cardDone} />
+        )}
         <ErrorText error={error} />
         <div ref={endRef} style={{ scrollMarginBottom: 170 }} />
       </div>

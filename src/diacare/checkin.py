@@ -184,3 +184,88 @@ def saved_reply(reading, targets=None):
         return text
     kg = f"{reading['kg']:g}".replace(".", ",")
     return f"Mình đã ghi cân nặng {kg} kg vào nhật ký."
+
+
+# ---------- lượt hỏi gắn với kho dữ liệu: dùng chung cho Streamlit (checkin_ui.py) và API web ----------
+# Lượt hỏi của một ngày giữ bằng một dòng trong bảng checkins (không chỉ trạng thái giao diện), nên mở lại trang,
+# mở tab khác hay chuyển giữa Streamlit và web đều không hỏi lại.
+
+def open_for_day(store, patient, session_id, now, nudge_text=None):
+    """Mở lời một lần mỗi ngày (người gọi đã kiểm tra người dùng đã chẩn đoán). True nếu vừa thêm lời mở đầu."""
+    if store.get_checkin(patient["id"], now.date()) is not None:
+        return False
+    targets = journal.resolve_targets(store.get_targets(patient["id"]))
+    topic = plan_topic(store.list_readings(patient["id"]), now, targets)
+    # Bảng checkins không mã hoá: chỉ lưu loại câu hỏi, không lưu câu hỏi (có số đo và nhận định sức khoẻ)
+    stored = {k: topic.get(k) for k in ("kind", "expects", "context", "status")}
+    if store.claim_checkin(patient["id"], now.date(), session_id, stored):
+        store.add_message(session_id, "assistant", opener_text(patient["name"], topic, nudge_text))
+        return True
+    return False
+
+
+def pending_topic(store, patient_id, session_id, now):
+    """Câu hỏi chủ động hôm nay còn đợi trả lời trong đúng phiên này, hoặc None."""
+    c = store.get_checkin(patient_id, now.date())
+    if c and c["status"] == "open" and c["session_id"] == session_id:
+        return c["topic"]
+    return None
+
+
+def handle_reply(store, patient, session_id, text, now):
+    """Xử lý câu người dùng vừa gõ/nói khi trợ lý đang đợi trả lời. Trả về
+    {"handled": False} -> gửi câu này cho pipeline tư vấn như mọi câu hỏi (lượt hỏi đã đóng);
+    {"handled": True, "reply": câu soạn sẵn đã lưu}            -> triệu chứng / chưa đo;
+    {"handled": True, "card": {"reading", "when"}}            -> số đo: giao diện hiện thẻ xác nhận, CHƯA lưu gì."""
+    topic = pending_topic(store, patient["id"], session_id, now)
+    if topic is None:
+        return {"handled": False}
+    r = route_reply(text, topic, now)
+    if r["route"] == "ask":
+        store.close_checkin(patient["id"], now.date(), "answered")
+        return {"handled": False}
+    store.add_message(session_id, "user", text)
+    if r["route"] in ("symptom", "not_yet"):  # lượt hỏi vẫn mở: lát nữa gõ số đo thì vẫn ghi được
+        reply = symptom_reply(topic) if r["route"] == "symptom" else NOT_YET_REPLY
+        store.add_message(session_id, "assistant", reply)
+        return {"handled": True, "reply": reply}
+    return {"handled": True, "card": {"reading": r["reading"], "when": r["when"]}}
+
+
+def save_reading(store, patient_id, session_id, reading, when, now, context=None, use_alternative=False):
+    """Lưu số đo người dùng đã xác nhận trên thẻ. Trả về (câu xác nhận, None) hoặc (None, thông báo lỗi)."""
+    reading = dict(reading)
+    when = min(journal.to_vn(when), now)
+    if reading.get("kind") == "glucose":
+        if use_alternative and reading.get("alternative"):
+            reading.update(value=reading["alternative"]["value"], unit=reading["alternative"]["unit"])
+        reading["context"] = context or reading.get("context") or "random"
+        if reading["context"] not in journal.CONTEXTS or reading.get("unit") not in ("mmol/L", "mg/dL"):
+            return None, "Số đo chưa hợp lệ."
+        mgdl, err = journal.validate_glucose(float(reading["value"]), reading["unit"])
+        if err:
+            return None, err
+        store.add_reading(patient_id, "glucose", mgdl, when, unit=reading["unit"], context=reading["context"],
+                          note="ghi qua trò chuyện")
+    elif reading.get("kind") == "bp":
+        err = journal.validate_bp(int(reading["systolic"]), int(reading["diastolic"]))
+        if err:
+            return None, err
+        store.add_reading(patient_id, "bp", int(reading["systolic"]), when, value2=int(reading["diastolic"]),
+                          unit="mmHg")
+    elif reading.get("kind") == "weight":
+        err = journal.validate_weight(float(reading["kg"]))
+        if err:
+            return None, err
+        store.add_reading(patient_id, "weight", float(reading["kg"]), when, unit="kg")
+    else:
+        return None, "Số đo chưa hợp lệ."
+    reply = saved_reply(reading, journal.resolve_targets(store.get_targets(patient_id)))
+    store.add_message(session_id, "assistant", reply)
+    store.close_checkin(patient_id, now.date(), "done")
+    return reply, None
+
+
+def cancel_card(store, session_id):
+    store.add_message(session_id, "assistant", CANCEL_REPLY)
+    return CANCEL_REPLY

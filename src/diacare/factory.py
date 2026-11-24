@@ -30,7 +30,9 @@ def make_llm(kind=None, model=None, num_ctx=None):
     base = (os.environ.get("DIACARE_OLLAMA_URL") or "http://localhost:11434").rstrip("/")
     # DIACARE_OLLAMA_TOKEN: token của cổng chặn khi Ollama chạy trên Kaggle qua tunnel (kaggle/build_ollama_notebook.py)
     token = os.environ.get("DIACARE_OLLAMA_TOKEN") or None
-    return OllamaLLM(model=model, num_ctx=num_ctx, url=base + "/api/chat", token=token)
+    timeout = os.environ.get("DIACARE_OLLAMA_TIMEOUT")
+    return OllamaLLM(model=model, num_ctx=num_ctx, url=base + "/api/chat", token=token,
+                     timeout=float(timeout) if timeout else None)
 
 
 def make_embed_fn(kind=None):

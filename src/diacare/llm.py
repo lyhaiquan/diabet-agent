@@ -30,14 +30,27 @@ class _PerThreadUsage:
         self.__dict__["_usage"].value = value
 
 
+# Thời gian chờ mỗi lần đọc socket. Ollama trên máy: 300 giây (lần nạp model đầu tiên có thể lâu). Ollama từ xa qua
+# đường hầm (có token, Kaggle): 90 giây; benchmark 7B ngày 2026-11-24 có một yêu cầu treo hết 300 giây vì đường hầm,
+# trong khi lượt bình thường chỉ mất khoảng 7 giây. Đổi bằng DIACARE_OLLAMA_TIMEOUT.
+LOCAL_TIMEOUT = 300
+REMOTE_TIMEOUT = 90
+
+
+class LLMUnavailable(RuntimeError):
+    """Không gọi được mô hình (hết thời gian chờ, mất kết nối, bị từ chối). Thông điệp viết cho người dùng."""
+
+
 class OllamaLLM(_PerThreadUsage):
     def __init__(self, model="qwen2.5:7b", url="http://localhost:11434/api/chat",
-                 num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=300,
+                 num_ctx=DEFAULT_NUM_CTX, temperature=0.2, timeout=None,
                  num_predict=DEFAULT_NUM_PREDICT, token=None):
         self.model, self.url, self.num_ctx = model, url, num_ctx
         # token: khi Ollama chạy ở máy khác qua tunnel công khai (kaggle/build_ollama_notebook.py), cổng chặn phía đó
         # chỉ cho qua yêu cầu có header "Authorization: Bearer <token>"
         self.token = token
+        if timeout is None:
+            timeout = REMOTE_TIMEOUT if token else LOCAL_TIMEOUT
         self.temperature, self.timeout, self.num_predict = temperature, timeout, num_predict
         self.last_usage = {}
 
@@ -52,18 +65,34 @@ class OllamaLLM(_PerThreadUsage):
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         req = urllib.request.Request(self.url, body, headers)
+        where = "máy chủ mô hình từ xa (Kaggle)" if self.token else "Ollama trên máy"
         try:
             resp = urllib.request.urlopen(req, timeout=self.timeout)
+            with resp:
+                if on_token is None:
+                    data = json.load(resp)
+                    text = data["message"]["content"]
+                else:
+                    text, data = _read_stream(resp, on_token)
         except urllib.error.HTTPError as e:
             if e.code in (401, 403):
-                raise RuntimeError("Ollama từ xa từ chối yêu cầu: sai hoặc thiếu DIACARE_OLLAMA_TOKEN") from e
+                raise LLMUnavailable("Máy chủ mô hình từ xa từ chối yêu cầu: sai hoặc thiếu DIACARE_OLLAMA_TOKEN.") from e
+            if e.code in (502, 503, 504, 530) and self.token:  # 530: đường hầm Cloudflare không còn nối tới Kaggle
+                raise LLMUnavailable(f"Không kết nối được {where} (mã {e.code}). Có thể notebook Kaggle đã tắt; "
+                                     "chạy lại chay_kaggle.bat hoặc chuyển sang mô hình trên máy.") from e
             raise
-        with resp:
-            if on_token is None:
-                data = json.load(resp)
-                text = data["message"]["content"]
-            else:
-                text, data = _read_stream(resp, on_token)
+        except TimeoutError as e:
+            raise LLMUnavailable(f"{where.capitalize()} không trả lời trong {self.timeout:g} giây. "
+                                 "Vui lòng thử lại; nếu lặp lại, kiểm tra notebook Kaggle hoặc chuyển sang mô hình "
+                                 "trên máy." if self.token else
+                                 f"{where.capitalize()} không trả lời trong {self.timeout:g} giây. Vui lòng thử lại.") from e
+        except urllib.error.URLError as e:
+            if isinstance(e.reason, TimeoutError):
+                raise LLMUnavailable(f"{where.capitalize()} không trả lời trong {self.timeout:g} giây. "
+                                     "Vui lòng thử lại.") from e
+            raise LLMUnavailable(f"Không kết nối được {where}. "
+                                 + ("Có thể notebook Kaggle đã tắt; chạy lại chay_kaggle.bat hoặc chuyển sang mô hình "
+                                    "trên máy." if self.token else "Hãy kiểm tra Ollama đã chạy chưa.")) from e
         self.last_usage = {
             "prompt_tokens": data.get("prompt_eval_count", 0),
             "completion_tokens": data.get("eval_count", 0),

@@ -10,8 +10,7 @@ import streamlit as st
 
 from diacare import journal
 from diacare.speech import AudioError, decode_wav, make_transcriber
-from diacare.checkin import (CANCEL_REPLY, NOT_YET_REPLY, opener_text, plan_topic, route_reply, saved_reply,
-                             symptom_reply)
+from diacare.checkin import cancel_card, handle_reply, open_for_day, pending_topic, save_reading
 from diacare.coach import daily_nudge
 from journal_ui import _coach
 
@@ -19,90 +18,45 @@ CARD = "checkin_card"
 
 
 def maybe_open(store, patient, session_id, diagnosed):
-    """Mở lời một lần mỗi ngày cho người đã chẩn đoán. Lượt hỏi giữ bằng một dòng trong bảng checkins (không chỉ
-    session_state) nên chạy lại trang hay mở tab khác cũng không hỏi lại."""
+    """Mở lời một lần mỗi ngày cho người đã chẩn đoán (lượt hỏi giữ trong bảng checkins, xem checkin.open_for_day)."""
     if not diagnosed or session_id is None:
         return
     now = journal.now_vn()
     if store.get_checkin(patient["id"], now.date()) is not None:
         return
-    targets = journal.resolve_targets(store.get_targets(patient["id"]))
-    topic = plan_topic(store.list_readings(patient["id"]), now, targets)
     coach = _coach()
     # cùng lời nhắc với tab Hôm nay: daily_nudge chỉ chọn một lần mỗi ngày (bảng coach_events)
     nudge = daily_nudge(store, coach, patient["id"], now.date())["text"] if coach is not None else None
-    # Bảng checkins không mã hoá: chỉ lưu loại câu hỏi, không lưu câu hỏi (có số đo và nhận định sức khoẻ)
-    stored = {k: topic.get(k) for k in ("kind", "expects", "context", "status")}
-    if store.claim_checkin(patient["id"], now.date(), session_id, stored):
-        store.add_message(session_id, "assistant", opener_text(patient["name"], topic, nudge))
-
-
-def _pending_topic(store, patient_id, session_id):
-    c = store.get_checkin(patient_id, journal.now_vn().date())
-    if c and c["status"] == "open" and c["session_id"] == session_id:
-        return c["topic"]
-    return None
+    open_for_day(store, patient, session_id, now, nudge)
 
 
 def handle_input(store, patient, session_id, text):
     """True nếu câu vừa gõ là câu trả lời cho câu hỏi chủ động và đã xử lý ở đây (số đo -> thẻ xác nhận, "chưa đo"
     -> câu soạn sẵn). False: để app.py gửi cho pipeline tư vấn như mọi câu hỏi khác."""
-    topic = _pending_topic(store, patient["id"], session_id)
-    if topic is None:
-        return False
-    r = route_reply(text, topic)
-    if r["route"] == "ask":
-        store.close_checkin(patient["id"], journal.now_vn().date(), "answered")
+    r = handle_reply(store, patient, session_id, text, journal.now_vn())
+    if not r["handled"]:
         st.session_state.pop(CARD, None)  # thẻ số đo cũ không còn hợp ngữ cảnh
         return False
-    store.add_message(session_id, "user", text)
-    if r["route"] == "symptom":  # lượt hỏi vẫn mở để lát nữa gõ số đo lại
-        store.add_message(session_id, "assistant", symptom_reply(topic))
-        return True
-    if r["route"] == "not_yet":
-        # vẫn để lượt hỏi mở: lát nữa người dùng gõ số thì vẫn ghi được
-        store.add_message(session_id, "assistant", NOT_YET_REPLY)
-        return True
-    n = st.session_state.get("checkin_card_n", 0) + 1
-    st.session_state["checkin_card_n"] = n
-    st.session_state[CARD] = {"n": n, "reading": r["reading"], "when": r["when"].isoformat()}
+    if r.get("card"):
+        n = st.session_state.get("checkin_card_n", 0) + 1
+        st.session_state["checkin_card_n"] = n
+        st.session_state[CARD] = {"n": n, "reading": r["card"]["reading"], "when": r["card"]["when"].isoformat()}
     return True
 
 
 def _save(store, patient, session_id, card):
-    ss, n, reading = st.session_state, card["n"], dict(card["reading"])
+    ss, n = st.session_state, card["n"]
     when = datetime.combine(ss[f"ci_date_{n}"], ss[f"ci_time_{n}"], tzinfo=journal.VN_TZ)
-    pid = patient["id"]
-    if reading["kind"] == "glucose":
-        if reading.get("alternative") and ss.get(f"ci_alt_{n}") == 1:
-            reading.update(value=reading["alternative"]["value"], unit=reading["alternative"]["unit"])
-        reading["context"] = ss[f"ci_ctx_{n}"]
-        mgdl, err = journal.validate_glucose(reading["value"], reading["unit"])
-        if err:
-            ss[f"ci_err_{n}"] = err
-            return
-        store.add_reading(pid, "glucose", mgdl, when, unit=reading["unit"], context=reading["context"],
-                          note="ghi qua trò chuyện")
-    elif reading["kind"] == "bp":
-        err = journal.validate_bp(reading["systolic"], reading["diastolic"])
-        if err:
-            ss[f"ci_err_{n}"] = err
-            return
-        store.add_reading(pid, "bp", reading["systolic"], when, value2=reading["diastolic"], unit="mmHg")
-    else:
-        err = journal.validate_weight(reading["kg"])
-        if err:
-            ss[f"ci_err_{n}"] = err
-            return
-        store.add_reading(pid, "weight", reading["kg"], when, unit="kg")
-    targets = journal.resolve_targets(store.get_targets(pid))
-    store.add_message(session_id, "assistant", saved_reply(reading, targets))
-    store.close_checkin(pid, journal.now_vn().date(), "done")
+    _, err = save_reading(store, patient["id"], session_id, card["reading"], when, journal.now_vn(),
+                          context=ss.get(f"ci_ctx_{n}"), use_alternative=ss.get(f"ci_alt_{n}") == 1)
+    if err:
+        ss[f"ci_err_{n}"] = err
+        return
     ss.pop(CARD, None)
 
 
 def _cancel(store, session_id):
-    store.add_message(session_id, "assistant", CANCEL_REPLY)
+    cancel_card(store, session_id)
     st.session_state.pop(CARD, None)
 
 
@@ -212,7 +166,7 @@ def voice_reply(store, patient, session_id):
     """Khi trợ lý đang đợi trả lời câu hỏi chủ động: ô ghi âm + nút đọc to câu hỏi. Chữ nghe được hiện trong ô để
     người dùng sửa rồi bấm Gửi (Whisper có thể "bịa" câu khi gặp tiếng ồn, nên không gửi thẳng). Trả về câu đã
     bấm Gửi, hoặc None."""
-    if _pending_topic(store, patient["id"], session_id) is None:
+    if pending_topic(store, patient["id"], session_id, journal.now_vn()) is None:
         st.session_state.pop(HEARD, None)
         return None
     with st.container(border=True):

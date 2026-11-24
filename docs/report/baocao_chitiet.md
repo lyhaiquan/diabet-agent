@@ -131,7 +131,7 @@ Pipeline mười một agent ở trên chỉ là phần lõi. Bao quanh nó có 
 
 1. **Dịch vụ API** (`src/api/`, FastAPI, 35 endpoint). Phần nặng (Predictor, Retriever, mô hình ngôn ngữ, đồ thị) được dựng một lần khi khởi động; mỗi request mở một kết nối riêng tới PostgreSQL (khi đặt `DIACARE_DATABASE_URL`, mặc định trong Docker Compose) hoặc SQLite ở chế độ WAL. Các endpoint chia sáu nhóm: tài khoản, hồ sơ, nhật ký, xét nghiệm, tái khám, tư vấn; thêm `/transcribe` cho giọng nói. Chi tiết ở mục 6.2.
 2. **Giao diện web Next.js** (`web/`) cho người bệnh, ưu tiên điện thoại, chỉ nói chuyện với API (mục 5.6).
-3. **Giao diện Streamlit** (`src/app.py`) có bốn trang cho người dùng và các trang cho nhà phát triển (mục 5). Streamlit không đi qua API mà gọi thẳng Orchestrator, nên dùng được khi không bật API.
+3. **Giao diện Streamlit** (`src/app.py`) có năm trang cho người dùng (Hôm nay, Nhật ký, Bữa ăn, Tư vấn, Tái khám) và các trang cho nhà phát triển (mục 5). Streamlit không đi qua API mà gọi thẳng Orchestrator, nên dùng được khi không bật API.
 
 Cách chia này giữ đúng nguyên tắc ở mục 2.2: mọi phép tính cần chính xác (so mục tiêu, đổi đơn vị, đọc số nói bằng chữ) nằm trong code Python có test và dùng chung cho cả hai giao diện; giao diện chỉ hiển thị.
 
@@ -514,7 +514,8 @@ Tệp `advisor.py`, `llm.py`. Advisor ghép lời dặn hệ thống, lịch s�
 - không kê đơn, không hướng dẫn thay đổi liều thuốc hoặc insulin;
 - không nêu nguy cơ dạng phần trăm;
 - khi có xét nghiệm: giải thích so với ngưỡng, trích `[ada_2024]`, nói rõ không phải chẩn đoán;
-- khi có nhật ký: nêu con số cụ thể, giữ nguyên nhận định có sẵn (cao hơn, thấp hơn, trong mục tiêu) thay vì tự so lại, không suy ra liều thuốc, và khuyên báo bác sĩ khi có hạ đường huyết hoặc chỉ số rất cao.
+- khi có nhật ký: nêu con số cụ thể, giữ nguyên nhận định có sẵn (cao hơn, thấp hơn, trong mục tiêu) thay vì tự so lại, không suy ra liều thuốc, và khuyên báo bác sĩ khi có hạ đường huyết hoặc chỉ số rất cao;
+- chỉ nêu gram, kcal, đạm, tinh bột của món có trong bảng dinh dưỡng, và chỉ nêu ngưỡng chẩn đoán, tỉ lệ phần trăm khi có trong tài liệu (V4.9, mục 7.4b).
 
 Lớp `OllamaLLM` gọi `/api/chat` với nhiệt độ 0,2, `num_ctx` 4.096 và `num_predict` 512. Giới hạn `num_predict` được thêm sau khi lần chạy Kaggle thứ hai gặp câu trả lời viết mãi tới hết thời gian chờ. Mặt trái của giới hạn này là câu trả lời dài bị cắt giữa chừng: khi chạy thử giao diện, câu trả lời kết thúc ở "Tham khảo ý kiến bác sĩ: Đảm", và trong benchmark KG/RL có 8, 8 và 14 trên 150 lượt mỗi cấu hình chạm đúng 512 token. Từ V4.6, khi Ollama báo dừng vì chạm giới hạn (`done_reason: length`), `trim_incomplete` bỏ phần dở dang ở cuối: giữ tới dấu kết thúc câu cuối cùng (không nhầm số thập phân như 7.8), rồi bỏ các tiêu đề còn treo như "**Gợi ý thêm:**". Lượt đó được gắn cờ `answer_truncated`, và Critic, Rules làm việc trên bản đã cắt. Khi có `on_token`, lớp này bật chế độ stream và đọc từng dòng JSON của Ollama. Lớp `DemoLLM` là mô hình giả, trích nguyên đoạn tài liệu đầu tiên, dùng cho test và chạy thử giao diện không cần GPU.
 
@@ -660,6 +661,12 @@ Câu trả lời của người dùng đi đúng **một** trong bốn đường
 
 **Mọi câu của trợ lý ở đây là câu soạn sẵn từ dữ liệu**, không do LLM viết, vì lời cảnh báo phải đúng và giống nhau mọi lần. Phần này không chạy trong `orchestrator.run`, nên benchmark không đổi. Vài chỗ đã sửa khi thử: bản đầu coi "không" là "chưa đo", nên "không ổn, run tay" nhận câu "Không sao"; câu có số nhưng là câu hỏi ("8,5 lúc đói có cao không?") phải đi pipeline chứ không thành thẻ lưu; số đứng một mình ("tối qua 9 giờ đo 8,1") chỉ được nhận khi trông giống đường huyết (số thập phân, có đơn vị, hoặc số nguyên 40–400) để "2 bát cơm" không thành số đo. Ngày giờ đo đoán từ câu không bao giờ ở tương lai. Trả lời bằng giọng nói: mục 3.14.
 
+**Dùng chung cho Streamlit và web (V4.9).** Phần gắn với kho dữ liệu được tách khỏi giao diện thành bốn hàm trong `checkin.py`: `open_for_day` (giành lượt hỏi của ngày và thêm lời mở đầu), `handle_reply` (chọn một trong bốn đường; với số đo chỉ trả về **thẻ** gồm số đo và ngày giờ đoán được, chưa lưu gì), `save_reading` (kiểm tra lại giá trị bằng đúng hàm kiểm tra của trang Nhật ký, lưu, trả câu xác nhận, đóng lượt hỏi) và `cancel_card`. `checkin_ui.py` của Streamlit và bốn endpoint `POST .../checkin/open|reply|save|cancel` của API cùng gọi các hàm này, nên hai giao diện chung một lượt hỏi mỗi ngày. Máy chủ không tin số đo trên thẻ do trình duyệt gửi lại: số vô lý (65 mmol/L) bị trả 422. Trên web, `reply` trả `handled=false` thì trang Tư vấn gửi câu đó cho `/chat` như mọi câu hỏi. Một lỗi chỉ thấy khi chạy thật: ở chế độ phát triển React chạy effect hai lần, lần gọi `open` thứ hai không biết phiên mà lần đầu vừa tạo nên trang hiện trống; nay `open` không kèm phiên mà hôm nay đã có lượt hỏi đang mở thì trả về đúng phiên đó.
+
+![Trợ lý chủ động hỏi trên web (dữ liệu mẫu): lời mở đầu kèm lời nhắc Q-learning, người dùng trả lời "sáu phẩy tám lúc đói", trợ lý hiện thẻ xác nhận; chưa có gì được lưu.](figs/c9_web_hoi_the.png){height=18cm}
+
+![Sau khi bấm "Lưu vào nhật ký": câu xác nhận soạn sẵn, so với mục tiêu.](figs/c9_web_hoi_luu.png){height=15cm}
+
 ## 3.16. Agent bữa ăn: ảnh khay cơm và tinh bột
 
 Tệp `meal_scan.py` (agent) và `src/meal_ui.py` (trang **Bữa ăn**). Người dùng tải hoặc chụp ảnh khay cơm; agent gửi ảnh cho dịch vụ **Calo Khay** qua HTTP (`POST /api/scan`). Calo Khay là đồ án Xử lý ảnh số của nhóm: YOLO26s-seg đã tinh chỉnh khoanh vùng 44 món căng tin, DINOv2 phân loại lại từng vùng, YOLOE tìm đĩa, và gram mỗi món ước lượng theo diện tích món so với đĩa (sai số khoảng ±30% mỗi món). Calo Khay cần torch, ultralytics và transformers nên chạy như **một dịch vụ riêng** trong môi trường của nó (`chay_calo_khay.bat`, cổng 8010, SQLite, chạy được không cần mạng); DiaCare chỉ gọi HTTP. Trên GPU RTX 3050 Ti, mỗi ảnh mất 0,4–1 giây.
@@ -671,6 +678,12 @@ Tệp `meal_scan.py` (agent) và `src/meal_ui.py` (trang **Bữa ăn**). Ngườ
 $$\text{thấp} = \sum_i g_i (1 - e_i)\,c_i, \qquad \text{cao} = \sum_i g_i (1 + e_i)\,\bar c_i$$
 
 với $g_i$ gram, $c_i$ carb chính, $\bar c_i$ carb cận trên, sai số gram $e_i$ = 30% (đo từ ảnh), 50% (gram "trung bình", như cơm 228 g: README của Calo Khay ghi sai số tổng khay khoảng 112 g khi không có độ sâu, cỡ một nửa phần cơm), 15% (người dùng tự sửa). Đồ uống ghi "chưa tính" vì trà sữa có thể nhiều tinh bột hơn cả khay. Ví dụ ảnh mẫu `B_212.jpg`: 6 món, khoảng 46–123 g tinh bột (rộng vì cơm đang để mức trung bình), 517 kcal (khớp tổng kcal của Calo Khay); sửa cơm thành 150 g thì còn khoảng 50–75 g. Trang ghi rõ đây là ước lượng để theo dõi, không dùng để tính liều insulin.
+
+**Bữa không phải khay cơm (V4.9).** Calo Khay chỉ nhận ra 44 món căng tin. Bảng tinh bột có thêm 20 món người dùng tự chọn (phở bò, bún bò, bún chả, bánh cuốn, bánh mì thịt, bánh mì không, cháo trắng, cháo thịt, mì gói, xôi, khoai lang, ngô, yến mạch và chín loại quả), sinh bằng cùng script và cùng nguồn: mỗi món là hỗn hợp mục Nutrition5k theo một khẩu phần điển hình ghi trong cột ghi chú (ví dụ bát phở 600 g gồm 200 g bánh phở, 80 g thịt, 320 g nước dùng; cận trên khi nhiều bánh hơn), kcal tính từ cột `cal/g` của Nutrition5k. Nutrition5k không có gạo nếp, nên xôi có cận trên cao hơn hẳn (47 so với 28 g/100 g). Nút "Tự nhập món (không có ảnh)" mở bảng trống; món tự thêm được coi là đã xác nhận và tính sai số gram ±15%. Một bát phở bò 600 g ra khoảng 52–88 g tinh bột.
+
+**Trên web (V4.9).** Trang **Bữa ăn** của Next.js làm đủ các bước. Trình duyệt không gọi thẳng Calo Khay: ảnh gửi cho API (`POST /meals/scan`, tối đa 10 MB, không lưu ảnh), API gọi Calo Khay; khoảng tinh bột tính ở máy chủ (`POST .../meals/estimate`, gọi lại mỗi khi sửa món hay gram) bằng đúng hàm của Streamlit. Trình duyệt gửi kèm gram mô hình đưa ra cho từng món, và máy chủ tự quyết định nguồn gram (bằng gram mô hình thì tính sai số của mô hình, khác thì tính là người dùng nhập). Trên điện thoại, ô chọn ảnh mở thẳng camera sau; mỗi món là một khung riêng vì bảng nhiều cột làm ô tên món bị ép còn một chữ ở bề rộng 400 px (lỗi thấy được nhờ ảnh chụp).
+
+![Trang Bữa ăn trên web: ảnh khay mẫu `B_212.jpg` qua Calo Khay, sáu món kèm độ tin cậy, một món cần xác nhận, nhắc sửa gram cơm, khoảng tinh bột; bên dưới là các bữa đã ghi với đường huyết sau ăn.](figs/c9_web_bua_an.png){height=21cm}
 
 **Nối với đường huyết.** Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi chú). Bảng "Các bữa đã ghi" có cột "Đường huyết sau ăn" (lần đo 45 phút–3 giờ sau bữa); trong khoảng đó mà chưa đo thì trang nhắc đo. Các dòng này cũng vào ngữ cảnh của trang Tư vấn (mục 3.13).
 
@@ -766,9 +779,9 @@ Lưu số đo dùng hàm callback của nút bấm chứ không xử lý sau khi
 
 ## 5.6. Giao diện web Next.js
 
-Thư mục `web/`, Next.js 16.4 với App Router, React 19.3, TypeScript 5.9. Ngoài ba gói đó không dùng thư viện nào: biểu đồ đường huyết tự vẽ bằng SVG và co theo bề rộng màn hình, kiểu dáng viết bằng CSS thuần với biến màu cho cả chế độ sáng và tối. Giao diện ưu tiên điện thoại: thanh điều hướng bốn mục ở đáy màn hình, nút và ô nhập cao ít nhất 44 px, chữ số đo lớn.
+Thư mục `web/`, Next.js 16.4 với App Router, React 19.3, TypeScript 5.9. Ngoài ba gói đó không dùng thư viện nào: biểu đồ đường huyết tự vẽ bằng SVG và co theo bề rộng màn hình, kiểu dáng viết bằng CSS thuần với biến màu cho cả chế độ sáng và tối. Giao diện ưu tiên điện thoại: thanh điều hướng năm mục ở đáy màn hình (bốn mục trước V4.9), nút và ô nhập cao ít nhất 44 px, chữ số đo lớn.
 
-Luồng sử dụng: đăng ký hoặc đăng nhập; lần đầu tạo hồ sơ theo dõi (một tài khoản tạo được nhiều hồ sơ, chọn ở thanh trên cùng); rồi dùng bốn trang giống bản Streamlit. Token JWT được giữ trong `localStorage`. Trang Tư vấn đọc luồng SSE của API bằng `fetch` (vì `EventSource` không gửi được yêu cầu POST kèm token), hiện từng agent đang chạy, hiện chữ dần, rồi thay bằng câu trả lời cuối đã qua Rules.
+Luồng sử dụng: đăng ký hoặc đăng nhập; lần đầu tạo hồ sơ theo dõi (một tài khoản tạo được nhiều hồ sơ, chọn ở thanh trên cùng); rồi dùng năm trang giống bản Streamlit (Hôm nay, Nhật ký, Bữa ăn, Tư vấn, Tái khám; trang Bữa ăn và trợ lý chủ động hỏi có từ V4.9). Token JWT được giữ trong `localStorage`. Trang Tư vấn đọc luồng SSE của API bằng `fetch` (vì `EventSource` không gửi được yêu cầu POST kèm token), hiện từng agent đang chạy, hiện chữ dần, rồi thay bằng câu trả lời cuối đã qua Rules.
 
 ![Trang Hôm nay trên điện thoại (dữ liệu mẫu): nhắc nhở, nút "Nói số đo", ô ghi đường huyết, số liệu và biểu đồ 14 ngày.](figs/c8_web_homnay.png){height=20cm}
 
@@ -783,7 +796,9 @@ Hai bổ sung ở V4.5 (chưa có trong các ảnh chụp ở trên):
 - **Thẻ "Mục tiêu đường huyết" ở trang Tái khám.** Hiện mục tiêu đang dùng, cho nhập ba con số bác sĩ dặn và quay lại mục tiêu chung. Máy chủ kiểm tra giới hạn (mục 3.13); nhập 3,0 cho cận dưới thì nhận thông báo lỗi kèm khoảng cho phép. Lưu xong, ô "TB lúc đói" ở trang Hôm nay ghi "bác sĩ đặt 5,0–8,3" và dải xanh trên biểu đồ đổi theo.
 - **Thẻ "Nhắc đo đường huyết" ở trang Hôm nay.** Người dùng chọn tối đa bốn mốc giờ; tới giờ mà trong hai giờ trước đó chưa có số đo nào thì trình duyệt hiện thông báo, bấm vào thì mở trang Hôm nay. Giờ nhắc lưu trong `localStorage` theo từng hồ sơ, không gửi lên máy chủ. Bộ hẹn giờ chạy ở mọi trang (`ReminderScheduler` trong layout), 30 giây kiểm tra một lần, mỗi mốc mỗi ngày nhắc một lần và chỉ nhắc muộn tối đa 90 phút. Thông báo đi qua một service worker tối thiểu (`public/sw.js`, không lưu đệm gì) vì Chrome trên Android không cho trang tự tạo thông báo. Đây **không phải** thông báo đẩy: không có máy chủ đẩy nên chỉ nhắc được khi DiaCare đang mở trên trình duyệt, kể cả ở tab nền. Trong trình duyệt thử nghiệm (quyền thông báo bị từ chối) đã kiểm được nhánh "bị chặn" và việc đăng ký service worker; phần logic chọn mốc tới hạn được kiểm bằng một script riêng; việc thông báo thật sự hiện ra chưa được thử trên điện thoại.
 
-Bổ sung V4.9: trang Hôm nay hiện **"Lời nhắc hôm nay"** của Coach Q-learning (component `DailyNudge`) kèm nút 👍/👎 (mục 3.9). Trợ lý chủ động hỏi và trang Bữa ăn hiện mới có trên Streamlit.
+Bổ sung V4.9: trang Hôm nay hiện **"Lời nhắc hôm nay"** của Coach Q-learning (component `DailyNudge`) kèm nút 👍/👎 (mục 3.9); trang Tư vấn có trợ lý chủ động hỏi với thẻ xác nhận số đo (component `CheckinCard`, mục 3.15); thêm trang **Bữa ăn** (mục 3.16). Ảnh chụp bằng `docs/report/shots_web_v49.py` (Playwright, trên DB nháp, không gọi LLM).
+
+![Lời nhắc hôm nay của Coach Q-learning trên trang Hôm nay, kèm 👍/👎.](figs/c9_web_loi_nhac.png){width=9cm}
 
 # 6. Triển khai
 
@@ -835,6 +850,8 @@ Tệp `src/api/main.py` (ứng dụng), `src/api/security.py` (mật khẩu và 
 | Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `GET .../visit-report.pdf` |
 | Tư vấn | `POST .../chat`, `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` |
 | Giọng nói | `POST /transcribe` |
+| Trợ lý chủ động hỏi (V4.9) | `POST .../checkin/open`, `.../checkin/reply`, `.../checkin/save`, `.../checkin/cancel` |
+| Bữa ăn (V4.9) | `GET /meals/dishes`, `POST /meals/scan`, `POST .../meals/estimate`, `GET/POST .../meals`, `DELETE .../meals/{mid}` |
 
 **Bảo mật.** Chỉ dùng thư viện chuẩn của Python, không thêm gói ngoài:
 
@@ -865,6 +882,8 @@ Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riên
 **Chỉ chạy mô hình 7B trên Kaggle, giao diện ở máy mình (V4.9).** GPU 4 GB của máy phát triển chỉ chạy nhanh bản 3B. Notebook thứ ba (`kaggle/build_ollama_notebook.py`) chỉ chạy Ollama với `qwen2.5:7b` trên GPU T4 và mở đường hầm Cloudflare; giao diện và dữ liệu vẫn ở máy mình. Trước Ollama là một **cổng chặn** (`ollama_gate.py`, thư viện chuẩn) đòi `Authorization: Bearer <token>` (so bằng `hmac.compare_digest`), chỉ cho qua `/api/chat`, `/api/tags`, `/api/version`, chuyển tiếp luồng NDJSON theo từng đoạn để chữ vẫn hiện dần. Hai lỗi chỉ gặp khi chạy thật đã được sửa: trả lỗi 401 mà còn sót phần thân yêu cầu trên kết nối giữ sống thì Cloudflare dùng lại kết nối đó và yêu cầu kế tiếp hỏng (nay mọi câu trả lời lỗi đều đóng kết nối); và log của lần chạy trước vẫn còn trong `kaggle kernels logs`, nên có lần đọc nhầm link đã chết (nay mỗi lần đẩy có một mã riêng in kèm link).
 
 Toàn bộ chạy bằng Kaggle CLI: `python tools/kaggle_llm.py up` đóng gói notebook (nhúng token sinh một lần, lưu ở `kaggle/ollama_token.local`, không lên git), đẩy lên ở chế độ nền, chờ GPU, đọc link trong log, gọi thử, lưu phiên; `down` bảo notebook tự tắt; notebook cũng tự tắt khi không có yêu cầu nào trong 20–30 phút. `chay_kaggle.bat` làm cả chuỗi rồi mở Streamlit dùng 7B. Đo thật: lần không phải xếp hàng sẵn sàng sau 3,8 phút, lần phải chờ GPU mất 23 phút; câu đầu tiên bắt đầu hiện chữ sau khoảng 12 giây, các câu sau khoảng 1 giây, khoảng cách lớn nhất giữa hai đoạn chữ 0,15 giây. Mỗi lượt hỏi, lời nhắn gửi cho mô hình (gồm hồ sơ và nhật ký đã tóm tắt) đi qua Internet tới Kaggle, nên đây là cách cho demo và benchmark, không dùng cho dữ liệu người bệnh thật.
+
+**Khi đường hầm treo (V4.9).** Benchmark 7B có một yêu cầu treo hết thời gian chờ 300 giây, trong khi lượt bình thường mất khoảng 7 giây, và người dùng chỉ thấy "Hệ thống đang gặp sự cố". Nay khi có token (tức Ollama ở xa), `OllamaLLM` chỉ chờ 90 giây cho mỗi lần đọc (Ollama trên máy vẫn 300 giây vì lần nạp mô hình đầu có thể lâu; đổi bằng `DIACARE_OLLAMA_TIMEOUT`). Hết thời gian chờ, mất kết nối, hay Cloudflare trả 502/503/504/530 (notebook đã tắt) đều thành lỗi `LLMUnavailable` với một câu viết cho người dùng, ví dụ "Máy chủ mô hình từ xa (Kaggle) không trả lời trong 90 giây… kiểm tra notebook Kaggle hoặc chuyển sang mô hình trên máy"; Orchestrator hiện đúng câu đó thay cho câu chung, cờ `system_error` giữ nguyên. Test dựng một máy chủ nhận kết nối mà không trả lời để kiểm tra đường hết thời gian chờ.
 
 ## 6.4. Docker Compose
 
@@ -1068,7 +1087,29 @@ Kiểm định McNemar trên lần chạy `2026-11-05_kaggle_run4_7b_vs_14b` (50
 | Bản nháp xen chữ Hán | 8 | **0** |
 | Giây LLM mỗi lượt (trung bình) | 3,0 | 7,3 |
 
-McNemar theo ca (đạt cả ba lượt): 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, $p = 0{,}0018$. Ca "chỉ 3B đạt" (`labs_4`) là một lượt mà yêu cầu qua đường hầm treo tới hết thời gian chờ 300 giây, tức lỗi hạ tầng chứ không phải câu trả lời sai. Bốn lượt trượt còn lại của 7B: ba lượt `memory_3` (không gợi ý tôm cho người dị ứng tôm nhưng cũng không nói "tránh tôm", 3B cũng trượt ca này) và một bản nháp nhắc lại ý "dừng insulin" mà Rules đã chặn ở câu trả lời cuối. 7B trích nguồn tốt hơn và không xen chữ Hán, nhưng **vẫn tự đưa ra con số** không có trong ngữ cảnh ở 23/150 lượt, không ít hơn 3B: đổi mô hình không sửa được lỗi này. Đổi lại, mỗi lượt chậm hơn khoảng 2,4 lần, một phần do đường hầm. Chi tiết ở `docs/results/2026-11-24_7b_kaggle/`.
+McNemar theo ca (đạt cả ba lượt): 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, $p = 0{,}0018$. Ca "chỉ 3B đạt" (`labs_4`) là một lượt mà yêu cầu qua đường hầm treo tới hết thời gian chờ 300 giây, tức lỗi hạ tầng chứ không phải câu trả lời sai. Bốn lượt trượt còn lại của 7B: ba lượt `memory_3` (không gợi ý tôm cho người dị ứng tôm nhưng cũng không nói "tránh tôm", 3B cũng trượt ca này) và một bản nháp nhắc lại ý "dừng insulin" mà Rules đã chặn ở câu trả lời cuối. 7B trích nguồn tốt hơn và không xen chữ Hán. Critic gắn cờ số không có trong ngữ cảnh ở 23/150 lượt, không ít hơn 3B, nhưng phần lớn là khuyến cáo chuẩn hoặc số có trong kho mà lượt đó không truy hồi tới (mục 7.4b). Đổi lại, mỗi lượt chậm hơn khoảng 2,4 lần, một phần do đường hầm. Chi tiết ở `docs/results/2026-11-24_7b_kaggle/`.
+
+## 7.4b. Số "không có trong ngữ cảnh" (V4.9)
+
+Bản đầu của mục trên viết rằng mô hình "tự bịa số" ở 20–23/150 lượt. Đọc từng câu chứa số bị Critic gắn cờ cho thấy cách gọi đó quá nặng. Phân loại tay theo câu:
+
+| Nhóm | 3B (lượt) | 7B (lượt) | Ví dụ |
+|---|---|---|---|
+| có trong `kb/` nhưng lượt đó không truy hồi tới | 5 | 3 | 150 phút/tuần (WHO), HbA1c 5,7 %, FPG 126 mg/dL, 130/180 mg/dL |
+| khuyến cáo chuẩn không có trong `kb/` | 11 | 15 | 30 phút vận động mỗi ngày, quy tắc 15 phút khi hạ đường huyết, ngủ 7–9 giờ |
+| không có căn cứ hoặc sai | **4** | **5** | 6 g đạm/quả trứng, 150 gram thịt, 106 kcal; "FPG trên 160 mg/dL thì đi khám ngay"; 58 % gán nhầm cho WHO |
+
+Số thật sự không có căn cứ tập trung ở hai chỗ: gram, kcal của món ăn và ngưỡng chẩn đoán hay tỉ lệ phần trăm. Giả thuyết cũ ("lời dặn giải thích bằng con số làm mô hình bịa số") không còn đúng với prompt hiện tại, vì lời dặn bốn nhịp đã có câu "chỉ dùng con số có trong thông tin ở trên". Vì vậy prompt hệ thống được dặn thêm đúng hai chỗ đó: chỉ nêu gram, kcal, đạm, tinh bột của món có trong bảng dinh dưỡng (món không có trong bảng thì gợi ý mà không kèm số), và chỉ nêu ngưỡng chẩn đoán, tỉ lệ phần trăm khi có trong tài liệu.
+
+| qwen2.5:3b, `v2,kg,rl`, 50 ca × 3 lượt | Trước | Sau |
+|---|---|---|
+| Đạt từng lượt | 127/150 | 124/150 |
+| Lượt bị Critic gắn cờ số | 20 | 17 |
+| Số không có căn cứ (phân loại tay), cả 150 lượt | 4 | 2 |
+| trong đó bốn nhóm hay có số (diet, nutrition, memory, risk_referral) | 4 | 1 |
+| Ca chỉ đạt ở một bản, bốn nhóm hay có số | 6 | 2 |
+
+McNemar theo ca: 9 ca chỉ đạt trước, 6 ca chỉ đạt sau, $p = 0{,}61$, không khác biệt có ý nghĩa. Ở bốn nhóm hay có số, 6 ca chỉ đạt trước và 2 ca chỉ đạt sau: các lượt trượt mới chủ yếu là "không trích nguồn" ở nhóm diet, mô hình gợi ý món không kèm số và cũng không gắn nhãn. Lượt không có căn cứ còn lại ở bảy nhóm kia là "hôn mê thường do đường huyết dưới 50 mg/dL". Số không có căn cứ giảm đúng ở chỗ được nhắm tới, nhưng 4 → 2 là mẫu quá nhỏ để khẳng định, và cái giá về trích nguồn cũng chưa chắc. Lời dặn được giữ vì không thấy hại có ý nghĩa và nó nhắm vào lỗi có thể gây hại. Đọc bản nháp cũng thấy Critic bỏ sót số dạng khoảng ("45-60 gram"), số dính liền chữ ("100g") và số kèm chữ Hán ("32.8克"), nên Critic là cận dưới. Thêm một trang khuyến cáo có nguồn vào `kb/` sẽ biến nhóm thứ hai thành số có căn cứ, nhưng đổi ngữ cảnh của mọi ca benchmark nên chưa làm. Chi tiết ở `docs/results/2026-11-24_numfix_3b/`.
 
 ## 7.5. Thử trợ lý đọc nhật ký
 
@@ -1128,6 +1169,10 @@ Bài học giống mục 2.2: phép so sánh số phải làm bằng code. Mỗi
 |---|---|---|---|
 | Chia đoạn cắt đôi chữ, "has" khớp nhầm "Hà Nội" | Retriever | đọc các đoạn bị truy hồi sai | cắt ở ranh giới đoạn, câu, khoảng trắng |
 | Mô hình viết mãi tới hết thời gian chờ | Advisor | lần chạy Kaggle thứ hai | giới hạn `num_predict` 512 |
+| Đường hầm Kaggle treo 300 giây, người dùng chỉ thấy "sự cố" | OllamaLLM | một lượt benchmark 7B | chờ 90 giây khi Ollama ở xa, câu lỗi nói rõ lý do và cách xử lý (V4.9) |
+| Gọi 23/150 lượt là "số tự bịa" | báo cáo | đọc từng câu chứa số bị gắn cờ | phân loại lại: 4–5 lượt thật sự không có căn cứ (mục 7.4b) |
+| Trang Tư vấn web trống dù đã mở lời | API `checkin/open` | chạy thật ở chế độ dev (React gọi effect hai lần) | trả về phiên đang có lượt hỏi mở (V4.9) |
+| Ô tên món bị ép còn một chữ trên điện thoại | web, trang Bữa ăn | ảnh chụp cho báo cáo | mỗi món một khung thay cho bảng (V4.9) |
 | Bộ chấm chặn nhầm câu cảnh báo | bộ chấm | đọc bản nháp của từng ca trượt | thêm mẫu câu cảnh báo, chấm lại offline |
 | "Tiểu đường" bị hiểu là món đường | Nutrition | 7/18 câu dinh dưỡng có bảng sai | luật ngữ cảnh cho từ đa nghĩa |
 | Câu chào bị gán nguy cơ cao | Orchestrator | người dùng thử nghiệm phản ánh | đường tắt cho câu chào; nhắc một lần mỗi phiên |
@@ -1175,7 +1220,8 @@ Bốn bài học rút ra:
 **Hạn chế hiện tại**
 
 - Coach Q-learning mới chỉ được huấn luyện và đánh giá trên người bệnh mô phỏng do nhóm tự viết; trên mô phỏng đó Q-learning ($\gamma = 0{,}9$) không hơn bandit ($\gamma = 0$). Chưa thử trên người thật.
-- Prompt giọng tư vấn làm mô hình 3B tự đưa ra con số nhiều hơn (11 → 20/150 lượt); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng.
+- Mô hình vẫn đôi khi đưa số không có căn cứ (phân loại tay: 3B 2/150 lượt sau lời dặn mới, 7B 5/150 trước lời dặn; chủ yếu gram, kcal của món và ngưỡng chẩn đoán, mục 7.4b); Critic gắn cờ nhưng câu sai vẫn hiện cho người dùng. Phần lớn số bị gắn cờ là khuyến cáo chuẩn mà `kb/` chưa có.
+- Bảng tinh bột có 44 món căng tin và 20 món nhập tay; khẩu phần của món nhập tay là khẩu phần điển hình do nhóm giả định. Trang Bữa ăn trên web và camera điện thoại mới thử trên trình duyệt máy tính (ảnh tải lên), chưa thử chụp thật trên điện thoại.
 - Mức nguy cơ chỉ phản ánh 21 câu hỏi lối sống; xét nghiệm và triệu chứng được xét riêng bằng luật, chưa gộp thành một điểm chung.
 - Luật tiếng Việt hoạt động tốt nhất với chữ có dấu. Ba cách nói đổi thuốc vẫn lọt luật (mục 3.12): động từ đứng sau tên thuốc, từ tiếng Anh ngoài danh sách, chữ bị cố tình chèn ký tự.
 - Kho 14 tài liệu trả lời được nhiều chủ đề hơn nhưng xếp hạng kém hơn kho 5 tài liệu (recall@4 của dense 0,794 so với 0,917); thuật ngữ y khoa tiếng Việt ghép với tài liệu tiếng Anh còn yếu.
@@ -1199,8 +1245,8 @@ Bốn bài học rút ra:
 - PostgreSQL (V4.7) đã chạy cả bộ test trên PostgreSQL 16 trong WSL (714 đạt, 5 bỏ qua gồm 4 test đọc thẳng tệp SQLite và 1 test Neo4j, 3 xfail) và chuyển thử DB SQLite thật sang, nhưng dịch vụ `db` trong Docker Compose chưa chạy thử: Docker Desktop trên máy phát triển bị lỗi khi khởi động. Mỗi request mở một kết nối mới, chưa dùng pool kết nối.
 - Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
-- Agent bữa ăn chỉ nhận ra 44 món căng tin mà Calo Khay được huấn luyện; món ngoài danh sách (phở, bún, bánh mì) phải tự thêm vào bảng. Bảng tinh bột lấy từ Nutrition5k/USDA, không phải Bảng thành phần thực phẩm Việt Nam; nhiều món chỉ có nguyên liệu chính và cận trên dựa trên tỉ lệ giả định. Gram từ ảnh sai khoảng ±30% mỗi món, cơm còn để mức trung bình. Calo Khay giữ ảnh đã quét 24 giờ trong `data/calo_khay/tmp`, không mã hoá. Chụp bằng camera trên trang Bữa ăn chưa thử.
-- Trợ lý chủ động hỏi mới có trên Streamlit, chưa có trên web; câu trả lời bằng giọng nói chưa thử với micro thật (test dùng tệp WAV và bộ nhận dạng giả).
+- Agent bữa ăn chỉ nhận ra 44 món căng tin mà Calo Khay được huấn luyện; món ngoài danh sách chỉ tính được nếu thuộc 20 món nhập tay (phở, bún, bánh mì...). Bảng tinh bột lấy từ Nutrition5k/USDA, không phải Bảng thành phần thực phẩm Việt Nam; nhiều món chỉ có nguyên liệu chính và cận trên dựa trên tỉ lệ giả định. Gram từ ảnh sai khoảng ±30% mỗi món, cơm còn để mức trung bình. Calo Khay giữ ảnh đã quét 24 giờ trong `data/calo_khay/tmp`, không mã hoá. Chụp bằng camera trên trang Bữa ăn chưa thử.
+- Trợ lý chủ động hỏi đã có trên cả Streamlit và web; câu trả lời bằng giọng nói chưa thử với micro thật (test dùng tệp WAV và bộ nhận dạng giả). Thời gian chờ 90 giây khi dùng Kaggle mới thử với một máy chủ cục bộ không trả lời, chưa thử với đường hầm treo thật.
 - Phiếu 👍/👎 cho lời nhắc Q-learning chưa có dữ liệu thật; mức 0,3 là lựa chọn thiết kế, chưa được kiểm chứng.
 - MCP server chưa thử với một host thật (Claude Desktop); mới kiểm bằng test chạy tiến trình qua stdio.
 

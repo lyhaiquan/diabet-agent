@@ -1,4 +1,4 @@
-"""Bảng tinh bột (carb g/100 g) cho 45 lớp món của Calo Khay -> data/nutrition/calo_khay_carb.csv
+"""Bảng tinh bột (carb g/100 g) cho 45 lớp món của Calo Khay và các món nhập tay -> data/nutrition/calo_khay_carb.csv
 
 Nguồn số liệu: Nutrition5k (Thames et al., CVPR 2021), file ingredients_metadata.csv, cột carb(g) (g carb / g món),
 theo bài báo lấy từ USDA FNDDS. Đây cũng là nguồn của cột kcal trong models/calories.csv của Calo Khay, nên carb và
@@ -108,6 +108,55 @@ MAP = {
 }
 
 
+# Món ngoài khay căng tin (V4.9): Calo Khay không nhận diện được, người dùng tự thêm ở trang Bữa ăn (có ảnh hoặc không).
+# Gram là cả phần ăn người dùng nhập (cả bát phở gồm nước, cả ổ bánh mì). Tỉ lệ pha trộn theo một phần ăn điển hình,
+# ghi trong cột note; kcal tính từ cùng hỗn hợp với cột cal/g của Nutrition5k.
+# lớp: (tên, ước lượng chính, cận trên hoặc None, mức khớp, ghi chú)
+EXTRA = {
+    "pho_bo": ("phở bò (cả bát)", mix(("rice noodles", 0.33), ("beef", 0.13), ("chicken soup", 0.54)),
+               mix(("rice noodles", 0.45), ("beef", 0.10), ("chicken soup", 0.45)), "ước tính",
+               "bát ~600 g: 200 g bánh phở, 80 g thịt, 320 g nước dùng; cận trên khi nhiều bánh (bát lớn, thêm bánh)"),
+    "bun_bo": ("bún bò (cả bát)", mix(("rice noodles", 0.33), ("beef", 0.13), ("chicken soup", 0.54)),
+               mix(("rice noodles", 0.45), ("beef", 0.10), ("chicken soup", 0.45)), "ước tính", "như phở bò"),
+    "bun_cha": ("bún chả (bún, chả, nước chấm)", mix(("rice noodles", 0.50), ("ground pork", 0.25),
+                                                     ("mixed vegetables", 0.15), ("water", 0.08), ("sugar", 0.02)),
+                mix(("rice noodles", 0.55), ("ground pork", 0.20), ("barbecue sauce", 0.10),
+                    ("mixed vegetables", 0.10), ("sugar", 0.05)), "ước tính",
+                "phần ~400 g; nước chấm có đường; cận trên khi chả nướng tẩm mật và chấm nhiều"),
+    "banh_cuon": ("bánh cuốn", mix(("rice noodles", 0.70), ("ground pork", 0.20), ("mixed vegetables", 0.10)),
+                  mix(("rice noodles", 0.80), ("ground pork", 0.15), ("sugar", 0.05)), "ước tính",
+                  "Nutrition5k không có bánh cuốn; vỏ tính như bánh phở; cận trên thêm nước chấm ngọt"),
+    "banh_mi_thit": ("bánh mì thịt (cả ổ)", mix(("bread", 0.55), ("ham", 0.25), ("mixed vegetables", 0.10),
+                                               ("ground pork", 0.10)),
+                     mix(("buns", 0.60), ("ham", 0.25), ("mixed vegetables", 0.10), ("barbecue sauce", 0.05)),
+                     "ước tính", "ổ ~150 g: ~80 g vỏ bánh; cận trên tính vỏ như bánh mì trắng mềm và có sốt"),
+    "banh_mi_khong": ("bánh mì không", mix(("bread", 1)), mix(("buns", 1)), "gần đúng",
+                      "bánh mì Việt Nam vỏ giòn, ruột xốp; cận trên như bánh mì trắng mềm"),
+    "chao_trang": ("cháo trắng", mix(("white rice", 0.40), ("water", 0.60)), mix(("white rice", 0.55), ("water", 0.45)),
+                   "ước tính", "cháo nấu từ cơm/gạo với nhiều nước; cận trên khi cháo đặc"),
+    "chao_thit": ("cháo thịt", mix(("white rice", 0.35), ("ground pork", 0.10), ("water", 0.55)),
+                  mix(("white rice", 0.50), ("ground pork", 0.08), ("water", 0.42)), "ước tính", "như cháo trắng, thêm thịt"),
+    "mi_goi": ("mì gói (đã nấu)", mix(("noodles", 0.60), ("water", 0.40)), mix(("noodles", 1)), "ước tính",
+               "cả bát gồm nước; cận trên khi chỉ tính phần sợi"),
+    "xoi": ("xôi", mix(("white rice", 1)), mix(("white rice", 0.70), ("corn starch", 0.30)), "ước tính",
+            "Nutrition5k không có gạo nếp; xôi khô hơn cơm nên cận trên cao hơn nhiều (khoảng 47 g/100 g)"),
+    "khoai_lang": ("khoai lang luộc", mix(("sweet potato", 1)), None, "khớp", ""),
+    "ngo_luoc": ("ngô luộc", mix(("corn on the cob", 1)), None, "khớp", "cân phần hạt, không tính lõi"),
+    "yen_mach": ("cháo yến mạch", mix(("oatmeal", 1)), None, "khớp", "nấu với nước; nấu với sữa có đường thì cao hơn"),
+    "chuoi": ("chuối", mix(("banana", 1)), None, "khớp", "cân phần ruột"),
+    "tao": ("táo", mix(("apple", 1)), None, "khớp", ""),
+    "cam": ("cam", mix(("orange", 1)), None, "khớp", "cân phần múi"),
+    "xoai": ("xoài chín", mix(("mangos", 1)), None, "khớp", "cân phần thịt quả"),
+    "dua_hau": ("dưa hấu", mix(("watermelon", 1)), None, "khớp", "cân phần thịt quả"),
+    "du_du": ("đu đủ chín", mix(("papayas", 1)), None, "khớp", ""),
+    "dua": ("dứa", mix(("pineapple", 1)), None, "khớp", ""),
+}
+
+
+def kcal_of(spec, cal):
+    return round(100 * sum(share * cal[entry] for entry, share in spec), 1)
+
+
 def carb(spec, src):
     return round(100 * sum(share * src[entry] for entry, share in spec), 1)
 
@@ -121,7 +170,9 @@ def main(argv=None):
     ap.add_argument("--n5k", type=Path, default=N5K)
     ap.add_argument("--classes", type=Path, default=CLASSES)
     args = ap.parse_args(argv)
-    src = {r["ingr"]: float(r["carb(g)"]) for r in csv.DictReader(open(args.n5k, encoding="utf-8"))}
+    rows = list(csv.DictReader(open(args.n5k, encoding="utf-8")))
+    src = {r["ingr"]: float(r["carb(g)"]) for r in rows}
+    cal = {r["ingr"]: float(r["cal/g"]) for r in rows}
     classes = list(csv.DictReader(open(args.classes, encoding="utf-8-sig")))
     names = [c["class"] for c in classes]
     assert set(names) == set(MAP), set(names) ^ set(MAP)
@@ -141,7 +192,12 @@ def main(argv=None):
             hi = max(lo, carb(high, src)) if high else lo
             w.writerow([c["class"], c["name_vi"], lo, hi, kcal, match, describe(base), describe(high) if high else "",
                         note])
-    print(OUT, len(classes), "lớp")
+        for cls, (name, base, high, match, note) in EXTRA.items():
+            lo = carb(base, src)
+            hi = max(lo, carb(high, src)) if high else lo
+            w.writerow([cls, name, lo, hi, kcal_of(base, cal), "nhập tay, " + match, describe(base),
+                        describe(high) if high else "", note])
+    print(OUT, len(classes), "lớp Calo Khay +", len(EXTRA), "món nhập tay")
 
 
 if __name__ == "__main__":

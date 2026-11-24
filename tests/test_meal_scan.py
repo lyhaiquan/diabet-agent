@@ -15,7 +15,8 @@ TABLE = meal_scan.load_table()
 
 
 def test_table_covers_every_calo_khay_class():
-    assert len(TABLE) == 45
+    calo = [c for c, r in TABLE.items() if not r["match"].startswith("nhập tay")]
+    assert len(calo) == 45
     for cls, row in TABLE.items():
         if cls == "drink":
             assert row["carb"] is None
@@ -117,6 +118,28 @@ def test_scan_service_down_says_how_to_start_it():
     with pytest.raises(meal_scan.CaloKhayError, match="chay_calo_khay.bat"):
         meal_scan.scan(b"x", url="http://127.0.0.1:9", timeout=3)
 
+
+
+def test_manual_dishes_outside_canteen():
+    """Món ngoài khay căng tin (người dùng tự thêm): tên không trùng món Calo Khay, khoảng tinh bột hợp lý."""
+    manual = {c: r for c, r in TABLE.items() if r["match"].startswith("nhập tay")}
+    assert {"pho_bo", "bun_cha", "banh_mi_thit", "chao_trang", "chuoi"} <= set(manual)
+    names = [r["name"] for r in TABLE.values()]
+    assert len(names) == len(set(names))                     # bảng chọn món ghép theo tên
+    for cls, r in manual.items():
+        assert 0 < r["carb"] <= r["carb_high"] <= 100 and r["kcal"] > 0, cls
+    # một bát phở ~600 g: khoảng 60-77 g tinh bột; một ổ bánh mì thịt 150 g: 37-50 g
+    pho = meal_scan.meal_carbs([{"cls": "pho_bo", "name": "phở bò (cả bát)", "grams": 600,
+                                 "gram_source": "user"}], TABLE)
+    assert 45 < pho["carb_low"] < pho["carb_g"] < pho["carb_high"] < 100
+
+
+def test_rows_added_by_user_are_not_pending():
+    from meal_ui import rows_to_items
+    df = pd.DataFrame([{"Món": "phở bò (cả bát)", "Gram": 600, "Đúng món": None},
+                       {"Món": "chuối", "Gram": 100, "Đúng món": False}])
+    out, pending, unknown = rows_to_items(df, [], TABLE)
+    assert pending == 0 and unknown == [] and [it["gram_source"] for it in out] == ["user", "user"]
 
 def test_rows_to_items_marks_user_edits_and_pending():
     from meal_ui import rows_to_items, to_frame

@@ -345,6 +345,17 @@ def test_meal_page_saves_meal(user_env):
     assert "meal_scan" not in at.session_state
 
 
+
+def test_meal_page_manual_entry_without_photo(user_env):
+    at = create_patient(new_app().run(), page="Bữa ăn")
+    at.button(key="meal_manual_btn").click().run()
+    assert not at.exception
+    assert "meal_scan" in at.session_state and at.session_state["meal_scan"]["items"] == []
+    assert at.button(key="meal_save_1").disabled                # chưa có món nào
+    assert at.button(key="meal_drop_1").label == "Huỷ"
+    at.button(key="meal_drop_1").click().run()
+    assert "meal_scan" not in at.session_state
+
 # ---- trợ lý chủ động hỏi: trả lời bằng giọng nói ----
 
 def _wav(seconds=1.0, rate=16000):

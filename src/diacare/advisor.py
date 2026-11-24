@@ -10,6 +10,8 @@ SYSTEM_PROMPT = (
     " Không nêu điểm nguy cơ dưới dạng phần trăm hay xác suất; chỉ nói mức thấp, trung bình hoặc cao."
     " Cân nhắc thông tin đã biết về người dùng; nếu người dùng đang dùng thuốc thì không đề xuất thay đổi thuốc."
     " Khi dùng số liệu dinh dưỡng, trích nguồn [usda_fdc] và nói rõ khẩu phần là ước lượng."
+    " Chỉ nêu gram, kcal hay lượng đạm, tinh bột của món có trong bảng dinh dưỡng; món không có trong bảng thì"
+    " gợi ý món mà không kèm số. Ngưỡng chẩn đoán và tỉ lệ phần trăm chỉ nêu khi có trong tài liệu."
     " Khi có kết quả xét nghiệm, giải thích chỉ số so với ngưỡng tham khảo, trích nguồn [ada_2024],"
     " nói rõ đây không phải chẩn đoán và cần bác sĩ xác nhận."
     " Khi có nhật ký tự theo dõi, dựa vào số liệu trong đó để trả lời sát với người dùng (nêu con số cụ thể),"

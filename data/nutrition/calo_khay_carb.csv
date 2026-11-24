@@ -44,3 +44,23 @@ fried_pork_skin,bì lợn chiên,0.0,0.0,544.0,gần đúng,pork,,bì lợn gầ
 fish_ball,cá viên,9.1,18.3,140.0,ước tính,90% fish + 10% corn starch,80% fish + 20% corn starch,Nutrition5k không có cá viên; cá + 10-20% bột
 stir_fried_gizzard,mề xào,0.0,4.1,135.0,gần đúng,chicken,90% chicken + 10% barbecue sauce,mề tính như thịt gà; cận trên nếu xào sốt ngọt
 roasted_cinnamon_pork,chả quế,1.4,10.4,235.0,gần đúng,ground pork,90% ground pork + 10% corn starch,chả quế; cận trên nếu có 10% bột độn
+pho_bo,phở bò (cả bát),10.1,12.8,87.6,"nhập tay, ước tính",33% rice noodles + 13% beef + 54% chicken soup,45% rice noodles + 10% beef + 45% chicken soup,"bát ~600 g: 200 g bánh phở, 80 g thịt, 320 g nước dùng; cận trên khi nhiều bánh (bát lớn, thêm bánh)"
+bun_bo,bún bò (cả bát),10.1,12.8,87.6,"nhập tay, ước tính",33% rice noodles + 13% beef + 54% chicken soup,45% rice noodles + 10% beef + 45% chicken soup,như phở bò
+bun_cha,"bún chả (bún, chả, nước chấm)",15.9,23.8,165.3,"nhập tay, ước tính",50% rice noodles + 25% ground pork + 15% mixed vegetables + 8% water + 2% sugar,55% rice noodles + 20% ground pork + 10% barbecue sauce + 10% mixed vegetables + 5% sugar,phần ~400 g; nước chấm có đường; cận trên khi chả nướng tẩm mật và chấm nhiều
+banh_cuon,bánh cuốn,18.5,25.2,158.1,"nhập tay, ước tính",70% rice noodles + 20% ground pork + 10% mixed vegetables,80% rice noodles + 15% ground pork + 5% sugar,Nutrition5k không có bánh cuốn; vỏ tính như bánh phở; cận trên thêm nước chấm ngọt
+banh_mi_thit,bánh mì thịt (cả ổ),24.5,33.1,224.7,"nhập tay, ước tính",55% bread + 25% ham + 10% mixed vegetables + 10% ground pork,60% buns + 25% ham + 10% mixed vegetables + 5% barbecue sauce,ổ ~150 g: ~80 g vỏ bánh; cận trên tính vỏ như bánh mì trắng mềm và có sốt
+banh_mi_khong,bánh mì không,42.3,50.0,265.4,"nhập tay, gần đúng",bread,buns,"bánh mì Việt Nam vỏ giòn, ruột xốp; cận trên như bánh mì trắng mềm"
+chao_trang,cháo trắng,11.2,15.4,52.0,"nhập tay, ước tính",40% white rice + 60% water,55% white rice + 45% water,cháo nấu từ cơm/gạo với nhiều nước; cận trên khi cháo đặc
+chao_thit,cháo thịt,9.9,14.1,84.8,"nhập tay, ước tính",35% white rice + 10% ground pork + 55% water,50% white rice + 8% ground pork + 42% water,"như cháo trắng, thêm thịt"
+mi_goi,mì gói (đã nấu),15.0,25.0,82.8,"nhập tay, ước tính",60% noodles + 40% water,noodles,cả bát gồm nước; cận trên khi chỉ tính phần sợi
+xoi,xôi,28.0,47.0,130.0,"nhập tay, ước tính",white rice,70% white rice + 30% corn starch,Nutrition5k không có gạo nếp; xôi khô hơn cơm nên cận trên cao hơn nhiều (khoảng 47 g/100 g)
+khoai_lang,khoai lang luộc,18.0,18.0,76.0,"nhập tay, khớp",sweet potato,,
+ngo_luoc,ngô luộc,22.0,22.0,106.1,"nhập tay, khớp",corn on the cob,,"cân phần hạt, không tính lõi"
+yen_mach,cháo yến mạch,12.0,12.0,68.0,"nhập tay, khớp",oatmeal,,nấu với nước; nấu với sữa có đường thì cao hơn
+chuoi,chuối,23.0,23.0,89.0,"nhập tay, khớp",banana,,cân phần ruột
+tao,táo,14.0,14.0,52.0,"nhập tay, khớp",apple,,
+cam,cam,12.0,12.0,47.0,"nhập tay, khớp",orange,,cân phần múi
+xoai,xoài chín,15.0,15.0,60.6,"nhập tay, khớp",mangos,,cân phần thịt quả
+dua_hau,dưa hấu,7.6,7.6,30.0,"nhập tay, khớp",watermelon,,cân phần thịt quả
+du_du,đu đủ chín,11.0,11.0,43.0,"nhập tay, khớp",papayas,,
+dua,dứa,13.0,13.0,50.0,"nhập tay, khớp",pineapple,,

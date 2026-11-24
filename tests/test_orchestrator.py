@@ -80,6 +80,18 @@ def test_llm_failure_returns_system_error(tmp_path):
     assert record["error"] == "RuntimeError"
 
 
+def test_llm_unavailable_message_shown_to_user(tmp_path):
+    from diacare.llm import LLMUnavailable
+
+    def slow_llm(messages):
+        raise LLMUnavailable("Máy chủ mô hình từ xa (Kaggle) không trả lời trong 90 giây. Vui lòng thử lại.")
+
+    orch = Orchestrator(FakePredictor(0.5), FakeRetriever(), slow_llm, log_path=tmp_path / "run.jsonl")
+    state = orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert state.flags == ["system_error"]
+    assert state.final.startswith("Máy chủ mô hình từ xa (Kaggle) không trả lời trong 90 giây")
+
+
 def test_predictor_failure_returns_system_error():
     class BadPredictor:
         def predict(self, profile):

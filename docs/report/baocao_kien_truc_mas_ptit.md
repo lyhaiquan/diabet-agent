@@ -854,7 +854,7 @@ Khi viết bộ thử, hai lỗi của luật cũ lộ ra và đã sửa: câu "
 
 Recall giảm khi kho lớn hơn vì có nhiều tài liệu gần nhau cạnh tranh (ví dụ bài "biến chứng" và bài "mắt" cùng nói về võng mạc). Bốn câu không chế độ nào tìm đúng (kế hoạch ăn, bệnh võng mạc, xét nghiệm thận, định nghĩa tiền đái tháo đường): câu hỏi tiếng Việt dùng thuật ngữ y khoa, tài liệu tiếng Anh, mô hình MiniLM đa ngôn ngữ ghép chưa tốt. Kho lớn hơn trả lời được nhiều chủ đề hơn nhưng xếp hạng kém đi; hướng sửa là bộ xếp hạng lại (reranker) hoặc dịch tài liệu sang tiếng Việt.
 
-## 11.3b. Bổ sung ở V4.9: mô hình 7B, trợ lý chủ động hỏi, agent bữa ăn, MCP
+## 11.3b. Bổ sung ở V4.9: mô hình 7B, trợ lý chủ động hỏi, agent bữa ăn (cả trên web), MCP
 
 **Mô hình 7B trên Kaggle, giao diện ở máy.** Notebook chỉ chạy Ollama `qwen2.5:7b` trên GPU T4 sau một cổng chặn có token (`ollama_gate.py`) và đường hầm Cloudflare; bật/tắt hoàn toàn bằng Kaggle CLI (`tools/kaggle_llm.py up/down`), notebook tự tắt khi rảnh. Benchmark 50 ca × 3 lượt, cùng mã với lần chạy 3B gần nhất:
 
@@ -867,13 +867,17 @@ Recall giảm khi kho lớn hơn vì có nhiều tài liệu gần nhau cạnh t
 | Bản nháp xen chữ Hán | 8 | **0** |
 | Giây LLM mỗi lượt (trung bình) | 3,0 | 7,3 |
 
-McNemar theo ca: $p = 0{,}0018$ (13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, và ca đó là một yêu cầu treo do đường hầm). 7B vẫn tự đưa số không có trong ngữ cảnh ở 23/150 lượt.
+McNemar theo ca: $p = 0{,}0018$ (13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, và ca đó là một yêu cầu treo do đường hầm). Critic gắn cờ số không có trong ngữ cảnh ở 23/150 lượt của 7B; đọc từng câu thì chỉ 5 lượt là số thật sự không có căn cứ (xem dưới).
 
-**Trợ lý chủ động hỏi** (`checkin.py`). Mỗi ngày trợ lý mở lời trước với người đã chẩn đoán, dựa trên nhật ký (số đo nguy hiểm 24 giờ qua, chưa đo hôm nay, cao 3 ngày liền), kèm lời nhắc của Coach Q-learning. Câu trả lời (gõ chữ hoặc nói, nhận dạng bằng PhoWhisper) đi đúng một trong bốn đường: số đo → thẻ xác nhận rồi mới lưu; "chưa đo" → câu soạn sẵn; kể triệu chứng sau số đo nguy hiểm → lời khuyên an toàn soạn sẵn; câu hỏi khác → pipeline tư vấn. Mọi câu của trợ lý ở đây là câu soạn sẵn, không qua LLM, và không chạy trong `Orchestrator.run`.
+**Trợ lý chủ động hỏi** (`checkin.py`). Mỗi ngày trợ lý mở lời trước với người đã chẩn đoán, dựa trên nhật ký (số đo nguy hiểm 24 giờ qua, chưa đo hôm nay, cao 3 ngày liền), kèm lời nhắc của Coach Q-learning. Câu trả lời (gõ chữ hoặc nói, nhận dạng bằng PhoWhisper) đi đúng một trong bốn đường: số đo → thẻ xác nhận rồi mới lưu; "chưa đo" → câu soạn sẵn; kể triệu chứng sau số đo nguy hiểm → lời khuyên an toàn soạn sẵn; câu hỏi khác → pipeline tư vấn. Mọi câu của trợ lý ở đây là câu soạn sẵn, không qua LLM, và không chạy trong `Orchestrator.run`. Phần gắn với kho dữ liệu là bốn hàm không phụ thuộc giao diện (`open_for_day`, `handle_reply`, `save_reading`, `cancel_card`); Streamlit và bốn endpoint `.../checkin/*` của API cùng gọi chúng, nên web và Streamlit chung một lượt hỏi mỗi ngày, và máy chủ kiểm tra lại số đo trên thẻ trước khi lưu.
 
-**Agent bữa ăn** (`meal_scan.py`). Gọi dịch vụ nhận diện món Calo Khay (YOLO26s-seg + DINOv2, 44 món căng tin, đồ án Xử lý ảnh số của nhóm) qua HTTP; người dùng xác nhận món và gram; tinh bột tính bằng bảng sinh từ Nutrition5k/USDA thành một **khoảng** (cận trên cho món có đường kho, bột tẩm, bột độn; sai số gram ±15/30/50% tuỳ nguồn gram). Mỗi bữa được ghép với lần đo đường huyết 45 phút – 3 giờ sau bữa, và phần này vào ngữ cảnh của Advisor với ngân sách token riêng, nên ngữ cảnh của benchmark không đổi.
+**Agent bữa ăn** (`meal_scan.py`). Gọi dịch vụ nhận diện món Calo Khay (YOLO26s-seg + DINOv2, 44 món căng tin, đồ án Xử lý ảnh số của nhóm) qua HTTP; người dùng xác nhận món và gram; tinh bột tính bằng bảng sinh từ Nutrition5k/USDA thành một **khoảng** (cận trên cho món có đường kho, bột tẩm, bột độn; sai số gram ±15/30/50% tuỳ nguồn gram). Mỗi bữa được ghép với lần đo đường huyết 45 phút – 3 giờ sau bữa, và phần này vào ngữ cảnh của Advisor với ngân sách token riêng, nên ngữ cảnh của benchmark không đổi. Bảng có thêm 20 món người dùng tự nhập (phở, bún, bánh mì, cháo, trái cây...) cho bữa không phải khay cơm. Trên web, trình duyệt chỉ nói chuyện với API: API gọi Calo Khay (`POST /meals/scan`) và tính tinh bột (`POST .../meals/estimate`), nên Calo Khay không phải mở ra ngoài máy chủ và hai giao diện ra cùng một khoảng.
 
 **👍/👎 cho lời nhắc Q-learning.** Phần thưởng phụ ±0,3 cộng vào phần thưởng tính từ nhật ký, nhỏ hơn khoảng cách giữa có đo và bỏ đo (2,0).
+
+**Lỗi mô hình ở xa nói rõ cho người dùng.** Khi Ollama chạy trên Kaggle (có token), `OllamaLLM` chỉ chờ 90 giây (trên máy: 300 giây) và đổi hết thời gian chờ, mất kết nối, mã 502/530 của Cloudflare thành lỗi `LLMUnavailable` mang một câu viết cho người dùng; Orchestrator hiện câu đó thay cho "Hệ thống đang gặp sự cố".
+
+**Số "không có trong ngữ cảnh".** Phân loại tay các số Critic gắn cờ (3B: 20 lượt, 7B: 23 lượt): phần lớn là số có trong `kb/` mà lượt đó không truy hồi tới (5 / 3) hoặc khuyến cáo chuẩn mà `kb/` chưa có, như 30 phút vận động hay quy tắc 15 phút khi hạ đường huyết (11 / 15); chỉ 4 / 5 lượt là số thật sự không có căn cứ, chủ yếu gram, kcal của món và ngưỡng chẩn đoán. Prompt được dặn thêm đúng hai chỗ đó; chạy lại 150 lượt 3B: đạt 127 → 124 (McNemar $p = 0{,}61$), lượt bị gắn cờ 20 → 17, số không có căn cứ 4 → 2; đổi lại, ở bốn nhóm hay có số 6 ca chỉ đạt trước so với 2 ca chỉ đạt sau (bản nháp nhóm diet bớt gắn nhãn nguồn). Mẫu nhỏ, cả hai chiều chỉ là chiều hướng.
 
 **MCP server** (`mcp_server.py`, stdio, JSON-RPC viết bằng thư viện chuẩn). Mở sáu công cụ tất định (xét nghiệm, tài liệu, đồ thị tri thức, dinh dưỡng, khay cơm, nguy cơ) và kho `kb/` cho các trợ lý AI khác; không mở công cụ "tư vấn" (sẽ bỏ qua Rules) và không mở dữ liệu người bệnh.
 

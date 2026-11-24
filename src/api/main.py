@@ -28,7 +28,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from api import security
-from diacare import journal, pg
+from diacare import checkin, journal, meal_scan, pg
 from diacare.coach import NUDGES, daily_nudge, load_coach
 from diacare.crypto import key_dir
 from diacare.db import Store
@@ -208,6 +208,44 @@ class TargetsIn(BaseModel):
     note: str | None = Field(default=None, max_length=200, description="vd tên bác sĩ, ngày dặn")
 
 
+class CheckinOpenIn(BaseModel):
+    session_id: int | None = Field(default=None, description="Phiên đang mở; trống thì dùng phiên gần nhất hoặc tạo mới")
+
+
+class CheckinReplyIn(BaseModel):
+    session_id: int
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class CheckinSaveIn(BaseModel):
+    """Số đo trên thẻ xác nhận (lấy nguyên từ `card.reading` của /checkin/reply); người dùng sửa thời điểm, ngày giờ."""
+    session_id: int
+    reading: dict
+    measured_at: datetime = Field(description="Không có múi giờ thì hiểu là giờ Việt Nam")
+    context: Literal["fasting", "before_meal", "after_meal", "bedtime", "random"] | None = None
+    use_alternative: bool = Field(default=False, description="Chọn cách đọc thứ hai (vd 65 -> 6,5 mmol/L)")
+
+
+class CheckinCancelIn(BaseModel):
+    session_id: int
+
+
+class MealItemIn(BaseModel):
+    cls: str = Field(min_length=1, max_length=60, description="Mã món trong bảng tinh bột (GET /meals/dishes)")
+    grams: float = Field(ge=0, le=2000)
+    model_grams: float | None = Field(default=None, description="Gram mô hình đưa ra; trống = người dùng tự thêm món")
+    gram_method: str | None = Field(default=None, max_length=40)
+
+
+class MealItemsIn(BaseModel):
+    items: list[MealItemIn] = Field(max_length=30)
+
+
+class MealIn(MealItemsIn):
+    eaten_at: datetime = Field(description="Không có múi giờ thì hiểu là giờ Việt Nam")
+    slot: Literal["breakfast", "lunch", "dinner", "snack"]
+
+
 class QuestionIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
 
@@ -233,6 +271,39 @@ def _nudge_out(request, store, patient_id, now):
     rated = n.get("feedback")
     return {"action": n["action"], "label": ACTION_LABELS[n["action"]], "text": NUDGES[n["action"]],
             "rated": None if not rated else ("up" if rated > 0 else "down")}
+
+
+def _vn(dt):
+    return dt.replace(tzinfo=journal.VN_TZ) if dt.tzinfo is None else journal.to_vn(dt)
+
+
+def _owned_session(store, patient_id, session_id):
+    s = store.get_session(session_id)
+    if s is None or s["patient_id"] != patient_id:
+        raise _not_found("Không tìm thấy phiên.")
+    return s
+
+
+def _meal_items(items):
+    """Món gửi lên -> món để tính tinh bột. Gram khác gram mô hình (hoặc món tự thêm) là gram người dùng nhập."""
+    table = meal_scan.load_table()
+    out, unknown = [], []
+    for it in items:
+        if it.cls not in table:
+            unknown.append(it.cls)
+            continue
+        same = it.model_grams is not None and round(it.model_grams) == round(it.grams)
+        out.append({"cls": it.cls, "name": table[it.cls]["name"], "grams": it.grams,
+                    "gram_source": "model" if same else "user", "gram_method": it.gram_method if same else None})
+    if unknown:
+        raise HTTPException(422, f"Món không có trong bảng: {', '.join(unknown[:5])}")
+    return out, table
+
+
+def _meal_total(items, table):
+    total = meal_scan.meal_carbs(items, table)
+    total["text"] = meal_scan.carb_text(total).replace("**", "")
+    return total
 
 
 def _patient_out(store, parts, patient):
@@ -577,6 +648,132 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
         if not store.rate_coach_event(patient["id"], day, 1 if body.value == "up" else -1):
             raise HTTPException(409, "Lời nhắc này đã được học, không chấm được nữa.")
         return {"day": day.isoformat(), "value": body.value}
+
+    # -- trợ lý chủ động hỏi (cùng logic với Streamlit: diacare.checkin) --
+    @app.post("/patients/{patient_id}/checkin/open", tags=["tư vấn"])
+    def checkin_open(body: CheckinOpenIn, request: Request, patient=Depends(owned_patient),
+                     store: Store = Depends(get_store)):
+        """Gọi khi mở trang Tư vấn. Người đã chẩn đoán: mỗi ngày một lần trợ lý mở lời trước (câu soạn sẵn từ nhật
+        ký, không qua LLM) trong phiên trả về. `pending`: phiên này đang đợi câu trả lời cho câu hỏi đó."""
+        now = now_of(request)
+        sid = body.session_id
+        if sid is not None:
+            _owned_session(store, patient["id"], sid)
+        opened = False
+        if has_diagnosis(store.list_memories(patient["id"])) and store.get_checkin(patient["id"], now.date()) is None:
+            if sid is None:
+                last = next((x for x in store.list_sessions(patient["id"]) if x.get("n_messages")), None)
+                sid = last["id"] if last else store.start_session(patient["id"])
+            nudge = _nudge_out(request, store, patient["id"], now)
+            opened = checkin.open_for_day(store, patient, sid, now, nudge["text"] if nudge else None)
+        if sid is None:  # đã mở lời hôm nay (tab khác, hoặc lần gọi trước) mà chưa trả lời: quay về đúng phiên đó
+            c = store.get_checkin(patient["id"], now.date())
+            if c and c["status"] == "open":
+                sid = c["session_id"]
+        pending = sid is not None and checkin.pending_topic(store, patient["id"], sid, now) is not None
+        return {"session_id": sid, "opened": opened, "pending": pending}
+
+    @app.post("/patients/{patient_id}/checkin/reply", tags=["tư vấn"])
+    def checkin_reply(body: CheckinReplyIn, request: Request, patient=Depends(owned_patient),
+                      store: Store = Depends(get_store)):
+        """Câu trả lời cho câu hỏi chủ động. `handled=false`: giao diện gửi câu này cho /chat như mọi câu hỏi.
+        Có `card`: số đo đọc được, CHƯA lưu; giao diện hiện thẻ xác nhận rồi gọi /checkin/save."""
+        _owned_session(store, patient["id"], body.session_id)
+        now = now_of(request)
+        r = checkin.handle_reply(store, patient, body.session_id, body.text, now)
+        if r.get("card"):
+            r["card"] = {"reading": r["card"]["reading"], "measured_at": r["card"]["when"].isoformat(),
+                         "contexts": journal.CONTEXTS}
+        r["pending"] = checkin.pending_topic(store, patient["id"], body.session_id, now) is not None
+        return r
+
+    @app.post("/patients/{patient_id}/checkin/save", status_code=201, tags=["tư vấn"])
+    def checkin_save(body: CheckinSaveIn, request: Request, patient=Depends(owned_patient),
+                     store: Store = Depends(get_store)):
+        _owned_session(store, patient["id"], body.session_id)
+        try:
+            reply, err = checkin.save_reading(store, patient["id"], body.session_id, body.reading,
+                                              _vn(body.measured_at), now_of(request), context=body.context,
+                                              use_alternative=body.use_alternative)
+        except (KeyError, TypeError, ValueError):
+            reply, err = None, "Số đo chưa hợp lệ."
+        if err:
+            raise HTTPException(422, err)
+        return {"reply": reply}
+
+    @app.post("/patients/{patient_id}/checkin/cancel", tags=["tư vấn"])
+    def checkin_cancel(body: CheckinCancelIn, patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        _owned_session(store, patient["id"], body.session_id)
+        return {"reply": checkin.cancel_card(store, body.session_id)}
+
+    # -- bữa ăn (agent bữa ăn: Calo Khay nhận diện món, DiaCare tính khoảng tinh bột) --
+    @app.get("/meals/dishes", tags=["bữa ăn"])
+    def meal_dishes(user=Depends(current_user)):
+        """Các món có trong bảng tinh bột: 45 lớp Calo Khay nhận diện được và các món người dùng tự thêm."""
+        return [{"cls": c, "name": r["name"], "carb_per_100g": r["carb"], "carb_high": r["carb_high"],
+                 "manual": r["match"].startswith("nhập tay")} for c, r in meal_scan.load_table().items()]
+
+    @app.post("/meals/scan", tags=["bữa ăn"])
+    def meal_scan_photo(image: UploadFile = File(..., description="Ảnh khay cơm JPG/PNG, tối đa 10 MB"),
+                        user=Depends(current_user)):
+        """Gửi ảnh cho dịch vụ Calo Khay (máy chủ gọi, trình duyệt không gọi thẳng). Trả về món và gram để người dùng
+        xác nhận; chưa lưu gì. Ảnh không được lưu."""
+        data = image.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "Ảnh lớn hơn 10 MB.")
+        try:
+            res = meal_scan.scan(data, image.filename or "khay.jpg", image.content_type or "image/jpeg")
+        except meal_scan.CaloKhayError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        finally:
+            del data
+        table = meal_scan.load_table()
+        return {"items": meal_scan.items_from_scan(res, table), "warnings": res.get("warnings", [])}
+
+    @app.post("/patients/{patient_id}/meals/estimate", tags=["bữa ăn"])
+    def meal_estimate(body: MealItemsIn, patient=Depends(owned_patient)):
+        """Khoảng tinh bột của danh sách món (chưa lưu), để giao diện cập nhật khi người dùng sửa món/gram."""
+        items, table = _meal_items(body.items)
+        return _meal_total(items, table)
+
+    @app.post("/patients/{patient_id}/meals", status_code=201, tags=["bữa ăn"])
+    def meal_add(body: MealIn, request: Request, patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        items, table = _meal_items(body.items)
+        total = _meal_total(items, table)
+        if not total["items"] and not total["uncounted"]:
+            raise HTTPException(422, "Chưa có món nào để lưu.")
+        eaten = min(_vn(body.eaten_at), now_of(request))
+        mid = store.add_meal(patient["id"], eaten, body.slot,
+                             total["items"] + [{"name": u, "uncounted": True} for u in total["uncounted"]],
+                             total["carb_g"], total["carb_low"], total["carb_high"], total["kcal"])
+        return {"id": mid, **total}
+
+    @app.get("/patients/{patient_id}/meals", tags=["bữa ăn"])
+    def meal_list(request: Request, days: int = Query(7, ge=1, le=90), patient=Depends(owned_patient),
+                  store: Store = Depends(get_store)):
+        """Bữa đã ghi, mới nhất trước, kèm lần đo đường huyết 45 phút – 3 giờ sau bữa."""
+        now = now_of(request)
+        meals = [m for m in store.list_meals(patient["id"])
+                 if journal.to_vn(m["eaten_at"]) >= now - timedelta(days=days)]
+        targets = _targets_of(store, patient["id"])
+        pairs = meal_scan.pair_after_meal(meals, store.list_readings(patient["id"]), targets)
+        out = []
+        for p in reversed(pairs):
+            m = p["meal"]
+            since = now - journal.to_vn(m["eaten_at"])
+            waiting = (p["reading"] is None and timedelta(minutes=meal_scan.AFTER_MIN) <= since
+                       <= timedelta(minutes=meal_scan.AFTER_MAX))
+            out.append({"id": m["id"], "eaten_at": journal.to_vn(m["eaten_at"]).isoformat(), "slot": m["slot"],
+                        "items": m["items"], "carb_g": m["carb_g"], "carb_low": m["carb_low"],
+                        "carb_high": m["carb_high"], "kcal": m["kcal"],
+                        "after_meal": meal_scan.after_meal_text(p, targets), "after_meal_status": p["status"],
+                        "measure_now": waiting})
+        return out
+
+    @app.delete("/patients/{patient_id}/meals/{meal_id}", status_code=204, tags=["bữa ăn"])
+    def meal_delete(meal_id: int, patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        store.delete_meal(meal_id, patient["id"])
+        return Response(status_code=204)
 
     @app.get("/patients/{patient_id}/summary", tags=["nhật ký"])
     def summary(request: Request, days: int = Query(14, ge=1, le=366), patient=Depends(owned_patient),

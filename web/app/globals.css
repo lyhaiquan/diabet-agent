@@ -78,7 +78,7 @@ p { margin: 0 0 8px; }
 .nav {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
   background: var(--surface); border-top: 1px solid var(--border);
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .nav a {
@@ -207,3 +207,10 @@ th { color: var(--muted); font-weight: 500; border-top: 0; }
 .composer textarea { flex: 1 1 200px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px; flex: 0 1 auto; }
 .toolbar > * { flex: 0 0 auto; }
+
+/* trang Bữa ăn: mỗi món một khung */
+.meal-row { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.meal-row-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.meal-row-line .btn-small { margin-left: auto; }
+.meal-gram { display: flex; align-items: center; gap: 6px; flex-direction: row; }
+.meal-gram input { width: 90px; }

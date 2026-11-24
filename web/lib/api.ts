@@ -248,6 +248,27 @@ export const api = {
   feedback: (eventId: number, value: "up" | "down") => post<unknown>(`/feedback/${eventId}`, { value }),
   nudgeFeedback: (pid: number, value: "up" | "down") => post<unknown>(`/patients/${pid}/nudge/feedback`, { value }),
 
+  // trợ lý chủ động hỏi: mỗi ngày một lần, câu soạn sẵn từ nhật ký; số đo chỉ lưu sau khi người dùng xác nhận
+  checkinOpen: (pid: number, sessionId: number | null) =>
+    post<{ session_id: number | null; opened: boolean; pending: boolean }>(`/patients/${pid}/checkin/open`, { session_id: sessionId }),
+  checkinReply: (pid: number, sessionId: number, text: string) =>
+    post<CheckinReply>(`/patients/${pid}/checkin/reply`, { session_id: sessionId, text }),
+  checkinSave: (pid: number, b: { session_id: number; reading: SpokenReading; measured_at: string; context?: Context; use_alternative?: boolean }) =>
+    post<{ reply: string }>(`/patients/${pid}/checkin/save`, b),
+  checkinCancel: (pid: number, sessionId: number) => post<{ reply: string }>(`/patients/${pid}/checkin/cancel`, { session_id: sessionId }),
+
+  // bữa ăn: máy chủ gọi dịch vụ nhận diện món Calo Khay; tinh bột tính ở máy chủ
+  mealDishes: () => json<Dish[]>("/meals/dishes"),
+  mealScan: (image: Blob, name = "khay.jpg") => {
+    const fd = new FormData();
+    fd.append("image", image, name);
+    return json<{ items: ScannedItem[]; warnings: string[] }>("/meals/scan", { method: "POST", body: fd });
+  },
+  mealEstimate: (pid: number, items: MealItemIn[]) => post<MealTotal>(`/patients/${pid}/meals/estimate`, { items }),
+  addMeal: (pid: number, b: { items: MealItemIn[]; eaten_at: string; slot: Slot }) => post<MealTotal>(`/patients/${pid}/meals`, b),
+  meals: (pid: number, days = 7) => json<Meal[]>(`/patients/${pid}/meals?days=${days}`),
+  deleteMeal: (pid: number, mid: number) => json<null>(`/patients/${pid}/meals/${mid}`, { method: "DELETE" }),
+
   transcribe: (wav: Blob) => {
     const fd = new FormData();
     fd.append("audio", wav, "noi.wav");
@@ -260,6 +281,30 @@ export type SpokenReading =
       alternative?: { value: number; unit: "mmol/L"; summary: string } }
   | { kind: "bp"; systolic: number; diastolic: number; summary: string }
   | { kind: "weight"; kg: number; summary: string };
+export type CheckinReply = {
+  handled: boolean;
+  pending: boolean;
+  reply?: string;
+  card?: { reading: SpokenReading; measured_at: string; contexts: Record<Context, string> };
+};
+
+export type Slot = "breakfast" | "lunch" | "dinner" | "snack";
+export const SLOTS: Record<Slot, string> = { breakfast: "Bữa sáng", lunch: "Bữa trưa", dinner: "Bữa tối", snack: "Bữa phụ" };
+export type Dish = { cls: string; name: string; carb_per_100g: number | null; carb_high: number | null; manual: boolean };
+export type ScannedItem = {
+  cls: string | null; name: string; grams: number; conf: number | null; needs_confirm: boolean;
+  suggestions: string[]; gram_method: string | null;
+};
+export type MealItemIn = { cls: string; grams: number; model_grams?: number | null; gram_method?: string | null };
+export type MealTotal = {
+  carb_g: number; carb_low: number; carb_high: number; kcal: number; text: string; uncounted: string[];
+  items: { cls: string; name: string; grams: number; carb: number }[];
+};
+export type Meal = {
+  id: number; eaten_at: string; slot: Slot | null; carb_g: number; carb_low: number; carb_high: number; kcal: number | null;
+  items: { name: string; grams?: number; uncounted?: boolean }[];
+  after_meal: string; after_meal_status: string | null; measure_now: boolean;
+};
 export type Transcript = { text: string; reading: SpokenReading | null; seconds: number; audio_seconds: number };
 
 // ---- tư vấn qua luồng SSE ----------------------------------------------------

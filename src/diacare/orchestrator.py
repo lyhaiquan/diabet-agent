@@ -12,7 +12,7 @@ from diacare.critic import check_grounding, describe as describe_grounding
 from diacare.contracts import (MODEL_VERSION, SYSTEM_VERSION, PatientDataAgent, build_decision_report,
                                evaluate_pre_rules, make_message, new_request_id)
 from diacare.guard import filter_docs, injection_signals
-from diacare.llm import DEFAULT_NUM_CTX
+from diacare.llm import DEFAULT_NUM_CTX, LLMUnavailable
 from diacare.labs import parse_lab_text
 from diacare.memory import SummaryCache, compress_history, has_diagnosis
 from diacare.nutrition import is_nutrition_question
@@ -292,7 +292,8 @@ class Orchestrator:
             step("Orchestrator", f"lỗi {type(exc).__name__}, trả lời thông báo sự cố")
             state.history = full_history
             state.flags = ["system_error"]
-            state.final = "Hệ thống đang gặp sự cố, vui lòng thử lại sau."
+            # mô hình không trả lời (hết thời gian chờ, mất đường hầm Kaggle): nói rõ lý do và cách xử lý
+            state.final = str(exc) if isinstance(exc, LLMUnavailable) else "Hệ thống đang gặp sự cố, vui lòng thử lại sau."
             state.messages.append(make_message(req_id, "MonitoringAgent", "error", {"error": type(exc).__name__}))
             state.report = build_decision_report(state, request_id=req_id)
             self._log(state, error=type(exc).__name__)
