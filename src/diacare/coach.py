@@ -24,7 +24,7 @@ An toàn:
    tiêu bác sĩ đặt), nên agent chạy được trên nhật ký thật y như trên dữ liệu mô phỏng.
 """
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -160,6 +160,19 @@ class QCoach:
                 delta = max(delta, abs(step))
         return delta
 
+    def update(self, s, action, reward, next_state, alpha=ALPHA):
+        """Một bước Q-learning trực tuyến cho một ngày đã kết thúc. Trả về độ thay đổi của Q(s, a)."""
+        i, a = state_index(s), ACTION_IDS.index(action)
+        target = reward + (self.gamma * self.q[state_index(next_state)].max() if next_state is not None else 0.0)
+        step = alpha * (target - self.q[i, a])
+        self.q[i, a] += step
+        self.counts[i, a] += 1
+        self.meta["online_updates"] = int(self.meta.get("online_updates", 0)) + 1
+        return round(float(step), 4)
+
+    def copy(self):
+        return QCoach.from_dict(json.loads(json.dumps(self.to_dict())))
+
     def scores(self, s):
         return self.q[state_index(s)].copy()
 
@@ -206,32 +219,81 @@ def load_coach(path=DEFAULT_COACH_PATH):
     return QCoach.from_dict(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else None
 
 
-def daily_nudge(store, coach, patient_id, today):
-    """Lời nhắc hôm nay của một người bệnh: chọn một lần mỗi ngày, ghi vào bảng coach_events, mở lại trong ngày
-    thì giữ nguyên. Lời nhắc hôm qua là `prev_action` của trạng thái hôm nay."""
+MODEL_TABLE = "coach_model"  # bảng Q đã học tiếp (rl_model là của bandit trong khung chat)
+
+
+def _as_date(day):
+    return day if isinstance(day, date) else date.fromisoformat(str(day)[:10])
+
+
+def coach_from_store(store, prior):
+    """Bảng Q đang dùng: bản đã học tiếp lưu trong DB, chưa có thì bản huấn luyện sẵn (models/q_coach.json)."""
+    saved = store.load_rl_model(table=MODEL_TABLE)
+    return QCoach.from_dict(saved) if saved else prior.copy()
+
+
+def learn_from_journal(store, prior, patient_id, today):
+    """Học tiếp từ những ngày đã kết thúc của một người bệnh (trước `today`) mà chưa học.
+
+    Với mỗi ngày đã nhắc: phần thưởng tính từ nhật ký của ngày đó, trạng thái kế tiếp là trạng thái sáng hôm sau
+    tính từ nhật ký (dù người bệnh có mở ứng dụng hôm sau hay không), rồi một bước Q-learning. Mỗi ngày chỉ học
+    một lần (cột learned_reward), dưới khoá để hai phiên mở cùng lúc không học trùng.
+    Trả về danh sách {day, action, reward, delta}."""
+    today = _as_date(today)
+    pending = [ev for ev in store.coach_events(patient_id)
+               if ev["learned_reward"] is None and _as_date(ev["day"]) < today]
+    if not pending:
+        return []
+    readings = store.list_readings(patient_id)
+    targets = store.get_targets(patient_id)
+    by_day = {_as_date(ev["day"]): ev["action"] for ev in store.coach_events(patient_id)}
+    out = []
+    with store.exclusive("coach-model"):
+        coach = coach_from_store(store, prior)
+        for ev in pending:
+            day = _as_date(ev["day"])
+            prev = by_day.get(day - timedelta(days=1))
+            reward = day_reward(readings, day, ev["action"], prev, targets)
+            if not store.mark_coach_learned(patient_id, day, reward):
+                continue  # phiên khác vừa học ngày này
+            nxt = day_state(readings, day + timedelta(days=1), ev["action"], targets)
+            delta = coach.update(ev["state"], ev["action"], reward, nxt)
+            out.append({"day": str(day), "action": ev["action"], "reward": reward, "delta": delta})
+        if out:
+            store.save_rl_model(coach.to_dict(), table=MODEL_TABLE)
+    return out
+
+
+def daily_nudge(store, prior, patient_id, today):
+    """Lời nhắc hôm nay của một người bệnh: trước hết học tiếp từ những ngày đã qua, rồi chọn một lần mỗi ngày,
+    ghi vào bảng coach_events; mở lại trong ngày thì giữ nguyên. Lời nhắc hôm qua là `prev_action` của trạng
+    thái hôm nay. `prior`: bảng Q huấn luyện sẵn, dùng khi DB chưa có bản học tiếp."""
+    learned = learn_from_journal(store, prior, patient_id, today)
+    coach = coach_from_store(store, prior)
     done = store.coach_events(patient_id, day=today)
     if done:
         ev = done[-1]
-        return {**ev, "label": ACTION_LABELS[ev["action"]], "text": NUDGES[ev["action"]],
+        return {**ev, "label": ACTION_LABELS[ev["action"]], "text": NUDGES[ev["action"]], "learned": learned,
                 "ranking": sorted(zip(ACTION_IDS, coach.scores(ev["state"])), key=lambda x: -x[1])[:3]}
     yesterday = store.coach_events(patient_id, day=today - timedelta(days=1))
     prev = yesterday[-1]["action"] if yesterday else None
     nudge = today_nudge(coach, store.list_readings(patient_id), today, prev, store.get_targets(patient_id))
     store.add_coach_event(patient_id, today, nudge)
-    return nudge
+    return {**nudge, "learned": learned}
 
 
 def history_rewards(store, patient_id, targets=None, today=None):
     """Các ngày đã nhắc kèm phần thưởng tính lại từ nhật ký. Từ `today` trở đi chưa hết ngày nên bỏ."""
     readings = store.list_readings(patient_id)
     events = store.coach_events(patient_id)
-    out, prev = [], None
+    by_day = {_as_date(ev["day"]): ev["action"] for ev in events}
+    out = []
     for ev in events:
-        day = datetime.fromisoformat(ev["day"]).date() if "T" in ev["day"] else date.fromisoformat(ev["day"])
-        if today is not None and day >= today:
+        day = _as_date(ev["day"])
+        if today is not None and day >= _as_date(today):
             break
+        prev = by_day.get(day - timedelta(days=1))
         out.append({**ev, "reward": day_reward(readings, day, ev["action"], prev, targets)})
-        prev = ev["action"]
     return out
 
 

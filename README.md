@@ -400,9 +400,10 @@ Mỗi sáng, người đã chẩn đoán thấy một "Lời nhắc hôm nay" �
   chính sách từ các ngày đã ghi.
 - An toàn: hôm qua có hạ đường huyết hoặc ≥ 250 mg/dL thì luôn "khám sớm"; ngoài lúc đó agent không được chọn "khám sớm".
 - Dữ liệu: **30 người bệnh mô phỏng**, 14–28 ngày mỗi người, 599 ngày (`data/rl_demo/`, `python tools/make_rl_demo_data.py --db`).
-  Trên 200 người bệnh mô phỏng mới, tổng thưởng TB mỗi người: Q-learning 1,18, luật cố định −0,34, ngẫu nhiên −2,26;
-  Q-learning hơn luật cố định +1,53 [0,39; 2,67] nhưng **không hơn bandit $\gamma = 0$** (−0,01 [−0,68; 0,65]).
+  Trên 200 người bệnh mô phỏng mới, tổng thưởng TB mỗi người: Q-learning 1,99, luật cố định −0,34, ngẫu nhiên −2,26;
+  Q-learning hơn luật cố định +2,33 [1,01; 3,65] nhưng **chưa hơn bandit $\gamma = 0$ một cách có ý nghĩa** (khoảng tin cậy chứa 0) (+0,83 [−0,59; 2,26]).
   Chi tiết và cách đọc: `docs/results/2026-11-24_q_learning/`.
+- **Học tiếp từ nhật ký trong ứng dụng.** Bảng Q học sẵn chỉ là điểm xuất phát. Mỗi khi mở tab Hôm nay, agent học tiếp từ những ngày đã kết thúc của người đó mà chưa học (`learn_from_journal`): phần thưởng tính từ nhật ký của ngày đó, trạng thái kế tiếp là trạng thái sáng hôm sau, rồi một bước $Q(s,a) \leftarrow Q(s,a) + \alpha[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$, $\alpha = 0{,}1$. Mỗi ngày chỉ học một lần (cột `learned_reward` của bảng `coach_events`), dưới khoá để hai phiên mở cùng lúc không học trùng; bảng Q đã học tiếp lưu ở bảng `coach_model`, dùng chung cho mọi người bệnh. Trong DB demo, ngày theo dõi cuối (23/11) của mỗi người bệnh mẫu không dùng để huấn luyện sẵn (bảng Q học sẵn từ 569/599 ngày) mà để dành: mở tab Hôm nay của một người là agent học ngày đó ngay, và trang Thống kê tăng số "Ngày học tiếp từ nhật ký". Chưa có người dùng thật nào, nên bảng Q hiện vẫn chủ yếu là học từ dữ liệu mô phỏng.
 
 ### Bandit trọng tâm chat (`src/diacare/rl.py`)
 

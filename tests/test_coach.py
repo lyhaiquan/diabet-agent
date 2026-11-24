@@ -106,3 +106,35 @@ def test_daily_nudge_chosen_once_per_day_and_feeds_tomorrow(tmp_path):
     hist = history_rewards(store, pid)
     assert [h["day"] for h in hist] == [str(D), str(D + timedelta(days=1))] and hist[0]["reward"] == -1.0
     assert [h["day"] for h in history_rewards(store, pid, today=D + timedelta(days=1))] == [str(D)]
+
+
+def test_online_learning_from_finished_days(tmp_path):
+    from diacare.coach import MODEL_TABLE, coach_from_store, daily_nudge, learn_from_journal, state_index
+    from diacare.db import Store
+    from diacare.samples import HIGH_RISK
+    store = Store(str(tmp_path / "o.db"))
+    pid = store.save_patient("Bệnh nhân mẫu", HIGH_RISK)
+    prior = load_coach(DEFAULT_COACH_PATH)
+    d0 = D - timedelta(days=2)
+    first = daily_nudge(store, prior, pid, d0)
+    assert first["learned"] == [] and store.load_rl_model(table=MODEL_TABLE) is None  # chưa có ngày nào xong
+    store.add_reading(pid, "glucose", 110, datetime.combine(d0, time(7), tzinfo=VN_TZ), unit="mg/dL",
+                      context="fasting")  # hôm đó có đo, đạt mục tiêu: thưởng 1,5
+    out1 = daily_nudge(store, prior, pid, d0 + timedelta(days=1))["learned"]  # mở hôm sau: học ngày d0
+    out2 = daily_nudge(store, prior, pid, D)["learned"]  # hôm d0+1 không đo
+    assert [(o["day"], o["reward"]) for o in out1 + out2] == [(str(d0), 1.5), (str(d0 + timedelta(days=1)), -1.0)]
+    coach = coach_from_store(store, prior)
+    assert coach.meta["online_updates"] == 2
+    i, a = state_index(first["state"]), ACTION_IDS.index(first["action"])
+    assert coach.q[i, a] > prior.q[i, a]  # ngày được thưởng làm tăng Q của đúng lời nhắc đó
+    assert learn_from_journal(store, prior, pid, D) == []  # mỗi ngày chỉ học một lần
+    assert all(e["learned_reward"] is not None for e in store.coach_events(pid)[:2])
+    assert store.coach_events(pid)[-1]["learned_reward"] is None  # hôm nay chưa xong
+
+
+def test_bandit_model_slot_untouched_by_coach(tmp_path):
+    from diacare.db import Store
+    store = Store(str(tmp_path / "s.db"))
+    store.save_rl_model({"x": 1})
+    store.save_rl_model({"y": 2}, table="coach_model")
+    assert store.load_rl_model() == {"x": 1} and store.load_rl_model(table="coach_model") == {"y": 2}

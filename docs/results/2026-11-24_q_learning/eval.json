@@ -2,36 +2,36 @@
  "data": {
   "source": "dữ liệu mô phỏng (diacare.coach_sim), không phải người thật",
   "patients": 30,
-  "transitions": 599,
+  "transitions": 569,
   "seed": 7,
   "behavior_epsilon": 0.6
  },
  "coverage": {
-  "cells_seen": 72,
+  "cells_seen": 71,
   "cells_total": 216,
   "states_seen": 18,
   "states_total": 36
  },
  "paired_difference": {
   "Q-learning - Bandit (gamma 0)": {
-   "mean": -0.01,
+   "mean": 0.83,
    "ci95": [
-    -0.68,
-    0.65
+    -0.59,
+    2.26
    ]
   },
   "Q-learning - Luật cố định": {
-   "mean": 1.53,
+   "mean": 2.33,
    "ci95": [
-    0.39,
-    2.67
+    1.01,
+    3.65
    ]
   },
   "Q-learning - Ngẫu nhiên": {
-   "mean": 3.45,
+   "mean": 4.25,
    "ci95": [
-    2.28,
-    4.61
+    2.79,
+    5.71
    ]
   }
  },
@@ -39,23 +39,23 @@
  "eval_on_new_simulated_patients": {
   "Q-learning (gamma 0,9)": {
    "n": 200,
-   "mean_return": 1.18,
+   "mean_return": 1.99,
    "ci95": [
-    0.09,
-    2.28
+    0.62,
+    3.35
    ],
-   "logged_days": 0.576,
-   "in_target": 0.327
+   "logged_days": 0.579,
+   "in_target": 0.344
   },
   "Bandit (gamma 0)": {
    "n": 200,
-   "mean_return": 1.19,
+   "mean_return": 1.15,
    "ci95": [
-    0.08,
-    2.31
+    0.04,
+    2.27
    ],
-   "logged_days": 0.575,
-   "in_target": 0.338
+   "logged_days": 0.572,
+   "in_target": 0.339
   },
   "Luật cố định": {
    "n": 200,

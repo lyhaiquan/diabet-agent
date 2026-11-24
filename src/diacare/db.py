@@ -10,7 +10,8 @@ from diacare.crypto import cipher_for
 
 # Cột được thêm sau khi bảng đã có trong DB cũ: (bảng, cột, kiểu)
 _ADDED_COLUMNS = [("runs", "trace_json", "TEXT"), ("summaries", "anchor", "TEXT"),
-                  ("messages", "rl_event_id", "INTEGER"), ("patients", "user_id", "INTEGER")]
+                  ("messages", "rl_event_id", "INTEGER"), ("patients", "user_id", "INTEGER"),
+                  ("coach_events", "learned_reward", "REAL")]
 _LOCAL_LOCKS = {}
 _LOCAL_LOCKS_GUARD = threading.Lock()
 
@@ -99,6 +100,11 @@ CREATE TABLE IF NOT EXISTS coach_events (
     mode TEXT,
     created_at TEXT NOT NULL,
     UNIQUE (patient_id, day)
+);
+CREATE TABLE IF NOT EXISTS coach_model (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    model_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rl_model (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -376,8 +382,10 @@ class Store:
         rows = self.conn.execute(sql + (f" DESC LIMIT {int(limit)}" if limit else "")).fetchall()
         return [self._rl_event(r) for r in rows]
 
-    def save_rl_model(self, model):
-        self.conn.execute("INSERT INTO rl_model (id, model_json, updated_at) VALUES (1, ?, ?)"
+    def save_rl_model(self, model, table="rl_model"):
+        """rl_model: bandit trọng tâm chat (diacare.rl); coach_model: bảng Q đã học tiếp (diacare.coach)."""
+        assert table in ("rl_model", "coach_model")
+        self.conn.execute(f"INSERT INTO {table} (id, model_json, updated_at) VALUES (1, ?, ?)"
                           " ON CONFLICT(id) DO UPDATE SET model_json = excluded.model_json,"
                           " updated_at = excluded.updated_at", (_dumps(model), _now()))
         self.conn.commit()
@@ -400,10 +408,19 @@ class Store:
             args.append(str(day))
         rows = self.conn.execute(sql + " ORDER BY day", args).fetchall()
         return [{"day": r["day"], "state": json.loads(r["state_json"]), "action": r["action"],
-                 "propensity": r["propensity"], "mode": r["mode"]} for r in rows]
+                 "propensity": r["propensity"], "mode": r["mode"], "learned_reward": r["learned_reward"]}
+                for r in rows]
 
-    def load_rl_model(self):
-        row = self.conn.execute("SELECT model_json FROM rl_model WHERE id = 1").fetchone()
+    def mark_coach_learned(self, patient_id, day, reward):
+        """Ghi phần thưởng đã học cho một ngày, đúng một lần. True nếu vừa ghi (chưa ai học ngày này)."""
+        cur = self.conn.execute("UPDATE coach_events SET learned_reward = ? WHERE patient_id = ? AND day = ?"
+                                " AND learned_reward IS NULL", (float(reward), patient_id, str(day)))
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def load_rl_model(self, table="rl_model"):
+        assert table in ("rl_model", "coach_model")
+        row = self.conn.execute(f"SELECT model_json FROM {table} WHERE id = 1").fetchone()
         return json.loads(row["model_json"]) if row else None
 
     # ---- trí nhớ dài hạn & tóm tắt hội thoại ----

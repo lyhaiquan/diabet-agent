@@ -8,7 +8,7 @@ import streamlit as st
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from diacare.coach import STATES, history_rewards, load_coach  # noqa: E402
+from diacare.coach import STATES, coach_from_store, history_rewards, load_coach  # noqa: E402
 from diacare.journal import now_vn  # noqa: E402
 from diacare.factory import ROOT, build_orchestrator, open_store  # noqa: E402
 from diacare.flowviz import flow_html  # noqa: E402
@@ -579,15 +579,24 @@ def render_stats(store, base=None):
 
 def _render_q_coach(store):
     """Agent Q-learning nhắc việc hằng ngày: kết quả trên dữ liệu mô phỏng, chính sách học được, lịch sử nhắc."""
-    coach = load_coach()
-    if coach is None:
+    prior = load_coach()
+    if prior is None:
         return
+    coach = coach_from_store(store, prior)  # bản đã học tiếp từ nhật ký, chưa có thì bản huấn luyện sẵn
     st.subheader("Agent Q-learning: lời nhắc hằng ngày")
     meta = coach.meta or {}
     cov = coach.coverage()
-    st.caption(f"Học ngoài chính sách từ {meta.get('transitions', '?')} ngày của {meta.get('patients', '?')} người "
-               f"bệnh ({meta.get('source', '')}). γ = {coach.gamma}. Dữ liệu phủ {cov['states_seen']}/"
-               f"{cov['states_total']} trạng thái, {cov['cells_seen']}/{cov['cells_total']} ô (trạng thái, hành động).")
+    online = int(meta.get("online_updates", 0))
+    c = st.columns(3)
+    c[0].metric("Ngày học sẵn (mô phỏng)", meta.get("transitions", "?"))
+    c[1].metric("Ngày học tiếp từ nhật ký", online,
+                help="Mỗi khi mở tab Hôm nay, agent học từ những ngày đã kết thúc của người đó: phần thưởng tính "
+                     "từ nhật ký của ngày đó, rồi một bước Q-learning. Mỗi ngày học một lần.")
+    c[2].metric("Ô (trạng thái, hành động) có dữ liệu", f"{cov['cells_seen']}/{cov['cells_total']}")
+    st.caption(f"Bảng Q xuất phát từ {meta.get('transitions', '?')} ngày của {meta.get('patients', '?')} người "
+               f"bệnh ({meta.get('source', '')}), học ngoài chính sách, γ = {coach.gamma}; sau đó học tiếp trực "
+               f"tuyến từ nhật ký trong ứng dụng ({online} ngày). Dữ liệu phủ {cov['states_seen']}/"
+               f"{cov['states_total']} trạng thái.")
     ev_path = ROOT / "data" / "rl_demo" / "eval.json"
     if ev_path.exists():
         ev = json.loads(ev_path.read_text(encoding="utf-8"))
@@ -611,7 +620,8 @@ def _render_q_coach(store):
     if hist:
         st.markdown(f"**Lịch sử lời nhắc của người bệnh đang chọn** ({len(hist)} ngày)")
         df = pd.DataFrame([{"Ngày": h["day"], "Lời nhắc": ACTION_LABELS[h["action"]], "Cách chọn": h["mode"],
-                            "Phần thưởng": h["reward"]} for h in hist])
+                            "Phần thưởng": h["reward"],
+                            "Đã học": "có" if h.get("learned_reward") is not None else "chưa"} for h in hist])
         df["Tổng thưởng tích lũy"] = df["Phần thưởng"].cumsum()
         st.line_chart(df.set_index("Ngày")["Tổng thưởng tích lũy"])
         st.dataframe(df, hide_index=True)

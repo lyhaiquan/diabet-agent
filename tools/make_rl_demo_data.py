@@ -63,8 +63,13 @@ def write_demo_db(path, patients, readings_by_code, steps_by_code):
         for r in readings_by_code[t["code"]]:
             store.add_reading(pid, r["kind"], r["value"], r["measured_at"], unit="mg/dL", context=r["context"],
                               note="dữ liệu mô phỏng")
-        for st in steps_by_code[t["code"]]:
+        steps = steps_by_code[t["code"]]
+        for st in steps:
             store.add_coach_event(pid, st["day"], st)
+        for st in steps[:-1]:
+            # các ngày này đã dùng để huấn luyện bảng Q có sẵn: đánh dấu đã học để bước học tiếp không học lại.
+            # Ngày cuối để dành: mở tab Hôm nay của người đó thì agent học tiếp ngày này (demo học trực tuyến).
+            store.mark_coach_learned(pid, st["day"], st["reward"])
         last = date.fromisoformat(steps_by_code[t["code"]][-1]["day"])
         store.set_appointment(pid, (last + timedelta(days=10)).isoformat(), place="Phòng khám nội tiết (mẫu)")
     store.close()
@@ -86,7 +91,7 @@ def main():
         start = END - timedelta(days=t["days"] + WARMUP - 1)
         readings, steps = run_episode(t, behavior, start, rng, warmup=WARMUP)
         readings_by_code[t["code"]], steps_by_code[t["code"]] = readings, steps
-        transitions += steps
+        transitions += steps[:-1]  # ngày cuối của mỗi người để dành cho bước học tiếp trong ứng dụng
 
     (OUT / "patients.json").write_text(json.dumps(patients, ensure_ascii=False, indent=1), encoding="utf-8")
     with open(OUT / "readings.csv", "w", newline="", encoding="utf-8") as f:
@@ -97,13 +102,15 @@ def main():
                 w.writerow([code, r["measured_at"], r["kind"], r["context"], r["value"]])
     with open(OUT / "decisions.csv", "w", newline="", encoding="utf-8") as f:
         fields = ["code", "day", "s_adherence", "s_control", "s_prev", "s_urgent", "action", "propensity", "mode",
-                  "reward", "n_adherence", "n_control", "n_prev", "n_urgent"]
+                  "reward", "n_adherence", "n_control", "n_prev", "n_urgent", "train"]
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
-        for st in transitions:
-            w.writerow({"code": st["code"], "day": st["day"], **flat_state(st["state"], "s_"),
-                        "action": st["action"], "propensity": st["propensity"], "mode": st["mode"],
-                        "reward": st["reward"], **flat_state(st["next_state"], "n_")})
+        for steps in steps_by_code.values():
+            for i, st in enumerate(steps):
+                w.writerow({"code": st["code"], "day": st["day"], **flat_state(st["state"], "s_"),
+                            "action": st["action"], "propensity": st["propensity"], "mode": st["mode"],
+                            "reward": st["reward"], **flat_state(st["next_state"], "n_"),
+                            "train": int(i < len(steps) - 1)})
 
     data_meta = {"source": "dữ liệu mô phỏng (diacare.coach_sim), không phải người thật", "patients": len(patients),
                  "transitions": len(transitions), "seed": args.seed, "behavior_epsilon": 0.6}
@@ -133,7 +140,8 @@ def main():
     if args.db:
         write_demo_db(OUT / "demo.db", patients, readings_by_code, steps_by_code)
 
-    print(f"{len(patients)} người bệnh, {len(transitions)} ngày có lời nhắc, "
+    print(f"{len(patients)} người bệnh, {sum(len(v) for v in steps_by_code.values())} ngày có lời nhắc "
+          f"({len(transitions)} ngày dùng để huấn luyện sẵn), "
           f"{sum(len(v) for v in readings_by_code.values())} số đo đường huyết")
     print("Độ phủ:", q.coverage())
     for name, r in results.items():
