@@ -420,6 +420,11 @@ def render_chat(store, base, patient_id):
         question = None  # là câu trả lời số đo / "chưa đo": đã xử lý, không gửi cho pipeline tư vấn
     _render_messages(store, base)
     checkin_ui.render_card(store, patient, sid)
+    spoken = None if question else checkin_ui.voice_reply(store, patient, sid)
+    if spoken:  # trả lời câu hỏi chủ động bằng giọng: cùng đường với câu gõ chữ
+        if checkin_ui.handle_input(store, patient, sid, spoken):
+            st.rerun()
+        question = spoken
     if question:
         with st.chat_message("user"):
             st.write(question)

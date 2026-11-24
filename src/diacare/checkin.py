@@ -15,7 +15,7 @@ import unicodedata
 from datetime import datetime, time, timedelta
 
 from diacare import journal
-from diacare.speech import guess_context, parse_spoken_reading
+from diacare.speech import guess_context, parse_spoken_reading, words_to_numbers
 
 # Câu hỏi thì để LLM trả lời, kể cả khi có số ("8,5 lúc đói có cao không?"): không bắt nhầm thành số đo để lưu
 _QUESTION = re.compile(r"\?|\b(có\s+\S+(\s+\S+)?\s+không|sao|thế nào|như thế nào|bao nhiêu|là gì|nên|được không|"
@@ -107,6 +107,9 @@ def route_reply(text, topic, now=None):
     """Quyết định MỘT cách xử lý câu người dùng vừa gõ khi trợ lý đang đợi trả lời câu hỏi chủ động.
     Trả về {"route": "reading", "reading": ..., "when": datetime} | {"route": "not_yet"} | {"route": "ask"}."""
     now = journal.to_vn(now or journal.now_vn())
+    # Số đọc bằng chữ (gõ hoặc nhận dạng giọng nói): "sáu phẩy năm" -> "6.5", "bảy rưỡi" -> "7.5".
+    # "không" đứng riêng giữ nguyên, nên "không ổn" vẫn là triệu chứng, "không kịp đo" vẫn là chưa đo.
+    text = words_to_numbers(text or "")
     t = _norm(text)
     if topic and topic.get("kind") == "alert" and _SYMPTOM.search(t) and not re.search(r"\d", t):
         return {"route": "symptom"}

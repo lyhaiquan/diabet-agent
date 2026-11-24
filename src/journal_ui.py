@@ -121,6 +121,24 @@ def _coach():
     return load_coach()
 
 
+def _on_nudge_feedback(store, patient_id, day):
+    value = st.session_state.get(f"nudge_fb_{patient_id}_{day}")
+    if value is not None and store.rate_coach_event(patient_id, day, 1 if value == 1 else -1):
+        st.toast("Cảm ơn bạn! Lời nhắc ngày mai sẽ tính cả ý kiến này.")
+
+
+def _nudge_feedback(store, patient_id, day, rated):
+    """👍/👎 cho lời nhắc hôm nay: phần thưởng phụ cho agent Q-learning (diacare.coach.R_FEEDBACK)."""
+    if rated:
+        st.caption(f"Bạn đã chấm lời nhắc này {'👍' if rated > 0 else '👎'}.")
+        return
+    c1, c2 = st.columns([3, 1], vertical_alignment="center")
+    c1.caption("Lời nhắc này có hợp với bạn không?")
+    with c2:
+        st.feedback("thumbs", key=f"nudge_fb_{patient_id}_{day}", on_change=_on_nudge_feedback,
+                    args=(store, patient_id, day))
+
+
 def render_today(store, patient_id):
     if patient_id is None:
         st.info("Hãy tạo hồ sơ ở thanh bên để bắt đầu.")
@@ -136,6 +154,7 @@ def render_today(store, patient_id):
     if coach is not None and has_diagnosis(store.list_memories(patient_id)):
         nudge = daily_nudge(store, coach, patient_id, now.date())
         st.info("**Lời nhắc hôm nay.** " + nudge["text"], icon=":material/lightbulb:")
+        _nudge_feedback(store, patient_id, now.date(), nudge.get("feedback"))
 
     st.markdown("#### Ghi đường huyết")
     glucose_form(store, patient_id, prefix="today")

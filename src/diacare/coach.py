@@ -9,7 +9,7 @@ Bài toán (Sutton & Barto, ch. 6.5, Q-learning):
 - Mỗi sáng, agent nhìn trạng thái $s$ tính từ nhật ký 3 ngày trước đó và chọn một trong 6 trọng tâm nhắc $a$
   (dùng chung 6 trọng tâm an toàn của diacare.rl).
 - Phần thưởng $r$ tính hoàn toàn từ nhật ký của chính ngày đó: có đo hay không, chỉ số đạt mục tiêu hay không,
-  có hạ đường huyết không. Không cần người dùng bấm 👍/👎.
+  có hạ đường huyết không. Không cần người dùng bấm 👍/👎; nếu có bấm thì cộng/trừ thêm R_FEEDBACK.
 - Cập nhật: $Q(s,a) \leftarrow Q(s,a) + \alpha\,[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$.
 
 Trạng thái gọn, 4 × 3 × 3 = 36 ô, để vài trăm ngày dữ liệu đủ phủ:
@@ -52,6 +52,9 @@ R_LOGGED, R_MISSED = 1.0, -1.0
 R_READING = {"in_target": 0.5, "below_target": 0.0, "above_target": -0.3, "very_high": -1.0,
              "hypo_1": -1.5, "hypo_2": -1.9}
 R_REPEAT = -0.3  # nhắc lại đúng một lời hai ngày liền: người bệnh nhàm
+# 👍/👎 của người bệnh cho lời nhắc (không bắt buộc): chỉ là phần thưởng phụ, nhỏ hơn khoảng cách giữa bỏ đo và có đo
+# (2,0), để một cú 👎 không dạy agent rằng thà người bệnh bỏ đo còn hơn.
+R_FEEDBACK = 0.3
 
 ALPHA, GAMMA, EPOCHS = 0.1, 0.9, 200
 
@@ -120,8 +123,9 @@ def state_index(s):
     return STATES.index((s["adherence"], s["control"], s["prev"]))
 
 
-def day_reward(readings, day, action, prev_action=None, targets=None):
-    """Phần thưởng của lời nhắc ngày `day`, tính từ nhật ký của chính ngày đó."""
+def day_reward(readings, day, action, prev_action=None, targets=None, feedback=None):
+    """Phần thưởng của lời nhắc ngày `day`, tính từ nhật ký của chính ngày đó; `feedback` (+1/-1) nếu người bệnh đã
+    bấm 👍/👎 cho lời nhắc đó."""
     rows = _glucose_by_day(readings).get(day, [])
     if not rows:
         r = R_MISSED
@@ -129,6 +133,8 @@ def day_reward(readings, day, action, prev_action=None, targets=None):
         r = R_LOGGED + float(np.mean([R_READING[lv] for lv in reading_levels(rows, targets)]))
     if prev_action and action == prev_action and action != "urgent_eval":
         r += R_REPEAT
+    if feedback:
+        r += R_FEEDBACK * (1 if feedback > 0 else -1)
     return round(r, 4)
 
 
@@ -253,7 +259,7 @@ def learn_from_journal(store, prior, patient_id, today):
         for ev in pending:
             day = _as_date(ev["day"])
             prev = by_day.get(day - timedelta(days=1))
-            reward = day_reward(readings, day, ev["action"], prev, targets)
+            reward = day_reward(readings, day, ev["action"], prev, targets, ev.get("feedback"))
             if not store.mark_coach_learned(patient_id, day, reward):
                 continue  # phiên khác vừa học ngày này
             nxt = day_state(readings, day + timedelta(days=1), ev["action"], targets)
@@ -293,7 +299,7 @@ def history_rewards(store, patient_id, targets=None, today=None):
         if today is not None and day >= _as_date(today):
             break
         prev = by_day.get(day - timedelta(days=1))
-        out.append({**ev, "reward": day_reward(readings, day, ev["action"], prev, targets)})
+        out.append({**ev, "reward": day_reward(readings, day, ev["action"], prev, targets, ev.get("feedback"))})
     return out
 
 

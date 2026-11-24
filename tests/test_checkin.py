@@ -138,3 +138,9 @@ def test_symptom_words_never_mean_not_yet(text):
 
 def test_alert_reply_with_number_is_still_reading():
     assert route_reply("đo lại 4,8 rồi, hết run", ALERT, NOW)["route"] == "reading"
+
+
+@pytest.mark.parametrize("text,value", [("sáu phẩy năm", 6.5), ("bảy rưỡi sau ăn", 7.5), ("tối qua chín giờ đo tám phẩy một", 8.1)])
+def test_spoken_numbers_become_readings(text, value):
+    r = route_reply(text, MISSING, NOW)
+    assert r["route"] == "reading" and r["reading"]["value"] == value

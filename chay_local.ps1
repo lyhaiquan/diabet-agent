@@ -81,6 +81,13 @@ $env:DIACARE_NUM_CTX = "4096"
 $env:DIACARE_KB = Join-Path $root "kb"
 $env:DIACARE_DB = Join-Path $root "data\diacare.db"
 $env:DIACARE_LOG = Join-Path $root "logs\runs.jsonl"
+# Nhận dạng giọng nói (trợ lý chủ động hỏi bằng giọng): dùng PhoWhisper đã tải sẵn ở D:\hf_cache nếu có.
+# Không đổi HF_HOME: mô hình embedding sbert nằm ở cache mặc định.
+if (-not $env:DIACARE_ASR_MODEL) {
+    $asr = Get-ChildItem "D:\hf_cache\hub\models--vinai--PhoWhisper-small\snapshots" -Directory -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($asr) { $env:DIACARE_ASR_MODEL = $asr.FullName }
+}
 
 if ($KG) {
     # Bật Neo4j trong Docker, nạp đồ thị, rồi cho Graph agent đọc từ Neo4j.

@@ -163,7 +163,8 @@ class Orchestrator:
                 j = state.journal
                 step("Journal", (f"nhật ký 14 ngày: {j['n_glucose']} lần đo đường huyết"
                                  + (f", {j['hypo']} lần hạ" if j["hypo"] else "")
-                                 + (f", {j['very_high']} lần rất cao" if j["very_high"] else ""))
+                                 + (f", {j['very_high']} lần rất cao" if j["very_high"] else "")
+                                 + (", có bữa ăn quét ảnh" if j.get("meal_lines") else ""))
                      if j else "chưa có nhật ký tự theo dõi")
             # Bốn agent chỉ đọc câu hỏi / hồ sơ và ghi mỗi agent một trường riêng của State: chạy song song.
             # Predictor và Retriever là bắt buộc (lỗi thì dừng lượt); Graph và Nutrition là phụ (lỗi thì bỏ qua).

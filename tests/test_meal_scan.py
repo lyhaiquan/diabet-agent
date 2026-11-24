@@ -164,3 +164,82 @@ def test_store_meals_encrypts_items(tmp_path, monkeypatch):
     assert meals[0]["items"][0]["name"] == "cơm trắng" and meals[0]["carb_g"] == 42
     store.delete_meal(mid, pid)
     assert store.list_meals(pid) == []
+
+
+# ---- nối bữa ăn với đường huyết sau ăn ----
+from datetime import datetime, timedelta  # noqa: E402
+
+from diacare import journal  # noqa: E402
+
+NOW = datetime(2026, 11, 24, 20, 0, tzinfo=journal.VN_TZ)
+
+
+def _meal(hours_ago, carb, slot="lunch", mid=1):
+    return {"id": mid, "eaten_at": (NOW - timedelta(hours=hours_ago)).isoformat(), "slot": slot,
+            "carb_g": carb, "carb_low": carb * 0.7, "carb_high": carb * 1.3,
+            "items": [{"name": "cơm trắng", "grams": carb / 0.28}]}
+
+
+def _glu(mmol, hours_ago, context="after_meal"):
+    return {"kind": "glucose", "value": mmol * 18.0, "unit": "mmol/L", "context": context,
+            "measured_at": (NOW - timedelta(hours=hours_ago)).isoformat()}
+
+
+def test_pair_takes_first_reading_45min_to_3h_after():
+    meals = [_meal(8, 80)]
+    readings = [_glu(6.0, 8.5), _glu(11.5, 6.5), _glu(8.0, 6.0), _glu(7.0, 4.0)]
+    p = meal_scan.pair_after_meal(meals, readings)[0]
+    assert p["minutes"] == 90 and p["status"] == "above_target"
+    assert meal_scan.after_meal_text(p) == "11,5 mmol/L sau 90 phút, cao hơn mục tiêu"
+
+
+def test_unpaired_meal():
+    p = meal_scan.pair_after_meal([_meal(8, 80)], [_glu(7.0, 8.2)])[0]
+    assert p["reading"] is None and meal_scan.after_meal_text(p) == "chưa đo sau ăn"
+
+
+def test_journal_lines_compare_high_and_ok_meals():
+    meals = [_meal(24 * d + 8, carb, mid=d) for d, carb in enumerate([100, 95, 40, 45])]
+    readings = [_glu(v, 24 * d + 6.5) for d, v in enumerate([12.0, 11.0, 8.0, 7.5])]
+    lines = meal_scan.meal_journal_lines(meals, readings, now=NOW)
+    text = "\n".join(lines)
+    assert "4 bữa" in lines[0]
+    assert "đường huyết sau ăn: 12,0 mmol/L sau 90 phút" in lines[1]   # bữa gần nhất, dù danh sách không theo thứ tự
+    assert "Có đo sau ăn 4/4 bữa; 2 bữa đường huyết sau ăn cao hơn mục tiêu" in text
+    assert "các bữa cao sau ăn trung bình khoảng 98 g tinh bột, các bữa trong mục tiêu khoảng 42 g" in text
+
+
+def test_no_meals_no_lines():
+    assert meal_scan.meal_journal_lines([], [_glu(7, 1)], now=NOW) == []
+
+
+def test_journal_agent_adds_meal_lines_with_own_budget(tmp_path):
+    from diacare.context import JOURNAL_TOKEN_BUDGET, MEAL_TOKEN_BUDGET, build_context, estimate_tokens
+    from diacare.db import Store
+    from diacare.state import State
+    store = Store(tmp_path / "m.db")
+    pid = store.save_patient("Lan", {})
+    store.add_reading(pid, "glucose", 11.0 * 18, NOW - timedelta(hours=1), unit="mmol/L", context="after_meal")
+    store.add_meal(pid, NOW - timedelta(hours=2, minutes=30), "lunch", [{"name": "cơm trắng", "grams": 200}],
+                   56, 39, 73, 260)
+    digest = journal.JournalAgent(store, now=NOW).collect(pid)
+    assert digest["meal_lines"] and not any("Bữa" in line for line in digest["lines"])
+    state = State(question="Trưa nay tôi ăn vậy có ổn không?", profile={}, patient_id=pid)
+    state.journal = {**digest, "lines": digest["lines"] + ["- " + "x" * 300] * 5}
+    text = build_context("advisor", state)["journal_text"]
+    assert "Bữa gần nhất: bữa trưa" in text and "11,0 mmol/L sau 90 phút, cao hơn mục tiêu" in text
+    assert estimate_tokens(text) <= JOURNAL_TOKEN_BUDGET + MEAL_TOKEN_BUDGET
+
+
+def test_journal_agent_meals_only(tmp_path):
+    from diacare.db import Store
+    store = Store(tmp_path / "m.db")
+    pid = store.save_patient("Lan", {})
+    store.add_meal(pid, NOW - timedelta(hours=3), "lunch", [{"name": "cơm trắng", "grams": 200}], 56, 39, 73)
+    digest = journal.JournalAgent(store, now=NOW).collect(pid)
+    assert digest["lines"] == [] and "Chưa có lần đo" in digest["meal_lines"][-1]
+    from diacare.context import build_context
+    from diacare.state import State
+    state = State(question="Bữa trưa của tôi thế nào?", profile={}, patient_id=pid)
+    state.journal = digest
+    assert "Bữa gần nhất: bữa trưa" in build_context("advisor", state)["journal_text"]

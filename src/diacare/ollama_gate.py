@@ -38,13 +38,29 @@ def make_handler(token, upstream, state_dir=None):
         def log_message(self, fmt, *args):  # không ghi token / nội dung câu hỏi ra log
             sys.stderr.write("gate %s %s -> %s\n" % (self.command, self.path.split("?")[0], args[1] if len(args) > 1 else ""))
 
-        def _reply(self, code, text):
+        def _drain(self):
+            # Đọc bỏ phần thân yêu cầu bị từ chối (tối đa MAX_BODY) trước khi trả lời. Đóng kết nối khi phía kia còn
+            # đang gửi thân thì trên Windows client nhận lỗi "connection aborted" thay vì mã 401 rõ ràng.
+            # (Không dùng docstring: tệp này được nhúng vào notebook trong một chuỗi ba nháy kép.)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return
+            if 0 < length <= MAX_BODY:
+                try:
+                    self.rfile.read(length)
+                except OSError:
+                    pass
+
+        def _reply(self, code, text, drain=True):
+            if drain:
+                self._drain()
             data = text.encode()
             self.send_response(code)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
-            # Không đọc phần thân của yêu cầu bị từ chối, nên phải đóng kết nối: cloudflared dùng lại kết nối, phần thân
-            # còn sót lại sẽ bị đọc nhầm thành yêu cầu kế tiếp
+            # Vẫn đóng kết nối sau mọi câu trả lời lỗi: thân yêu cầu quá lớn (413) không được đọc, mà cloudflared dùng lại
+            # kết nối, phần thân còn sót lại sẽ bị đọc nhầm thành yêu cầu kế tiếp
             self.send_header("Connection", "close")
             self.close_connection = True
             self.end_headers()
@@ -62,7 +78,7 @@ def make_handler(token, upstream, state_dir=None):
                 return self._reply(403, "forbidden")
             length = int(self.headers.get("Content-Length") or 0)
             if length > MAX_BODY:
-                return self._reply(413, "too large")
+                return self._reply(413, "too large", drain=False)  # quá lớn: không đọc, chỉ đóng kết nối
             body = self.rfile.read(length) if length else None
             if state:
                 (state / "last_used").touch()

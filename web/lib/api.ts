@@ -83,7 +83,10 @@ export type Today = {
   latest_hba1c: Lab | null;
   appointment: Appointment;
   targets: Targets;
+  nudge: Nudge | null;
 };
+/** Lời nhắc hôm nay của agent Q-learning (chỉ người đã chẩn đoán). */
+export type Nudge = { action: string; label: string; text: string; rated: "up" | "down" | null };
 export type SeriesPoint = { t: string; mmol: number; context: Context };
 export type Summary = {
   days: number;
@@ -243,6 +246,7 @@ export const api = {
   sessions: (pid: number) => json<{ id: number; created_at: string; n_messages: number }[]>(`/patients/${pid}/sessions`),
   messages: (pid: number, sid: number) => json<ChatMessage[]>(`/patients/${pid}/sessions/${sid}/messages`),
   feedback: (eventId: number, value: "up" | "down") => post<unknown>(`/feedback/${eventId}`, { value }),
+  nudgeFeedback: (pid: number, value: "up" | "down") => post<unknown>(`/patients/${pid}/nudge/feedback`, { value }),
 
   transcribe: (wav: Blob) => {
     const fd = new FormData();

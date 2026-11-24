@@ -343,3 +343,63 @@ def test_meal_page_saves_meal(user_env):
     assert meals[0]["carb_low"] < meals[0]["carb_g"] < meals[0]["carb_high"]
     assert any("Đã lưu bữa ăn" in s.value for s in at.success)
     assert "meal_scan" not in at.session_state
+
+
+# ---- trợ lý chủ động hỏi: trả lời bằng giọng nói ----
+
+def _wav(seconds=1.0, rate=16000):
+    import io
+    import wave
+
+    import numpy as np
+    t = np.arange(int(seconds * rate)) / rate
+    pcm = (0.3 * np.sin(2 * np.pi * 220 * t) * 32767).astype("<i2").tobytes()
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+    return ("ghi_am.wav", buf.getvalue(), "audio/wav")
+
+
+def test_checkin_voice_reading_goes_to_confirm_card(user_env, monkeypatch):
+    monkeypatch.setenv("DIACARE_ASR", "demo")
+    monkeypatch.setenv("DIACARE_ASR_DEMO_TEXT", "sáu phẩy năm")
+    at = create_patient(new_app().run(), name="Lan", diagnosed=True)
+    assert at.audio_input(key="ci_voice").label == "Hoặc trả lời bằng giọng nói"
+    at.audio_input(key="ci_voice").set_value(_wav()).run()
+    assert not at.exception
+    assert at.text_input(key="ci_heard_text_1").value == "sáu phẩy năm"   # chữ nghe được: sửa được trước khi gửi
+    at.button(key="ci_heard_send_1").click().run()
+    assert not at.exception
+    store = open_store()
+    pid = store.list_patients()[0]["id"]
+    assert store.list_readings(pid) == []                 # chưa Lưu thì chưa ghi
+    at.button(key="ci_save_1").click().run()
+    assert not at.exception
+    rows = open_store().list_readings(pid)
+    assert len(rows) == 1 and abs(rows[0]["value"] - 6.5 * 18.0) < 1.5
+    at.run()  # đoạn ghi âm cũ còn trong ô: không xử lý lại, không thêm thẻ mới
+    assert len(open_store().list_readings(pid)) == 1 and "checkin_card" not in at.session_state
+
+
+def test_checkin_voice_question_goes_to_pipeline(user_env, monkeypatch):
+    monkeypatch.setenv("DIACARE_ASR", "demo")
+    monkeypatch.setenv("DIACARE_ASR_DEMO_TEXT", "đường huyết bao nhiêu là tốt")
+    at = create_patient(new_app().run(), name="Lan", diagnosed=True)
+    at.audio_input(key="ci_voice").set_value(_wav()).run()
+    assert len(open_store().runs()) == 0                  # chưa bấm Gửi: không gửi câu nghe được cho pipeline
+    at.text_input(key="ci_heard_text_1").set_value("đường huyết bao nhiêu là tốt?")
+    at.button(key="ci_heard_send_1").click().run()
+    assert not at.exception
+    assert len(open_store().runs()) == 1
+    assert not at.audio_input  # lượt hỏi đã đóng: không còn ô ghi âm
+
+
+def test_checkin_voice_too_short_warns(user_env, monkeypatch):
+    monkeypatch.setenv("DIACARE_ASR", "demo")
+    at = create_patient(new_app().run(), name="Lan", diagnosed=True)
+    at.audio_input(key="ci_voice").set_value(_wav(0.1)).run()
+    assert any("quá ngắn" in w.value for w in at.warning)
+    assert len(open_store().runs()) == 0

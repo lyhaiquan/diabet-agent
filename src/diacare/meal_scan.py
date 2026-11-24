@@ -133,3 +133,81 @@ def carb_text(total):
     if total["uncounted"]:
         text += f" Chưa tính: {', '.join(total['uncounted'])} (đồ uống ngọt có thể nhiều tinh bột hơn cả khay)."
     return text
+
+
+# ---------- nối bữa ăn với đường huyết sau ăn ----------
+# Đường huyết sau ăn đo 1-2 giờ sau khi bắt đầu ăn (ADA); nhận rộng 45 phút - 3 giờ vì người dùng ghi giờ ăn ước chừng.
+AFTER_MIN, AFTER_MAX = 45, 180
+SLOT_TEXT = {"breakfast": "bữa sáng", "lunch": "bữa trưa", "dinner": "bữa tối", "snack": "bữa phụ"}
+
+
+def pair_after_meal(meals, readings, targets=None):
+    """Mỗi bữa -> lần đo đường huyết ĐẦU TIÊN trong 45 phút - 3 giờ sau bữa (bất kể ghi là thời điểm đo nào), kèm
+    nhận định so với mục tiêu sau ăn. Trả về [{"meal", "reading" (hoặc None), "minutes", "status"}]."""
+    from datetime import timedelta
+
+    from diacare import journal
+    t = targets or journal.resolve_targets()
+    glucose = sorted(journal.glucose_rows(readings), key=lambda r: journal.to_vn(r["measured_at"]))
+    out = []
+    for m in meals:
+        eaten = journal.to_vn(m["eaten_at"])
+        hit = next((r for r in glucose
+                    if eaten + timedelta(minutes=AFTER_MIN) <= journal.to_vn(r["measured_at"])
+                    <= eaten + timedelta(minutes=AFTER_MAX)), None)
+        if hit is None:
+            out.append({"meal": m, "reading": None, "minutes": None, "status": None})
+            continue
+        minutes = round((journal.to_vn(hit["measured_at"]) - eaten).total_seconds() / 60)
+        out.append({"meal": m, "reading": hit, "minutes": minutes,
+                    "status": journal.classify_glucose(hit["value"], "after_meal", t)})
+    return out
+
+
+def after_meal_text(pair, targets=None):
+    """Ví dụ: "9,2 mmol/L sau 95 phút, trong mục tiêu" / "chưa đo sau ăn"."""
+    from diacare import journal
+    if pair["reading"] is None:
+        return "chưa đo sau ăn"
+    r = pair["reading"]
+    return (f"{journal.fmt_glucose(r['value'], r.get('unit') or 'mmol/L')} sau {pair['minutes']} phút, "
+            f"{journal.STATUS_TEXT[pair['status']]}")
+
+
+def meal_journal_lines(meals, readings, days=14, now=None, targets=None):
+    """Vài dòng tóm tắt bữa ăn (đã quét ảnh) và đường huyết sau các bữa đó, cho ngữ cảnh trang Tư vấn. Số liệu tính
+    sẵn ở đây (như nhật ký), mô hình chỉ diễn giải."""
+    from datetime import timedelta
+
+    from diacare import journal
+    now = journal.to_vn(now or journal.now_vn())
+    t = targets or journal.resolve_targets()
+    recent = sorted((m for m in meals if now - timedelta(days=days) <= journal.to_vn(m["eaten_at"]) <= now),
+                    key=lambda m: journal.to_vn(m["eaten_at"]))
+    if not recent:
+        return []
+    avg_lo = sum(m["carb_low"] for m in recent) / len(recent)
+    avg_hi = sum(m["carb_high"] for m in recent) / len(recent)
+    lines = [f"- Bữa ăn ghi bằng ảnh {days} ngày qua: {len(recent)} bữa, trung bình khoảng {avg_lo:.0f}–{avg_hi:.0f} g "
+             "tinh bột mỗi bữa (ước lượng từ ảnh, sai số lớn)."]
+    pairs = pair_after_meal(recent, readings, t)
+    last = pairs[-1]
+    m = last["meal"]
+    dishes = ", ".join(f"{it['name']} {it['grams']:.0f} g" for it in m["items"] if not it.get("uncounted"))
+    lines.append(f"  + Bữa gần nhất: {SLOT_TEXT.get(m['slot'], 'bữa ăn')} {journal.to_vn(m['eaten_at']):%H:%M %d/%m}, "
+                 f"khoảng {m['carb_low']:.0f}–{m['carb_high']:.0f} g tinh bột ({dishes}); "
+                 f"đường huyết sau ăn: {after_meal_text(last, t)}.")
+    measured = [p for p in pairs if p["reading"] is not None]
+    high = [p for p in measured if p["status"] in ("above_target", "very_high")]
+    ok = [p for p in measured if p["status"] == "in_target"]
+    if measured:
+        line = (f"  + Có đo sau ăn {len(measured)}/{len(pairs)} bữa; {len(high)} bữa đường huyết sau ăn cao hơn "
+                f"mục tiêu (dưới {journal._mmol(t['post'])} mmol/L)")
+        if len(high) >= 2 and len(ok) >= 2:
+            mid = (lambda ps: sum(p["meal"]["carb_g"] for p in ps) / len(ps))
+            line += (f"; các bữa cao sau ăn trung bình khoảng {mid(high):.0f} g tinh bột, các bữa trong mục tiêu "
+                     f"khoảng {mid(ok):.0f} g")
+        lines.append(line + ".")
+    else:
+        lines.append("  + Chưa có lần đo đường huyết nào 1–2 giờ sau các bữa này.")
+    return lines

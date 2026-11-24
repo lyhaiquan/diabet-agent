@@ -162,14 +162,25 @@ def _history(store, patient_id):
     if today:
         lo, hi = sum(m["carb_low"] for m in today), sum(m["carb_high"] for m in today)
         st.caption(f"Hôm nay: {len(today)} bữa, khoảng {lo:.0f}–{hi:.0f} g tinh bột.")
+    targets = journal.resolve_targets(store.get_targets(patient_id))
+    pairs = meal_scan.pair_after_meal(recent, store.list_readings(patient_id), targets)
     rows = []
-    for m in reversed(recent):
+    for p in reversed(pairs):
+        m = p["meal"]
         when = journal.to_vn(m["eaten_at"])
         dishes = ", ".join(f"{it['name']} {it['grams']:.0f} g" if not it.get("uncounted") else f"{it['name']} (chưa tính)"
                            for it in m["items"])
         rows.append({"Lúc": f"{when:%d/%m %H:%M}", "Bữa": SLOTS.get(m["slot"], m["slot"] or ""),
-                     "Tinh bột (g)": f"{m['carb_low']:.0f}–{m['carb_high']:.0f}", "Món": dishes})
+                     "Tinh bột (g)": f"{m['carb_low']:.0f}–{m['carb_high']:.0f}",
+                     "Đường huyết sau ăn": meal_scan.after_meal_text(p, targets), "Món": dishes})
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    waiting = [p for p in pairs if p["reading"] is None
+               and timedelta(minutes=meal_scan.AFTER_MIN) <= now - journal.to_vn(p["meal"]["eaten_at"])
+               <= timedelta(minutes=meal_scan.AFTER_MAX)]
+    if waiting:
+        st.info("Bây giờ là lúc đo đường huyết sau bữa vừa ghi (1–2 giờ sau ăn). Ghi số đo ở tab **Hôm nay** hoặc "
+                "**Nhật ký** với thời điểm \"1–2 giờ sau ăn\", bảng này sẽ tự ghép vào bữa.")
+    st.caption("Đường huyết sau ăn: lần đo đầu tiên trong khoảng 45 phút đến 3 giờ sau giờ ăn đã ghi.")
     with st.expander("Xoá một bữa ghi nhầm"):
         opts = {m["id"]: f"{journal.to_vn(m['eaten_at']):%d/%m %H:%M} · {SLOTS.get(m['slot'], '')}"
                 for m in reversed(recent)}

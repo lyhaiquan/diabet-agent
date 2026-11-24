@@ -412,5 +412,17 @@ class JournalAgent:
     def collect(self, patient_id, days=14):
         if self.store is None or patient_id is None:
             return None
-        return journal_digest(self.store.list_readings(patient_id), self.store.get_appointment(patient_id),
-                              days=days, now=self.now, targets=resolve_targets(self.store.get_targets(patient_id)))
+        readings = self.store.list_readings(patient_id)
+        targets = resolve_targets(self.store.get_targets(patient_id))
+        digest = journal_digest(readings, self.store.get_appointment(patient_id), days=days, now=self.now,
+                                targets=targets)
+        # Bữa ăn quét ảnh (trang Bữa ăn) và đường huyết sau các bữa đó: để riêng (meal_lines), context.py cấp ngân sách
+        # riêng, nên nhật ký đường huyết (và benchmark, vốn không có bữa ăn) giữ nguyên
+        from diacare.meal_scan import meal_journal_lines
+        meal_lines = meal_journal_lines(self.store.list_meals(patient_id), readings, days=days, now=self.now,
+                                        targets=targets)
+        if not meal_lines:
+            return digest
+        if digest is None:
+            digest = {"lines": [], "n_glucose": 0, "hypo": 0, "very_high": 0, "custom_targets": targets["custom"]}
+        return {**digest, "meal_lines": meal_lines}

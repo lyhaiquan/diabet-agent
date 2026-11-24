@@ -11,7 +11,7 @@ from diacare.crypto import cipher_for
 # Cột được thêm sau khi bảng đã có trong DB cũ: (bảng, cột, kiểu)
 _ADDED_COLUMNS = [("runs", "trace_json", "TEXT"), ("summaries", "anchor", "TEXT"),
                   ("messages", "rl_event_id", "INTEGER"), ("patients", "user_id", "INTEGER"),
-                  ("coach_events", "learned_reward", "REAL")]
+                  ("coach_events", "learned_reward", "REAL"), ("coach_events", "feedback", "INTEGER")]
 _LOCAL_LOCKS = {}
 _LOCAL_LOCKS_GUARD = threading.Lock()
 
@@ -431,7 +431,8 @@ class Store:
             args.append(str(day))
         rows = self.conn.execute(sql + " ORDER BY day", args).fetchall()
         return [{"day": r["day"], "state": json.loads(r["state_json"]), "action": r["action"],
-                 "propensity": r["propensity"], "mode": r["mode"], "learned_reward": r["learned_reward"]}
+                 "propensity": r["propensity"], "mode": r["mode"], "learned_reward": r["learned_reward"],
+                 "feedback": r["feedback"]}
                 for r in rows]
 
     def claim_checkin(self, patient_id, day, session_id, topic):
@@ -483,6 +484,14 @@ class Store:
     def delete_meal(self, meal_id, patient_id):
         self.conn.execute("DELETE FROM meals WHERE id = ? AND patient_id = ?", (meal_id, patient_id))
         self.conn.commit()
+
+    def rate_coach_event(self, patient_id, day, value):
+        """👍 (+1) / 👎 (-1) cho lời nhắc của một ngày. Chỉ chấm được trước khi ngày đó được học (learned_reward còn
+        trống), vì sau đó phần thưởng đã cập nhật vào bảng Q. True nếu vừa ghi."""
+        cur = self.conn.execute("UPDATE coach_events SET feedback = ? WHERE patient_id = ? AND day = ?"
+                                " AND learned_reward IS NULL", (int(value), patient_id, str(day)))
+        self.conn.commit()
+        return cur.rowcount == 1
 
     def mark_coach_learned(self, patient_id, day, reward):
         """Ghi phần thưởng đã học cho một ngày, đúng một lần. True nếu vừa ghi (chưa ai học ngày này)."""

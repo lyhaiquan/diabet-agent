@@ -5,6 +5,7 @@ import { GlucoseChart } from "@/components/GlucoseChart";
 import { GlucoseForm } from "@/components/GlucoseForm";
 import { VoiceReading } from "@/components/VoiceReading";
 import { ErrorText, Notices } from "@/components/Notice";
+import { DailyNudge } from "@/components/DailyNudge";
 import { Reminders } from "@/components/Reminders";
 import { api, fmtDate, fmtMmol, fmtTime, type Summary, type Today } from "@/lib/api";
 import { usePatient } from "@/lib/session";
@@ -37,6 +38,7 @@ export default function TodayPage() {
       </div>
       <ErrorText error={error} />
       {today && <Notices items={[...today.alerts, ...today.reminders]} />}
+      {today?.nudge && <DailyNudge patientId={patient.id} nudge={today.nudge} />}
 
       <section className="card">
         <h2>Ghi đường huyết</h2>

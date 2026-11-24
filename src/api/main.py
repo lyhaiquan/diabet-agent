@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from api import security
 from diacare import journal, pg
+from diacare.coach import NUDGES, daily_nudge, load_coach
 from diacare.crypto import key_dir
 from diacare.db import Store
 from diacare.factory import DEFAULT_DB_PATH, ROOT, build_parts, orchestrator_from_parts
@@ -87,6 +88,7 @@ def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=N
     app.state.limiter = security.RateLimiter(
         clock=(lambda: app.state.clock().timestamp()) if clock is not None else time.time)
     app.state.transcriber = transcriber  # None: nạp PhoWhisper ở lần nói đầu tiên
+    app.state.coach = load_coach()  # agent Q-learning chọn lời nhắc mỗi ngày; None nếu chưa huấn luyện
     origins = cors_origins if cors_origins is not None else [
         o.strip() for o in os.environ.get("DIACARE_CORS", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True,
@@ -221,6 +223,17 @@ class FeedbackIn(BaseModel):
 
 
 # ---- chuyển đổi ra JSON ---------------------------------------------------------
+
+def _nudge_out(request, store, patient_id, now):
+    """Lời nhắc hôm nay của agent Q-learning (chỉ cho người đã chẩn đoán), cùng lời với Streamlit."""
+    coach = request.app.state.coach
+    if coach is None or not has_diagnosis(store.list_memories(patient_id)):
+        return None
+    n = daily_nudge(store, coach, patient_id, now.date())
+    rated = n.get("feedback")
+    return {"action": n["action"], "label": ACTION_LABELS[n["action"]], "text": NUDGES[n["action"]],
+            "rated": None if not rated else ("up" if rated > 0 else "down")}
+
 
 def _patient_out(store, parts, patient):
     memories = store.list_memories(patient["id"])
@@ -550,7 +563,20 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
                 "fasting_mean_mmol_14d": round(journal.to_mmol(s["by_context"]["fasting"]["mean_mgdl"]), 1)
                 if "fasting" in s["by_context"] else None,
                 "latest_hba1c": hba1c[-1] if hba1c else None,
-                "appointment": appt}
+                "appointment": appt,
+                "nudge": _nudge_out(request, store, patient["id"], now)}
+
+    @app.post("/patients/{patient_id}/nudge/feedback", tags=["nhật ký"])
+    def nudge_feedback(body: FeedbackIn, request: Request, patient=Depends(owned_patient),
+                       store: Store = Depends(get_store)):
+        """👍/👎 cho lời nhắc hôm nay của agent Q-learning. Là phần thưởng phụ (±0,3) cộng vào phần thưởng tính từ
+        nhật ký khi agent học ngày này (sáng hôm sau); chấm lại trong ngày thì lấy lần cuối."""
+        day = now_of(request).date()
+        if not store.coach_events(patient["id"], day=day):
+            raise _not_found("Hôm nay chưa có lời nhắc nào.")
+        if not store.rate_coach_event(patient["id"], day, 1 if body.value == "up" else -1):
+            raise HTTPException(409, "Lời nhắc này đã được học, không chấm được nữa.")
+        return {"day": day.isoformat(), "value": body.value}
 
     @app.get("/patients/{patient_id}/summary", tags=["nhật ký"])
     def summary(request: Request, days: int = Query(14, ge=1, le=366), patient=Depends(owned_patient),

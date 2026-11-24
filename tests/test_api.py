@@ -594,3 +594,25 @@ def test_chat_returns_503_when_all_slots_busy(tmp_path):
         first.join(10)
         # suất được trả lại sau khi lượt đầu xong (kể cả khi lỗi): lượt mới chạy được
         assert c.post(f"/patients/{pb}/chat", json={"question": "Nên ăn gì?"}, headers=b).status_code == 200
+
+
+# ---- lời nhắc Q-learning hôm nay + 👍/👎 ----
+
+def test_today_nudge_and_feedback(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    n = client.get(f"/patients/{pid}/today", headers=auth).json()["nudge"]
+    assert n["text"] and n["label"] and n["rated"] is None
+    r = client.post(f"/patients/{pid}/nudge/feedback", json={"value": "down"}, headers=auth)
+    assert r.status_code == 200 and r.json()["value"] == "down"
+    assert client.get(f"/patients/{pid}/today", headers=auth).json()["nudge"]["rated"] == "down"
+    assert client.post(f"/patients/{pid}/nudge/feedback", json={"value": "meh"}, headers=auth).status_code == 422
+    other = register(client, email="b@example.com")
+    assert client.post(f"/patients/{pid}/nudge/feedback", json={"value": "up"}, headers=other).status_code == 404
+
+
+def test_no_nudge_for_undiagnosed(client):
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=False)
+    assert client.get(f"/patients/{pid}/today", headers=auth).json()["nudge"] is None
+    assert client.post(f"/patients/{pid}/nudge/feedback", json={"value": "up"}, headers=auth).status_code == 404

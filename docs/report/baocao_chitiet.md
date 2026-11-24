@@ -484,6 +484,8 @@ Q-learning hơn luật cố định +2,33 [1,01; 3,65] và hơn ngẫu nhiên +4
 
 Trên giao diện: tab Hôm nay hiện "Lời nhắc hôm nay" (mỗi người một lời mỗi ngày, lưu bảng `coach_events`); trang Thống kê ở chế độ nhà phát triển hiện bảng đánh giá, chính sách học được và tổng thưởng tích lũy của người bệnh đang chọn. Demo 30 người bệnh: chạy Streamlit với `DIACARE_DB=data/rl_demo/demo.db`.
 
+**Người bệnh chấm lời nhắc (V4.9).** Dưới "Lời nhắc hôm nay" (tab Hôm nay của Streamlit và trang Hôm nay của web) có nút 👍/👎. Phiếu chấm lưu ở cột `coach_events.feedback` và chỉ là **phần thưởng phụ** $\pm 0{,}3$ cộng vào phần thưởng tính từ nhật ký khi agent học ngày đó (sáng hôm sau). Mức 0,3 được chọn nhỏ hơn hẳn khoảng cách giữa có đo và bỏ đo (2,0), để một cú 👎 không dạy agent rằng thà người bệnh bỏ đo còn hơn; nhật ký vẫn là tín hiệu chính, người bệnh không chấm thì agent vẫn học như cũ. Đã học xong ngày nào thì không chấm lại được ngày đó (API trả 409). API: lời nhắc nằm trong `GET .../today` (trường `nudge`), chấm bằng `POST .../nudge/feedback`.
+
 ## 3.10. Context: ngân sách token
 
 Tệp `context.py`. Hàm `build_context(agent, state)` trả về lát ngữ cảnh riêng cho từng agent. Với Advisor, các hằng số ngân sách:
@@ -618,6 +620,8 @@ Agent chỉ đưa con số đã tổng hợp, không đưa từng lần đo, đ�
 
 **Vì sao ghi sẵn nhận định.** Bản đầu tiên chỉ đưa con số kèm mục tiêu, ví dụ "lúc đói: trung bình 7,8 mmol/L; mục tiêu 4,4–7,2". Thử với qwen2.5:3b, mô hình kết luận 7,8 là "dưới mục tiêu". Bản hiện tại viết sẵn "trung bình 7,8 mmol/L, cao hơn mục tiêu (4,4–7,2 mmol/L)", và lời dặn hệ thống yêu cầu giữ nguyên nhận định. Đây là cùng nguyên tắc với mục 2.2: phép so sánh số làm bằng code, mô hình chỉ diễn đạt. Kết quả thử nghiệm ở mục 7.5.
 
+**Bữa ăn và đường huyết sau ăn (V4.9).** Nếu người dùng đã lưu bữa ăn bằng ảnh (mục 3.16), `JournalAgent` thêm vài dòng tính sẵn: số bữa và lượng tinh bột trung bình 14 ngày; bữa gần nhất (giờ, các món, khoảng tinh bột) kèm **lần đo đường huyết sau bữa đó**; và bao nhiêu bữa có đo sau ăn, bao nhiêu bữa cao hơn mục tiêu sau ăn, các bữa cao trung bình bao nhiêu gam tinh bột so với các bữa trong mục tiêu. "Đường huyết sau ăn" của một bữa là lần đo đầu tiên trong khoảng 45 phút đến 3 giờ sau giờ ăn đã ghi (ADA khuyên đo 1–2 giờ sau khi bắt đầu ăn; nhận rộng hơn vì giờ ăn ghi ước chừng). Các dòng này có **ngân sách riêng** 160 token (`MEAL_TOKEN_BUDGET`), không lấn 260 token của phần đường huyết; benchmark không có bữa ăn nên ngữ cảnh của benchmark không đổi. Nhờ vậy câu "trưa nay ăn vậy có ổn không" được trả lời bằng số liệu của chính bữa đó.
+
 ## 3.14. Giọng nói
 
 Tệp `speech.py` (máy chủ) và `web/lib/voice.ts` (trình duyệt). Giọng nói nhắm tới người lớn tuổi ngại gõ chữ trên điện thoại.
@@ -632,9 +636,47 @@ Có một trường hợp hệ cố ý không tự chọn. Câu "đường huy�
 
 **Đọc to.** Câu trả lời của trang Tư vấn được đọc bằng `speechSynthesis` của trình duyệt với giọng tiếng Việt có sẵn trên máy, tốc độ 0,95. Chỉ đọc câu trả lời cuối đã qua Rules, không đọc bản nháp đang stream; tên tệp nguồn và ký hiệu markdown được bỏ trước khi đọc. Máy không có giọng tiếng Việt thì ứng dụng hướng dẫn cách cài.
 
+**Trả lời trợ lý chủ động bằng giọng nói trên Streamlit (V4.9).** Khi trợ lý đang chờ câu trả lời (mục 3.15), trang Tư vấn có ô ghi âm (`st.audio_input`, WAV 16 kHz) và nút "Đọc câu hỏi" (đọc lời mở đầu bằng `speechSynthesis`, chạy trong trình duyệt). Âm thanh được nhận dạng ngay trong tiến trình Streamlit bằng cùng PhoWhisper-small, không lưu lại. Chữ nghe được **không gửi đi ngay** mà hiện trong một ô để người dùng sửa rồi bấm Gửi: khi thử với tiếng ồn, Whisper "bịa" ra cả một câu tiếng Việt trôi chảy, và câu đó nếu gửi thẳng sẽ thành câu hỏi cho trợ lý. Sau khi bấm Gửi, câu đi đúng đường của câu gõ chữ, nên số đo vẫn phải qua thẻ xác nhận. Bộ định tuyến đổi số đọc bằng chữ trước ("sáu phẩy năm" → 6,5; "bảy rưỡi" → 7,5), riêng chữ "không" đứng một mình giữ nguyên để "không ổn" vẫn là kể triệu chứng. Nạp mô hình lần đầu mất khoảng 26 giây trên CPU; `chay_local.ps1` trỏ tới bản PhoWhisper đã tải sẵn để chạy không cần mạng.
+
+## 3.15. Trợ lý chủ động hỏi
+
+Tệp `checkin.py` (quyết định) và `src/checkin_ui.py` (giao diện). Mỗi ngày một lần, khi người đã chẩn đoán mở trang Tư vấn, trợ lý **mở lời trước** thay vì đợi người dùng gõ. Nó chọn một điều đáng hỏi nhất từ nhật ký, theo thứ tự ưu tiên:
+
+1. trong 24 giờ qua có số đo hạ đường huyết hoặc rất cao: nhắc lại số đó và hỏi bây giờ thấy trong người thế nào;
+2. hôm nay chưa đo: buổi sáng (4–10 giờ) hỏi đường huyết lúc đói, giờ khác hỏi chung;
+3. lúc đói cao hơn mục tiêu 3 ngày liền: hỏi tối qua ăn gì, có quên thuốc không;
+4. mọi thứ ổn: báo số gần nhất và hỏi có muốn hỏi gì không.
+
+Kèm theo là lời nhắc hôm nay của Coach Q-learning (mục 3.9), cùng lời với tab Hôm nay. Lượt hỏi giữ bằng một dòng trong bảng `checkins` (khoá `(patient_id, day)`), không chỉ trong bộ nhớ phiên, nên chạy lại trang hay mở tab khác cũng không hỏi lại. Bảng này không mã hoá nên chỉ lưu **loại** câu hỏi, không lưu câu hỏi (vốn có số đo).
+
+Câu trả lời của người dùng đi đúng **một** trong bốn đường:
+
+| Câu trả lời | Ví dụ | Xử lý |
+|---|---|---|
+| có số đo | "6,5", "7,8 sau ăn lúc 6h15", "tối qua 9 giờ đo 8,1" | hiện thẻ xác nhận (giá trị, đơn vị, thời điểm đo, ngày giờ); chỉ ghi khi bấm **Lưu**; rồi báo trong hay ngoài mục tiêu, kèm lời khuyên an toàn soạn sẵn nếu nguy hiểm |
+| chưa đo | "chưa", "quên mất rồi", "không kịp đo" | câu soạn sẵn; lượt hỏi vẫn mở để lát nữa gõ số |
+| kể triệu chứng sau câu hỏi về số đo nguy hiểm | "không ổn, run tay vã mồ hôi" | nhắc ngay lời khuyên an toàn soạn sẵn (quy tắc 15–15, gọi 115), không chờ LLM |
+| câu hỏi hay lời kể khác | "8,5 lúc đói có cao không?", "tối qua ăn 2 bát cơm" | chuyển cho pipeline tư vấn như mọi câu hỏi |
+
+**Mọi câu của trợ lý ở đây là câu soạn sẵn từ dữ liệu**, không do LLM viết, vì lời cảnh báo phải đúng và giống nhau mọi lần. Phần này không chạy trong `orchestrator.run`, nên benchmark không đổi. Vài chỗ đã sửa khi thử: bản đầu coi "không" là "chưa đo", nên "không ổn, run tay" nhận câu "Không sao"; câu có số nhưng là câu hỏi ("8,5 lúc đói có cao không?") phải đi pipeline chứ không thành thẻ lưu; số đứng một mình ("tối qua 9 giờ đo 8,1") chỉ được nhận khi trông giống đường huyết (số thập phân, có đơn vị, hoặc số nguyên 40–400) để "2 bát cơm" không thành số đo. Ngày giờ đo đoán từ câu không bao giờ ở tương lai. Trả lời bằng giọng nói: mục 3.14.
+
+## 3.16. Agent bữa ăn: ảnh khay cơm và tinh bột
+
+Tệp `meal_scan.py` (agent) và `src/meal_ui.py` (trang **Bữa ăn**). Người dùng tải hoặc chụp ảnh khay cơm; agent gửi ảnh cho dịch vụ **Calo Khay** qua HTTP (`POST /api/scan`). Calo Khay là đồ án Xử lý ảnh số của nhóm: YOLO26s-seg đã tinh chỉnh khoanh vùng 44 món căng tin, DINOv2 phân loại lại từng vùng, YOLOE tìm đĩa, và gram mỗi món ước lượng theo diện tích món so với đĩa (sai số khoảng ±30% mỗi món). Calo Khay cần torch, ultralytics và transformers nên chạy như **một dịch vụ riêng** trong môi trường của nó (`chay_calo_khay.bat`, cổng 8010, SQLite, chạy được không cần mạng); DiaCare chỉ gọi HTTP. Trên GPU RTX 3050 Ti, mỗi ảnh mất 0,4–1 giây.
+
+**Xác nhận trước khi lưu.** Kết quả hiện thành bảng sửa được: món mô hình chưa chắc (độ tin cậy dưới 0,75, hoặc ảnh không thấy đĩa) phải được tích "Đúng món" hoặc đổi tên theo gợi ý thì mới lưu được; gram sửa được; thêm hoặc xoá món được. Trang nhắc riêng về **cơm**: khi không bật ước lượng độ sâu, Calo Khay để cơm ở mức trung bình 228 g, mà cơm thường chiếm phần lớn tinh bột của khay.
+
+**Tinh bột là một khoảng, tính bằng code.** Bảng `data/nutrition/calo_khay_carb.csv` (45 lớp) do `tools/build_carb_table.py` sinh từ cột carb của Nutrition5k `ingredients_metadata` (Thames và cộng sự, CVPR 2021; số liệu USDA FNDDS), cùng nguồn với cột kcal của Calo Khay. Script chỉ đọc số từ tệp đó; thứ duy nhất ghi tay là tỉ lệ pha trộn. Với người tiểu đường, ước **thấp** là chiều nguy hiểm, nên món mà nguồn chỉ có nguyên liệu chính (thịt kho, cá kho, gà sốt chua ngọt, giò chả có bột độn, tôm tẩm bột...) có thêm **cận trên** theo giả định ghi rõ (nước kho ngọt 10% khối lượng tính như sốt BBQ, bột độn 10% tính như tinh bột ngô...). Mục "spring rolls" của Nutrition5k chỉ 4% carb (như cuốn tươi), quá thấp cho nem rán có vỏ, nên nem rán dùng mục "egg rolls" (29%). Khoảng của một bữa:
+
+$$\text{thấp} = \sum_i g_i (1 - e_i)\,c_i, \qquad \text{cao} = \sum_i g_i (1 + e_i)\,\bar c_i$$
+
+với $g_i$ gram, $c_i$ carb chính, $\bar c_i$ carb cận trên, sai số gram $e_i$ = 30% (đo từ ảnh), 50% (gram "trung bình", như cơm 228 g: README của Calo Khay ghi sai số tổng khay khoảng 112 g khi không có độ sâu, cỡ một nửa phần cơm), 15% (người dùng tự sửa). Đồ uống ghi "chưa tính" vì trà sữa có thể nhiều tinh bột hơn cả khay. Ví dụ ảnh mẫu `B_212.jpg`: 6 món, khoảng 46–123 g tinh bột (rộng vì cơm đang để mức trung bình), 517 kcal (khớp tổng kcal của Calo Khay); sửa cơm thành 150 g thì còn khoảng 50–75 g. Trang ghi rõ đây là ước lượng để theo dõi, không dùng để tính liều insulin.
+
+**Nối với đường huyết.** Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi chú). Bảng "Các bữa đã ghi" có cột "Đường huyết sau ăn" (lần đo 45 phút–3 giờ sau bữa); trong khoảng đó mà chưa đo thì trang nhắc đo. Các dòng này cũng vào ngữ cảnh của trang Tư vấn (mục 3.13).
+
 # 4. Cơ sở dữ liệu
 
-Tệp `db.py`, chạy trên SQLite (mặc định khi chạy trên máy, test, Kaggle) hoặc PostgreSQL (dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`). Lớp `pg.py` mô phỏng phần sqlite3 mà `db.py` dùng nên mã truy vấn giữ nguyên: tham số `?` đổi thành `%s`, câu INSERT được thêm `RETURNING id` thay cho `lastrowid`, `AUTOINCREMENT` thành cột IDENTITY, `REAL` thành `DOUBLE PRECISION` (`REAL` của PostgreSQL chỉ là float4), bool và số numpy đổi sang kiểu Python. Ràng buộc `REFERENCES` bị bỏ ở PostgreSQL vì SQLite của hệ chưa bao giờ bật kiểm tra khoá ngoại, để hai backend cư xử như nhau. `tools/sqlite_to_postgres.py` chép dữ liệu cũ sang, giữ nguyên id và dữ liệu đã mã hoá, chép kèm tệp khoá. Mười bốn bảng:
+Tệp `db.py`, chạy trên SQLite (mặc định khi chạy trên máy, test, Kaggle) hoặc PostgreSQL (dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`). Lớp `pg.py` mô phỏng phần sqlite3 mà `db.py` dùng nên mã truy vấn giữ nguyên: tham số `?` đổi thành `%s`, câu INSERT được thêm `RETURNING id` thay cho `lastrowid`, `AUTOINCREMENT` thành cột IDENTITY, `REAL` thành `DOUBLE PRECISION` (`REAL` của PostgreSQL chỉ là float4), bool và số numpy đổi sang kiểu Python. Ràng buộc `REFERENCES` bị bỏ ở PostgreSQL vì SQLite của hệ chưa bao giờ bật kiểm tra khoá ngoại, để hai backend cư xử như nhau. `tools/sqlite_to_postgres.py` chép dữ liệu cũ sang, giữ nguyên id và dữ liệu đã mã hoá, chép kèm tệp khoá. Các bảng chính:
 
 | Bảng | Nội dung | Cột chính |
 |---|---|---|
@@ -652,6 +694,10 @@ Tệp `db.py`, chạy trên SQLite (mặc định khi chạy trên máy, test, K
 | `runs` | log từng lượt chạy | `question`, `risk`, `flags_json`, `sources_json`, `draft`, `final`, `usage_json`, `error`, `trace_json` |
 | `rl_events` | quyết định của agent RL và phản hồi | `state_json`, `action`, `propensity`, `mode`, `policy_version`, `reward`, `rated_at` |
 | `rl_model` | mô hình RL đã học tới hiện tại (một dòng) | `model_json` |
+| `coach_events` | lời nhắc Q-learning mỗi ngày (V4.8) | `patient_id`, `day`, `state_json`, `action`, `learned_reward`, `feedback` (👍/👎, V4.9) |
+| `coach_model` | bảng Q đã học tiếp (một dòng) | `model_json` |
+| `checkins` | lượt trợ lý chủ động hỏi, mỗi người một lượt mỗi ngày (V4.9) | `patient_id`, `day`, `session_id`, `topic_json` (chỉ loại câu hỏi), `status` |
+| `meals` | bữa ăn quét ảnh đã xác nhận (V4.9) | `patient_id`, `eaten_at`, `slot`, `items_json` (mã hoá), `carb_g`, `carb_low`, `carb_high`, `kcal` |
 
 Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê và Hoạt động agent. Cột `trace_json` được thêm ở V2.2, cột `messages.rl_event_id` ở V3.2 (nối câu trả lời với quyết định RL, để chấm và để phạt lặp); khi mở một cơ sở dữ liệu cũ, hệ tự thêm các cột này bằng `ALTER TABLE`. Song song với SQLite, mỗi lượt chạy còn được ghi một dòng JSON vào `logs/runs.jsonl`.
 
@@ -665,7 +711,7 @@ Nơi lưu thứ hai là **Neo4j**, dùng cho đồ thị tri thức khi đặt `
 
 Hệ có hai giao diện. Giao diện web Next.js (mục 5.6) dành cho người bệnh. Giao diện Streamlit (`src/app.py`) có hai chế độ, chọn bằng nút gạt "Chế độ nhà phát triển" ở thanh bên hoặc biến `DIACARE_DEV=1`:
 
-- **Chế độ người dùng** (mặc định): bốn trang Hôm nay, Nhật ký, Tư vấn, Tái khám (mục 5.5). Không hiện log agent, đồ thị hay số token.
+- **Chế độ người dùng** (mặc định): năm trang Hôm nay, Nhật ký, Bữa ăn, Tư vấn, Tái khám (mục 5.5). Không hiện log agent, đồ thị hay số token.
 - **Chế độ nhà phát triển**: thêm các trang Hoạt động agent, Lịch sử, Thống kê, và dưới mỗi câu trả lời hiện huy hiệu, nguồn, các bước agent, đồ thị tri thức đã dùng, chi tiết kỹ thuật (mục 5.1–5.4).
 
 Các trang chọn bằng nút radio. Không dùng tab vì ô nhập chat của Streamlit chỉ ghim được xuống đáy màn hình khi nằm ở cấp ngoài cùng. Hồ sơ đánh dấu "đã được bác sĩ chẩn đoán" thì không hiện mức nguy cơ mắc bệnh.
@@ -713,6 +759,8 @@ Lịch sử liệt kê mọi lượt chạy: thời gian, câu hỏi, mức nguy
 - **Hôm nay**: cảnh báo và nhắc nhở ở đầu trang, ô ghi đường huyết (số lớn, chọn thời điểm đo bằng nút bấm), bốn ô số liệu 14 ngày (lần đo gần nhất, phần trăm trong mục tiêu, trung bình lúc đói, HbA1c gần nhất) và biểu đồ.
 - **Nhật ký**: ba thẻ đường huyết, huyết áp và cân nặng, xét nghiệm; chọn khoảng 7, 14, 30 hoặc 90 ngày; bảng thống kê theo thời điểm đo; danh sách từng lần đo có nút xoá.
 - **Tái khám**: đặt lịch hẹn, ghi câu muốn hỏi bác sĩ, tải bản tóm tắt PDF.
+- **Bữa ăn** (V4.9): ảnh khay cơm, bảng món để xác nhận, khoảng tinh bột, các bữa đã ghi kèm đường huyết sau ăn (mục 3.16).
+- **Tư vấn**: ngoài khung chat, mỗi ngày trợ lý mở lời trước một lần cho người đã chẩn đoán, trả lời được bằng chữ hoặc giọng nói (mục 3.15).
 
 Lưu số đo dùng hàm callback của nút bấm chứ không xử lý sau khi bấm. Lý do: Streamlit chạy lại toàn trang từ trên xuống, nên nếu lưu ở giữa trang thì phần nhắc nhở ở đầu trang đã vẽ xong với dữ liệu cũ và vẫn báo "hôm nay bạn chưa đo".
 
@@ -734,6 +782,8 @@ Hai bổ sung ở V4.5 (chưa có trong các ảnh chụp ở trên):
 
 - **Thẻ "Mục tiêu đường huyết" ở trang Tái khám.** Hiện mục tiêu đang dùng, cho nhập ba con số bác sĩ dặn và quay lại mục tiêu chung. Máy chủ kiểm tra giới hạn (mục 3.13); nhập 3,0 cho cận dưới thì nhận thông báo lỗi kèm khoảng cho phép. Lưu xong, ô "TB lúc đói" ở trang Hôm nay ghi "bác sĩ đặt 5,0–8,3" và dải xanh trên biểu đồ đổi theo.
 - **Thẻ "Nhắc đo đường huyết" ở trang Hôm nay.** Người dùng chọn tối đa bốn mốc giờ; tới giờ mà trong hai giờ trước đó chưa có số đo nào thì trình duyệt hiện thông báo, bấm vào thì mở trang Hôm nay. Giờ nhắc lưu trong `localStorage` theo từng hồ sơ, không gửi lên máy chủ. Bộ hẹn giờ chạy ở mọi trang (`ReminderScheduler` trong layout), 30 giây kiểm tra một lần, mỗi mốc mỗi ngày nhắc một lần và chỉ nhắc muộn tối đa 90 phút. Thông báo đi qua một service worker tối thiểu (`public/sw.js`, không lưu đệm gì) vì Chrome trên Android không cho trang tự tạo thông báo. Đây **không phải** thông báo đẩy: không có máy chủ đẩy nên chỉ nhắc được khi DiaCare đang mở trên trình duyệt, kể cả ở tab nền. Trong trình duyệt thử nghiệm (quyền thông báo bị từ chối) đã kiểm được nhánh "bị chặn" và việc đăng ký service worker; phần logic chọn mốc tới hạn được kiểm bằng một script riêng; việc thông báo thật sự hiện ra chưa được thử trên điện thoại.
+
+Bổ sung V4.9: trang Hôm nay hiện **"Lời nhắc hôm nay"** của Coach Q-learning (component `DailyNudge`) kèm nút 👍/👎 (mục 3.9). Trợ lý chủ động hỏi và trang Bữa ăn hiện mới có trên Streamlit.
 
 # 6. Triển khai
 
@@ -780,7 +830,7 @@ Tệp `src/api/main.py` (ứng dụng), `src/api/security.py` (mật khẩu và 
 |---|---|
 | Tài khoản | `POST /auth/register`, `POST /auth/token`, `GET /me` |
 | Hồ sơ | `GET/POST /patients`, `GET/PATCH /patients/{id}`, `GET/DELETE .../memories` |
-| Nhật ký | `POST .../readings/glucose`, `.../bp`, `.../weight`; `GET/DELETE .../readings`, `GET .../today`, `GET .../summary?days=14`, `GET/PUT/DELETE .../targets` |
+| Nhật ký | `POST .../readings/glucose`, `.../bp`, `.../weight`; `GET/DELETE .../readings`, `GET .../today` (kèm lời nhắc Q-learning), `POST .../nudge/feedback`, `GET .../summary?days=14`, `GET/PUT/DELETE .../targets` |
 | Xét nghiệm | `GET/POST .../labs` (văn bản), `POST .../labs/file` (ảnh, PDF, tối đa 10 MB) |
 | Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `GET .../visit-report.pdf` |
 | Tư vấn | `POST .../chat`, `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` |
@@ -812,6 +862,10 @@ Notebook nhận biết hai chế độ chạy qua biến `KAGGLE_KERNEL_RUN_TYPE
 
 Một vấn đề đã gặp: trình soạn của Kaggle giữ bản nháp riêng của người dùng, nên sau khi đẩy phiên bản mới, mở lại notebook đôi khi vẫn thấy mã cũ. Dòng mã commit ở ô đầu là cách kiểm tra nhanh nhất.
 
+**Chỉ chạy mô hình 7B trên Kaggle, giao diện ở máy mình (V4.9).** GPU 4 GB của máy phát triển chỉ chạy nhanh bản 3B. Notebook thứ ba (`kaggle/build_ollama_notebook.py`) chỉ chạy Ollama với `qwen2.5:7b` trên GPU T4 và mở đường hầm Cloudflare; giao diện và dữ liệu vẫn ở máy mình. Trước Ollama là một **cổng chặn** (`ollama_gate.py`, thư viện chuẩn) đòi `Authorization: Bearer <token>` (so bằng `hmac.compare_digest`), chỉ cho qua `/api/chat`, `/api/tags`, `/api/version`, chuyển tiếp luồng NDJSON theo từng đoạn để chữ vẫn hiện dần. Hai lỗi chỉ gặp khi chạy thật đã được sửa: trả lỗi 401 mà còn sót phần thân yêu cầu trên kết nối giữ sống thì Cloudflare dùng lại kết nối đó và yêu cầu kế tiếp hỏng (nay mọi câu trả lời lỗi đều đóng kết nối); và log của lần chạy trước vẫn còn trong `kaggle kernels logs`, nên có lần đọc nhầm link đã chết (nay mỗi lần đẩy có một mã riêng in kèm link).
+
+Toàn bộ chạy bằng Kaggle CLI: `python tools/kaggle_llm.py up` đóng gói notebook (nhúng token sinh một lần, lưu ở `kaggle/ollama_token.local`, không lên git), đẩy lên ở chế độ nền, chờ GPU, đọc link trong log, gọi thử, lưu phiên; `down` bảo notebook tự tắt; notebook cũng tự tắt khi không có yêu cầu nào trong 20–30 phút. `chay_kaggle.bat` làm cả chuỗi rồi mở Streamlit dùng 7B. Đo thật: lần không phải xếp hàng sẵn sàng sau 3,8 phút, lần phải chờ GPU mất 23 phút; câu đầu tiên bắt đầu hiện chữ sau khoảng 12 giây, các câu sau khoảng 1 giây, khoảng cách lớn nhất giữa hai đoạn chữ 0,15 giây. Mỗi lượt hỏi, lời nhắn gửi cho mô hình (gồm hồ sơ và nhật ký đã tóm tắt) đi qua Internet tới Kaggle, nên đây là cách cho demo và benchmark, không dùng cho dữ liệu người bệnh thật.
+
 ## 6.4. Docker Compose
 
 Tệp `docker-compose.yml` ở gốc repo dựng ba dịch vụ bằng một lệnh `docker compose up --build`:
@@ -834,6 +888,28 @@ Vài quyết định đáng ghi lại:
 **Tình trạng kiểm chứng (V4.6).** Hai ảnh `api` và `web` đã được dựng và chạy thử ở chế độ demo trên Docker Desktop 28.3: ảnh `api` 2,2 GB (phần lớn là torch bản CPU và các gói Hugging Face), ảnh `web` 755 MB. Lần dựng đầu `npm ci` đứt mạng (ECONNRESET), dựng lại thì qua. Trong container: `/health` trả 200; trang web chuyển hướng tới `/today`; đăng ký, tạo hồ sơ, `GET /patients/{id}/risk-models` và một lượt chat đều chạy, lượt chat đi đủ các bước từ Memory tới Rules, có cả Critic; đọc thẳng tệp SQLite trong volume thấy tên, hồ sơ và tin nhắn đều ở dạng `enc1:...`. Dịch vụ `ollama` (ảnh 3,2 GB và model 1,9 GB) chưa được chạy thử trong Compose; lần thử kéo ảnh bị đứt mạng giữa chừng.
 
 Volume `diacare-data` gắn vào `/app/var` từ V4.6. Trước đó volume gắn vào `/app/data`, trùng thư mục chứa bảng dinh dưỡng của ảnh: lần chạy đầu Docker chép bảng vào volume, và các bản dựng sau vẫn đọc bảng cũ trong volume. Khoá ký token nay nằm cạnh tệp DB. Đã thử nâng cấp trên volume cũ: token cũ vẫn dùng được, hồ sơ cũ vẫn giải mã được, bảng dinh dưỡng đọc từ ảnh.
+
+## 6.5. MCP server
+
+Tệp `src/diacare/mcp_server.py`. **MCP** (Model Context Protocol) là chuẩn mở để ứng dụng AI (Claude Desktop, Claude Code, VS Code...) gọi công cụ và đọc dữ liệu bên ngoài. Bên trong DiaCare, các agent gọi nhau bằng hàm Python và dùng chung `State`; MCP là chuẩn giao tiếp **giữa các hệ thống**. Server mở sáu công cụ và kho tài liệu:
+
+| Công cụ | Làm gì |
+|---|---|
+| `check_lab` | đối chiếu HbA1c, đường huyết với ngưỡng ADA 2024 (mục 3.4) |
+| `search_guidelines` | tìm đoạn tài liệu MedlinePlus/WHO trong `kb/`, kèm tên nguồn (mục 3.6) |
+| `risk_factor_evidence` | tài liệu nói gì và BRFSS đo được gì về một yếu tố nguy cơ (mục 3.7) |
+| `food_nutrition` | carb, kcal món Việt trong câu (mục 3.8) |
+| `tray_carbs` | khoảng tinh bột của một khay cơm (mục 3.16) |
+| `predict_risk` | mức nguy cơ từ 21 chỉ số BRFSS (mục 3.5) |
+
+Tài liệu trong `kb/` mở dưới dạng resource `kb://<tên tệp>`, chỉ đọc được tệp có trong danh sách (đường dẫn kiểu `kb://../data/...` bị từ chối).
+
+Hai quyết định thiết kế. **Chỉ mở công cụ tất định**: không có công cụ "tư vấn" chạy cả pipeline, vì khi đó mô hình bên ngoài sẽ viết lại câu trả lời và **lớp Rules an toàn bị bỏ qua**. **Không mở dữ liệu người bệnh** (nhật ký, trí nhớ, hội thoại), vì chúng đang được mã hoá trong DB và MCP qua stdio không có xác thực. Server chạy qua **stdio** nên chỉ nằm trên máy, không mở cổng mạng. Giao thức (JSON-RPC 2.0, mỗi dòng một bản tin: `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `ping`) được viết bằng thư viện chuẩn, khoảng 250 dòng, không cần gói `mcp`; stdout chỉ dành cho bản tin, mọi thứ thư viện in ra bị chuyển sang stderr. Lỗi do đầu vào (không đọc được xét nghiệm, hồ sơ thiếu chỉ số) trả về như kết quả có `isError` để mô hình đọc được, không phải lỗi giao thức. Test chạy server như host thật chạy: một tiến trình riêng, bản tin JSON qua stdin/stdout. Khai báo cho Claude Desktop:
+
+```json
+{"mcpServers": {"diacare": {"command": "python", "args": ["-m", "diacare.mcp_server"],
+                            "env": {"PYTHONPATH": "C:/DATA/diacare-mas/src"}}}}
+```
 
 # 7. Kiểm thử và đánh giá
 
@@ -981,6 +1057,19 @@ Sau mỗi lần đổi model nên chạy lại bộ benchmark và đọc các ca
 
 Kiểm định McNemar trên lần chạy `2026-11-05_kaggle_run4_7b_vs_14b` (50 ca, chấm lại bằng bộ chấm hiện tại): 17 ca chỉ qwen2.5:7b đạt cả ba lượt, 3 ca chỉ qwen2.5:14b đạt, $p = 0{,}003$. Đây là khác biệt duy nhất trong các phép so sánh đã làm có ý nghĩa thống kê, và nó ngược với trực giác "mô hình lớn hơn thì tốt hơn": harness này được chỉnh quanh hành vi của bản 7B.
 
+**3B trên máy so với 7B trên Kaggle (V4.9).** Cùng bộ 50 ca × 3 lượt, cùng cấu hình `v2,kg,rl` và cùng mã Advisor, Rules, Context với lần chạy giọng tư vấn ở mục 7.3; chỉ khác mô hình và máy. Bản 7B chạy trên GPU T4 của Kaggle qua cổng chặn và đường hầm (mục 6.3), phần còn lại của hệ chạy trên máy.
+
+| | qwen2.5:3b (máy, RTX 3050 Ti) | qwen2.5:7b (Kaggle T4, qua đường hầm) |
+|---|---|---|
+| Đạt từng lượt | 127/150 = 0,85 | **145/150 = 0,97** [0,92; 0,99] |
+| Pass@3 / Pass^3 | 0,96 / 0,70 | 0,98 / **0,94** |
+| Bản nháp có nhãn nguồn | 107/150 | **136/150** |
+| Số không có trong ngữ cảnh (Critic) | 20 lượt | 23 lượt |
+| Bản nháp xen chữ Hán | 8 | **0** |
+| Giây LLM mỗi lượt (trung bình) | 3,0 | 7,3 |
+
+McNemar theo ca (đạt cả ba lượt): 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, $p = 0{,}0018$. Ca "chỉ 3B đạt" (`labs_4`) là một lượt mà yêu cầu qua đường hầm treo tới hết thời gian chờ 300 giây, tức lỗi hạ tầng chứ không phải câu trả lời sai. Bốn lượt trượt còn lại của 7B: ba lượt `memory_3` (không gợi ý tôm cho người dị ứng tôm nhưng cũng không nói "tránh tôm", 3B cũng trượt ca này) và một bản nháp nhắc lại ý "dừng insulin" mà Rules đã chặn ở câu trả lời cuối. 7B trích nguồn tốt hơn và không xen chữ Hán, nhưng **vẫn tự đưa ra con số** không có trong ngữ cảnh ở 23/150 lượt, không ít hơn 3B: đổi mô hình không sửa được lỗi này. Đổi lại, mỗi lượt chậm hơn khoảng 2,4 lần, một phần do đường hầm. Chi tiết ở `docs/results/2026-11-24_7b_kaggle/`.
+
 ## 7.5. Thử trợ lý đọc nhật ký
 
 Phần đầu mục này ghi lại các lần thử tay với qwen2.5:3b trên máy cá nhân (GPU 4 GB), cùng một bệnh nhân mẫu: 23 lần đo đường huyết trong 14 ngày (lúc đói trung bình 7,2 mmol/L, sau ăn 10,1, một lần 3,7 lúc trước khi ngủ), huyết áp, cân nặng, HbA1c 7,4%, lịch khám sau 5 ngày. Câu hỏi: "Mấy hôm nay đường huyết của tôi thế nào, tôi nên làm gì?" và "Đường huyết sau ăn của tôi hay cao, nên làm gì?".
@@ -1110,6 +1199,10 @@ Bốn bài học rút ra:
 - PostgreSQL (V4.7) đã chạy cả bộ test trên PostgreSQL 16 trong WSL (714 đạt, 5 bỏ qua gồm 4 test đọc thẳng tệp SQLite và 1 test Neo4j, 3 xfail) và chuyển thử DB SQLite thật sang, nhưng dịch vụ `db` trong Docker Compose chưa chạy thử: Docker Desktop trên máy phát triển bị lỗi khi khởi động. Mỗi request mở một kết nối mới, chưa dùng pool kết nối.
 - Nhận dạng giọng nói mới được thử bằng micro giả và vài câu đọc; chưa thử với người lớn tuổi, giọng địa phương hay môi trường ồn. Máy không có giọng đọc tiếng Việt thì không đọc to được.
 - Agent RL chưa có phản hồi của người dùng thật; chính sách hiện tại hoàn toàn là tiên nghiệm do nhóm đặt. Phản hồi 👍/👎 đo mức người dùng thấy trọng tâm hợp, không đo kết quả sức khoẻ.
+- Agent bữa ăn chỉ nhận ra 44 món căng tin mà Calo Khay được huấn luyện; món ngoài danh sách (phở, bún, bánh mì) phải tự thêm vào bảng. Bảng tinh bột lấy từ Nutrition5k/USDA, không phải Bảng thành phần thực phẩm Việt Nam; nhiều món chỉ có nguyên liệu chính và cận trên dựa trên tỉ lệ giả định. Gram từ ảnh sai khoảng ±30% mỗi món, cơm còn để mức trung bình. Calo Khay giữ ảnh đã quét 24 giờ trong `data/calo_khay/tmp`, không mã hoá. Chụp bằng camera trên trang Bữa ăn chưa thử.
+- Trợ lý chủ động hỏi mới có trên Streamlit, chưa có trên web; câu trả lời bằng giọng nói chưa thử với micro thật (test dùng tệp WAV và bộ nhận dạng giả).
+- Phiếu 👍/👎 cho lời nhắc Q-learning chưa có dữ liệu thật; mức 0,3 là lựa chọn thiết kế, chưa được kiểm chứng.
+- MCP server chưa thử với một host thật (Claude Desktop); mới kiểm bằng test chạy tiến trình qua stdio.
 
 **Hướng phát triển**
 

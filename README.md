@@ -79,6 +79,11 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     Mọi câu của trợ lý ở đây là câu soạn sẵn từ dữ liệu nhật ký, không do LLM viết, và không chạy trong
     `orchestrator.run`, nên benchmark không đổi. Lượt hỏi mỗi ngày lưu ở bảng `checkins`. Ghi số đo đều đặn hơn
     cũng là thứ agent Q-learning được thưởng (có đo +1, bỏ đo −1).
+
+    **Trả lời bằng giọng nói:** dưới lời mở đầu có ô ghi âm và nút "Đọc câu hỏi" (giọng tiếng Việt của máy). Ghi âm
+    được nhận dạng bằng PhoWhisper ngay trên máy, rồi chữ nghe được hiện trong ô để sửa và bấm **Gửi** (Whisper có thể
+    "bịa" câu khi gặp tiếng ồn, nên không gửi thẳng). Sau đó đi đúng đường của câu gõ chữ; số đọc bằng chữ ("sáu phẩy
+    năm", "bảy rưỡi") được đổi thành số.
   - **trang Bữa ăn: chụp khay cơm, ước lượng tinh bột** (`src/diacare/meal_scan.py`, `src/meal_ui.py`): người dùng
     tải hoặc chụp ảnh khay cơm; agent bữa ăn gửi ảnh cho dịch vụ **Calo Khay** (project xử lý ảnh riêng của nhóm:
     YOLO26s-seg + DINOv2 nhận diện 44 món căng tin, ước lượng gram theo diện tích so với đĩa) qua HTTP
@@ -88,6 +93,11 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     thấp = gram × (1 − sai số) × carb, cao = gram × (1 + sai số) × carb cận trên; sai số gram ±30% (mức của Calo Khay),
     ±50% cho gram "trung bình" (cơm 228 g, hoặc không thấy đĩa), gram người dùng tự sửa thì ±15%. Đồ uống ghi "chưa tính". Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi
     chú). Không con số nào do LLM viết; đây là ước lượng để theo dõi, không dùng để tính liều insulin.
+
+    **Nối với đường huyết:** mỗi bữa được ghép với lần đo đầu tiên 45 phút – 3 giờ sau bữa (cột "Đường huyết sau ăn";
+    trong khoảng đó mà chưa đo thì trang nhắc đo). Trang Tư vấn đọc cả phần này (bữa gần nhất, đường huyết sau bữa,
+    các bữa cao sau ăn trung bình bao nhiêu gam tinh bột so với các bữa trong mục tiêu), với ngân sách token riêng nên
+    phần nhật ký đường huyết và benchmark không đổi.
 
   Giao diện mặc định là chế độ người dùng. Log agent, đồ thị tri thức và thống kê chỉ hiện khi bật **Chế độ nhà phát
   triển** (nút gạt ở thanh bên, hoặc `DIACARE_DEV=1`).
@@ -297,6 +307,20 @@ trên.
 Chạy cả bộ test trên PostgreSQL: đặt `DIACARE_TEST_PG_URL=postgresql://...` rồi `python -m pytest`. Mọi `Store` trong
 test được chuyển sang một schema riêng; test đọc thẳng tệp SQLite được bỏ qua (xem `tests/conftest.py`).
 
+### MCP server (dùng DiaCare trong Claude Desktop, Claude Code, VS Code...)
+
+`src/diacare/mcp_server.py` mở các công cụ **tất định** của DiaCare theo chuẩn Model Context Protocol qua stdio:
+`check_lab` (xét nghiệm so với ADA 2024), `search_guidelines` (tài liệu MedlinePlus/WHO kèm nguồn),
+`risk_factor_evidence` (đồ thị tri thức + BRFSS), `food_nutrition` (món Việt, USDA), `tray_carbs` (khay cơm Calo Khay),
+`predict_risk` (21 chỉ số BRFSS), và tài liệu `kb/` dưới dạng resource `kb://<tệp>`. Không mở công cụ "tư vấn" (mô hình
+bên ngoài sẽ viết lại câu trả lời, bỏ qua lớp Rules) và không mở dữ liệu người bệnh. Giao thức viết bằng thư viện chuẩn,
+không cần cài gói `mcp`. Khai báo cho host (ví dụ `claude_desktop_config.json`):
+
+```json
+{"mcpServers": {"diacare": {"command": "python", "args": ["-m", "diacare.mcp_server"],
+                            "env": {"PYTHONPATH": "C:/DATA/diacare-mas/src"}}}}
+```
+
 ### Giọng nói
 
 Người dùng nói thay vì gõ. Có hai chỗ dùng:
@@ -306,6 +330,9 @@ Người dùng nói thay vì gõ. Có hai chỗ dùng:
   "sáu tám" có thể là 68 mg/dL (đang hạ đường huyết) hoặc 6,8 mmol/L, nên app đưa cả hai lựa chọn và không tự đoán.
 - **Trang Tư vấn, nút micro.** Chữ nghe được hiện vào ô nhập để sửa trước khi gửi. Nút "Đọc to" đọc câu trả lời bằng
   giọng tiếng Việt có sẵn của máy, và chỉ đọc câu trả lời cuối đã qua Rules, không đọc bản nháp.
+- **Streamlit, trả lời trợ lý chủ động hỏi.** Ô ghi âm và nút "Đọc câu hỏi" dưới lời mở đầu (mục Tính năng).
+  `chay_local.ps1` trỏ `DIACARE_ASR_MODEL` tới bản PhoWhisper đã tải ở `D:\hf_cache` nếu có, để chạy không cần mạng
+  (nạp lần đầu khoảng 26 giây).
 
 Cách làm:
 
@@ -482,6 +509,9 @@ Mỗi sáng, người đã chẩn đoán thấy một "Lời nhắc hôm nay" �
   Q-learning hơn luật cố định +2,33 [1,01; 3,65] nhưng **chưa hơn bandit $\gamma = 0$ một cách có ý nghĩa** (khoảng tin cậy chứa 0) (+0,83 [−0,59; 2,26]).
   Chi tiết và cách đọc: `docs/results/2026-11-24_q_learning/`.
 - **Học tiếp từ nhật ký trong ứng dụng.** Bảng Q học sẵn chỉ là điểm xuất phát. Mỗi khi mở tab Hôm nay, agent học tiếp từ những ngày đã kết thúc của người đó mà chưa học (`learn_from_journal`): phần thưởng tính từ nhật ký của ngày đó, trạng thái kế tiếp là trạng thái sáng hôm sau, rồi một bước $Q(s,a) \leftarrow Q(s,a) + \alpha[r + \gamma \max_{a'} Q(s',a') - Q(s,a)]$, $\alpha = 0{,}1$. Mỗi ngày chỉ học một lần (cột `learned_reward` của bảng `coach_events`), dưới khoá để hai phiên mở cùng lúc không học trùng; bảng Q đã học tiếp lưu ở bảng `coach_model`, dùng chung cho mọi người bệnh. Trong DB demo, ngày theo dõi cuối (23/11) của mỗi người bệnh mẫu không dùng để huấn luyện sẵn (bảng Q học sẵn từ 569/599 ngày) mà để dành: mở tab Hôm nay của một người là agent học ngày đó ngay, và trang Thống kê tăng số "Ngày học tiếp từ nhật ký". Chưa có người dùng thật nào, nên bảng Q hiện vẫn chủ yếu là học từ dữ liệu mô phỏng.
+- **👍/👎 cho lời nhắc** (tab Hôm nay của Streamlit, trang Hôm nay của web, API `POST .../nudge/feedback`): phần
+  thưởng phụ ±0,3 cộng vào phần thưởng từ nhật ký khi agent học ngày đó. Nhỏ hơn khoảng cách có đo / bỏ đo (2,0), nên
+  một cú 👎 không dạy agent rằng thà bỏ đo còn hơn; không bấm thì agent vẫn học như cũ.
 
 ### Bandit trọng tâm chat (`src/diacare/rl.py`)
 
@@ -535,6 +565,20 @@ Nhóm `memory` tăng từ 0.25 lên 1.00. Mức chung tăng nhưng khoảng tin 
 Kiểm định McNemar theo ca (`eval/compare.py`, một ca đạt khi đạt cả 3 lượt) cho thấy các mức tăng này **chưa có ý
 nghĩa thống kê** với 46 ca: v1 so với v2 $p = 0{,}73$, v2 so với all $p = 0{,}38$, v1 so với all $p = 0{,}27$.
 Khác biệt duy nhất có ý nghĩa là qwen2.5:7b so với 14b trên 50 ca: 17 ca chỉ 7b đạt, 3 ca chỉ 14b đạt, $p = 0{,}003$.
+
+**3B trên máy so với 7B trên Kaggle** (V4.9, 50 ca × 3 lượt, `v2,kg,rl`, cùng mã):
+
+| | qwen2.5:3b (máy, RTX 3050 Ti) | qwen2.5:7b (Kaggle T4, qua đường hầm) |
+|---|---|---|
+| Đạt từng lượt | 127/150 = 0,85 | **145/150 = 0,97** [0,92; 0,99] |
+| Pass@3 / Pass^3 | 0,96 / 0,70 | 0,98 / **0,94** |
+| Bản nháp có nhãn nguồn | 107/150 | **136/150** |
+| Số không có trong ngữ cảnh (Critic) | 20 lượt | 23 lượt |
+| Bản nháp xen chữ Hán | 8 | **0** |
+| Giây LLM mỗi lượt (trung bình) | 3,0 | 7,3 |
+
+McNemar theo ca: 13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt (một yêu cầu treo do đường hầm), $p = 0{,}0018$. 7B vẫn tự đưa số
+không có trong ngữ cảnh ở 23/150 lượt. Chi tiết: `docs/results/2026-11-24_7b_kaggle/`.
 
 **Đồ thị tri thức và RL** (V4.6). Máy cá nhân, `qwen2.5:3b`, kho 14 tài liệu, 50 ca × 3 lượt, bỏ nhóm nhật ký, đã chấm lại:
 
@@ -658,6 +702,7 @@ src/app.py              giao diện Streamlit
 src/journal_ui.py       ba trang Hôm nay, Nhật ký, Tái khám
 src/checkin_ui.py       trợ lý chủ động hỏi trên trang Tư vấn (thẻ xác nhận số đo)
 src/meal_ui.py          trang Bữa ăn (ảnh khay cơm -> Calo Khay -> xác nhận món -> khoảng tinh bột)
+src/diacare/mcp_server.py  MCP server (stdio) mở các công cụ tất định của DiaCare
 src/api/                dịch vụ FastAPI (main.py) và mật khẩu, token (security.py)
 web/                    giao diện Next.js (app/: các trang, lib/api.ts: gọi API và đọc luồng SSE)
 src/cli.py              giao diện dòng lệnh

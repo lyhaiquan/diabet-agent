@@ -138,3 +138,22 @@ def test_bandit_model_slot_untouched_by_coach(tmp_path):
     store.save_rl_model({"x": 1})
     store.save_rl_model({"y": 2}, table="coach_model")
     assert store.load_rl_model() == {"x": 1} and store.load_rl_model(table="coach_model") == {"y": 2}
+
+
+def test_feedback_is_small_side_reward(tmp_path):
+    from datetime import date
+
+    from diacare import coach as C
+    from diacare.db import Store
+    base = C.day_reward([], date(2026, 11, 20), "weight_diet")
+    assert C.day_reward([], date(2026, 11, 20), "weight_diet", feedback=1) == round(base + C.R_FEEDBACK, 4)
+    assert C.day_reward([], date(2026, 11, 20), "weight_diet", feedback=-1) == round(base - C.R_FEEDBACK, 4)
+    assert 2 * C.R_FEEDBACK < C.R_LOGGED - C.R_MISSED   # 👍 không bù được việc bỏ đo
+    store = Store(tmp_path / "c.db")
+    pid = store.save_patient("Lan", {})
+    store.add_coach_event(pid, date(2026, 11, 20), {"state": ["ít", "chưa đo", "không"], "action": "weight_diet",
+                                                    "propensity": 1.0})
+    assert store.rate_coach_event(pid, date(2026, 11, 20), -1)
+    assert store.coach_events(pid)[0]["feedback"] == -1
+    assert store.mark_coach_learned(pid, date(2026, 11, 20), 0.1)
+    assert not store.rate_coach_event(pid, date(2026, 11, 20), 1)   # đã học xong thì không chấm lại
