@@ -268,6 +268,7 @@ export const api = {
   addMeal: (pid: number, b: { items: MealItemIn[]; eaten_at: string; slot: Slot }) => post<MealTotal>(`/patients/${pid}/meals`, b),
   meals: (pid: number, days = 7) => json<Meal[]>(`/patients/${pid}/meals?days=${days}`),
   deleteMeal: (pid: number, mid: number) => json<null>(`/patients/${pid}/meals/${mid}`, { method: "DELETE" }),
+  mealAdvice: (pid: number) => json<MealAdvice>(`/patients/${pid}/meals/advice`),
 
   transcribe: (wav: Blob) => {
     const fd = new FormData();
@@ -304,6 +305,14 @@ export type Meal = {
   id: number; eaten_at: string; slot: Slot | null; carb_g: number; carb_low: number; carb_high: number; kcal: number | null;
   items: { name: string; grams?: number; uncounted?: boolean }[];
   after_meal: string; after_meal_status: string | null; measure_now: boolean;
+};
+/** Gợi ý ăn uống tính bằng code từ bữa đã ghi và đường huyết sau ăn (GET .../meals/advice). */
+export type MealAdvice = {
+  status: "hypo" | "no_meals" | "need_after" | "all_ok" | "high";
+  headline: string; lines: string[]; caveat: string;
+  limit: { name: string; times: number; grams: number; carb: number; share: number; suggest_grams: number }[];
+  more: { cls: string; name: string; carb_per_100g: number }[];
+  own_ok: string[];
 };
 export type Transcript = { text: string; reading: SpokenReading | null; seconds: number; audio_seconds: number };
 

@@ -109,6 +109,14 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     (`POST /meals/scan`), API mới gọi Calo Khay; tinh bột tính ở máy chủ (`POST .../meals/estimate`) để hai giao diện
     ra cùng một khoảng. Lưu, xem, xoá bữa: `POST/GET .../meals`, `DELETE .../meals/{mid}`.
 
+    **Gợi ý ăn uống từ đường huyết sau ăn** (`meal_scan.meal_advice`): thẻ ở trang Hôm nay và Bữa ăn (web:
+    `GET .../meals/advice`). Từ các bữa có đường huyết sau ăn cao hơn mục tiêu, nó chỉ ra món góp nhiều tinh bột nhất
+    ("Nên hạn chế: cơm trắng khoảng 290 g, góp khoảng 81 g tinh bột (95% tinh bột của 2 bữa cao). Thử bớt còn khoảng
+    190 g") và món ít tinh bột có thể ăn thêm (lấy từ bảng, ưu tiên món có trong các bữa vẫn trong mục tiêu của chính
+    người dùng). Tính bằng code, không qua LLM; một lần cao thì nói rõ là chưa đủ kết luận; 24 giờ qua có hạ đường
+    huyết thì **không** khuyên ăn bớt; chưa đo sau ăn thì nhắc đo trước. Các câu này cũng vào ngữ cảnh của trang Tư
+    vấn (ngân sách token riêng), để câu hỏi "hôm nay tôi nên ăn gì" được trả lời theo đúng dữ liệu của người dùng.
+
     **Nối với đường huyết:** mỗi bữa được ghép với lần đo đầu tiên 45 phút – 3 giờ sau bữa (cột "Đường huyết sau ăn";
     trong khoảng đó mà chưa đo thì trang nhắc đo). Trang Tư vấn đọc cả phần này (bữa gần nhất, đường huyết sau bữa,
     các bữa cao sau ăn trung bình bao nhiêu gam tinh bột so với các bữa trong mục tiêu), với ngân sách token riêng nên

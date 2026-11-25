@@ -418,11 +418,18 @@ class JournalAgent:
                                 targets=targets)
         # Bữa ăn quét ảnh (trang Bữa ăn) và đường huyết sau các bữa đó: để riêng (meal_lines), context.py cấp ngân sách
         # riêng, nên nhật ký đường huyết (và benchmark, vốn không có bữa ăn) giữ nguyên
-        from diacare.meal_scan import meal_journal_lines
-        meal_lines = meal_journal_lines(self.store.list_meals(patient_id), readings, days=days, now=self.now,
-                                        targets=targets)
+        from diacare.meal_scan import meal_advice, meal_journal_lines
+        meals = self.store.list_meals(patient_id)
+        meal_lines = meal_journal_lines(meals, readings, days=days, now=self.now, targets=targets)
         if not meal_lines:
             return digest
         if digest is None:
             digest = {"lines": [], "n_glucose": 0, "hypo": 0, "very_high": 0, "custom_targets": targets["custom"]}
-        return {**digest, "meal_lines": meal_lines}
+        # Gợi ý nên hạn chế / ăn thêm món gì, tính sẵn bằng code (meal_advice); mô hình chỉ diễn đạt lại
+        advice = meal_advice(meals, readings, now=self.now, targets=targets, days=days)
+        advice_lines = []
+        if advice["status"] in ("high", "all_ok", "hypo"):
+            advice_lines = (["- Gợi ý ăn uống đã tính sẵn từ bữa ăn và đường huyết sau ăn (giữ nguyên số và món, "
+                             "không tự thêm món hay số khác; đây là ước lượng, không phải chỉnh thuốc):"]
+                            + [f"  + {line}" for line in advice["lines"]])
+        return {**digest, "meal_lines": meal_lines, "advice_lines": advice_lines}

@@ -710,8 +710,11 @@ def test_meal_scan_estimate_save_list(client, monkeypatch):
                 "measured_at": (NOW - timedelta(minutes=5)).isoformat()}, headers=auth)
     meals = client.get(f"/patients/{pid}/meals", headers=auth).json()
     assert len(meals) == 1 and "9 mmol/L sau 55 phút" in meals[0]["after_meal"].replace(",0", "")
+    advice = client.get(f"/patients/{pid}/meals/advice", headers=auth).json()
+    assert advice["status"] == "all_ok" and not advice["limit"] and advice["caveat"]
     other = register(client, email="b@example.com")
     assert client.get(f"/patients/{pid}/meals", headers=other).status_code == 404
+    assert client.get(f"/patients/{pid}/meals/advice", headers=other).status_code == 404
     assert client.delete(f"/patients/{pid}/meals/{meals[0]['id']}", headers=auth).status_code == 204
     assert client.get(f"/patients/{pid}/meals", headers=auth).json() == []
 

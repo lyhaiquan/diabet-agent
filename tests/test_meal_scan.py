@@ -237,7 +237,8 @@ def test_no_meals_no_lines():
 
 
 def test_journal_agent_adds_meal_lines_with_own_budget(tmp_path):
-    from diacare.context import JOURNAL_TOKEN_BUDGET, MEAL_TOKEN_BUDGET, build_context, estimate_tokens
+    from diacare.context import (ADVICE_TOKEN_BUDGET, JOURNAL_TOKEN_BUDGET, MEAL_TOKEN_BUDGET, build_context,
+                                 estimate_tokens)
     from diacare.db import Store
     from diacare.state import State
     store = Store(tmp_path / "m.db")
@@ -251,7 +252,7 @@ def test_journal_agent_adds_meal_lines_with_own_budget(tmp_path):
     state.journal = {**digest, "lines": digest["lines"] + ["- " + "x" * 300] * 5}
     text = build_context("advisor", state)["journal_text"]
     assert "Bữa gần nhất: bữa trưa" in text and "11,0 mmol/L sau 90 phút, cao hơn mục tiêu" in text
-    assert estimate_tokens(text) <= JOURNAL_TOKEN_BUDGET + MEAL_TOKEN_BUDGET
+    assert estimate_tokens(text) <= JOURNAL_TOKEN_BUDGET + MEAL_TOKEN_BUDGET + ADVICE_TOKEN_BUDGET
 
 
 def test_journal_agent_meals_only(tmp_path):
@@ -288,3 +289,72 @@ def test_items_from_scan_keep_number_and_polygons():
     items = meal_scan.items_from_scan(SCAN, TABLE)
     assert [it["no"] for it in items] == list(range(1, len(items) + 1))
     assert all("polygons" in it for it in items)
+
+
+# ---------- gợi ý ăn uống từ đường huyết sau ăn ----------
+
+def _tray(hours_ago, rice_g, extra=(), slot="lunch", mid=1):
+    """Bữa đã lưu như meal_ui lưu: món kèm tinh bột từng món (meal_carbs)."""
+    items = [{"cls": "rice", "grams": rice_g}] + [{"cls": c, "grams": g} for c, g in extra]
+    t = meal_scan.meal_carbs(items, TABLE)
+    return {"id": mid, "eaten_at": (NOW - timedelta(hours=hours_ago)).isoformat(), "slot": slot,
+            "carb_g": t["carb_g"], "carb_low": t["carb_low"], "carb_high": t["carb_high"], "items": t["items"]}
+
+
+def test_advice_names_the_dish_that_carries_the_carbs():
+    meals = [_tray(30, 300, [("fried_tofu", 100)], mid=1), _tray(6, 280, [("water_spinach", 150)], mid=2),
+             _tray(54, 120, [("water_spinach", 200), ("boiled_egg", 60)], mid=3)]
+    readings = [_glu(11.6, 28.5), _glu(10.8, 4.5), _glu(7.9, 52.5)]
+    a = meal_scan.meal_advice(meals, readings, TABLE, now=NOW)
+    assert a["status"] == "high"
+    top = a["limit"][0]
+    assert top["name"] == "cơm trắng" and top["times"] == 2 and top["share"] >= 80
+    assert top["suggest_grams"] == 190  # bớt một phần ba của khoảng 290 g, làm tròn 10 g
+    text = " ".join(a["lines"])
+    assert "Nên hạn chế: cơm trắng" in text and "2/3 bữa cao sau ăn" in text
+    assert "rau muống" in text  # món ít tinh bột có trong bữa vẫn trong mục tiêu của chính người dùng
+    assert "bữa trưa hôm nay" in a["headline"] and "10,8 mmol/L" in a["headline"]
+
+
+def test_advice_one_high_meal_is_not_a_conclusion():
+    a = meal_scan.meal_advice([_tray(6, 300)], [_glu(11.0, 4.5)], TABLE, now=NOW)
+    assert a["status"] == "high" and any("chưa đủ để kết luận" in s for s in a["lines"])
+
+
+def test_advice_never_says_cut_carbs_after_hypo():
+    meals = [_tray(6, 300)]
+    readings = [_glu(11.0, 4.5), _glu(3.4, 2, context="before_meal")]
+    a = meal_scan.meal_advice(meals, readings, TABLE, now=NOW)
+    assert a["status"] == "hypo" and not a["limit"]
+    assert "không gợi ý ăn bớt" in a["headline"]
+    assert not any("hạn chế" in s for s in a["lines"])
+
+
+def test_advice_asks_to_measure_after_meals_first():
+    a = meal_scan.meal_advice([_tray(6, 200)], [_glu(6.0, 10, context="fasting")], TABLE, now=NOW)
+    assert a["status"] == "need_after" and "2 giờ sau" in a["headline"] and not a["limit"]
+    assert meal_scan.meal_advice([], [], TABLE, now=NOW)["status"] == "no_meals"
+
+
+def test_advice_all_in_target_keeps_current_eating():
+    a = meal_scan.meal_advice([_tray(6, 150, [("cabbage", 150)])], [_glu(7.5, 4.5)], TABLE, now=NOW)
+    assert a["status"] == "all_ok" and not a["limit"] and "bắp cải luộc" in " ".join(a["lines"])
+
+
+def test_advisor_sees_precomputed_advice(tmp_path):
+    from diacare.context import build_context
+    from diacare.db import Store
+    from diacare.state import State
+    store = Store(tmp_path / "m.db")
+    pid = store.save_patient("Lan", {})
+    for hours, rice, mmol in ((30, 300, 11.6), (6, 280, 10.8)):
+        m = _tray(hours, rice, [("fried_tofu", 100)])
+        store.add_meal(pid, m["eaten_at"], "lunch", m["items"], m["carb_g"], m["carb_low"], m["carb_high"], 400)
+        store.add_reading(pid, "glucose", mmol * 18, NOW - timedelta(hours=hours - 1.5), unit="mmol/L",
+                          context="after_meal")
+    digest = journal.JournalAgent(store, now=NOW).collect(pid)
+    assert digest["advice_lines"][0].startswith("- Gợi ý ăn uống đã tính sẵn")
+    state = State(question="Hôm nay tôi nên ăn gì?", profile={}, patient_id=pid)
+    state.journal = digest
+    text = build_context("advisor", state)["journal_text"]
+    assert "Nên hạn chế: cơm trắng" in text and "Thử bớt còn khoảng" in text

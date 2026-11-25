@@ -135,7 +135,7 @@ def _confirm(store, patient_id, table):
         names = sorted(v["name"] for v in table.values())
         df = st.data_editor(
             to_frame(items, table), key=f"meal_edit_{n}", num_rows="dynamic", hide_index=True,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Món": st.column_config.SelectboxColumn("Món", options=names, required=True),
                 "Gram": st.column_config.NumberColumn("Gram", min_value=0, max_value=2000, step=5, required=True),
@@ -195,7 +195,7 @@ def _history(store, patient_id):
         rows.append({"Lúc": f"{when:%d/%m %H:%M}", "Bữa": SLOTS.get(m["slot"], m["slot"] or ""),
                      "Tinh bột (g)": f"{m['carb_low']:.0f}–{m['carb_high']:.0f}",
                      "Đường huyết sau ăn": meal_scan.after_meal_text(p, targets), "Món": dishes})
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
     waiting = [p for p in pairs if p["reading"] is None
                and timedelta(minutes=meal_scan.AFTER_MIN) <= now - journal.to_vn(p["meal"]["eaten_at"])
                <= timedelta(minutes=meal_scan.AFTER_MAX)]
@@ -210,6 +210,40 @@ def _history(store, patient_id):
         if st.button("Xoá bữa này", key="meal_del_btn"):
             store.delete_meal(mid, patient_id)
             st.rerun()
+
+
+def render_advice(store, patient_id, show_empty=False):
+    """Thẻ "Gợi ý ăn uống" (trang Hôm nay và Bữa ăn): nên hạn chế món nào, có thể ăn thêm món nào, tính bằng
+    meal_scan.meal_advice từ bữa đã ghi và đường huyết sau ăn. Câu soạn sẵn, không qua LLM."""
+    meals = store.list_meals(patient_id)
+    if not meals and not show_empty:
+        return
+    targets = journal.resolve_targets(store.get_targets(patient_id))
+    a = meal_scan.meal_advice(meals, store.list_readings(patient_id), _table(), targets=targets)
+    if a["status"] == "no_meals" and not show_empty:
+        return
+    with st.container(border=True):
+        st.markdown("**🍽️ Gợi ý ăn uống từ đường huyết sau ăn**")
+        if a["status"] == "hypo":
+            st.warning("\n\n".join(a["lines"]))
+            return
+        if a["status"] in ("no_meals", "need_after"):
+            st.caption(a["headline"])
+            return
+        if a["status"] == "all_ok":
+            st.success(a["headline"])
+            if len(a["lines"]) > 1:
+                st.caption(a["lines"][1])
+            return
+        st.markdown(a["headline"])
+        for line in a["lines"][1:]:
+            if line.startswith("Nên hạn chế:"):
+                st.markdown("🔻 " + line)
+            elif line.startswith(("Có thể ăn thêm", "Món ít tinh bột")):
+                st.markdown("🥬 " + line)
+            else:
+                st.caption(line)
+        st.caption(a["caveat"])
 
 
 def render_meal(store, patient_id):
@@ -232,4 +266,5 @@ def render_meal(store, patient_id):
             st.session_state[SCAN] = {"n": n, "items": [], "warnings": [], "image": None}
             st.rerun()
     _confirm(store, patient_id, table)
+    render_advice(store, patient_id)
     _history(store, patient_id)

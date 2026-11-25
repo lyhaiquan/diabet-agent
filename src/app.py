@@ -79,7 +79,27 @@ def is_diagnosed(store, patient_id):
 def load_parts(kb, db, llm_kind, embed_kind, log, features, kg_kind=""):
     """Build predictor/retriever/llm/store once per configuration (args are cache keys; config is read from env)."""
     store = SerialStore(open_store())
-    return build_orchestrator(store=store), store
+    base = build_orchestrator(store=store)
+    _warm_up(base)
+    return base, store
+
+
+def _warm_up(base):
+    """Làm sẵn những việc chỉ chậm ở lần đầu, để lần đầu mở từng trang không phải chờ (đo 2026-11-25 trên bản sao DB):
+    lần dự đoán đầu của mô hình nguy cơ (trang Tư vấn, 1,8 giây) và nạp thư viện biểu đồ altair cho st.line_chart
+    (trang Thống kê, 2,4 giây). Dự đoán chạy ngay (nhanh khi đã có mô hình); altair nạp ở luồng nền."""
+    try:
+        base.predictor.predict(LOW_RISK)
+        compare_models(ROOT / "models", LOW_RISK)
+    except Exception:  # noqa: BLE001  (thiếu tệp mô hình: lỗi thật sẽ hiện khi dùng)
+        pass
+
+    def load_altair():
+        try:
+            import altair  # noqa: F401
+        except Exception:  # noqa: BLE001
+            pass
+    threading.Thread(target=load_altair, daemon=True).start()
 
 
 def new_orchestrator(base, store, session_id):

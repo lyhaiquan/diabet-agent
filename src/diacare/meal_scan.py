@@ -264,3 +264,148 @@ def meal_journal_lines(meals, readings, days=14, now=None, targets=None):
     else:
         lines.append("  + Chưa có lần đo đường huyết nào 1–2 giờ sau các bữa này.")
     return lines
+
+
+# ---------- gợi ý ăn uống từ đường huyết sau ăn (V4.9) ----------
+# Mọi con số ở đây tính bằng code từ bữa đã lưu, bảng tinh bột và số đo; LLM chỉ được đọc lại các câu này.
+# Món ít tinh bột để gợi ý ăn thay phần tinh bột bớt đi: chọn theo nhóm (rau, đạm), con số lấy từ bảng.
+LOW_CARB_VEG = ("water_spinach", "cabbage", "leafy_greens", "chayote", "radish", "stir_fried_vegetables",
+                "bean_sprouts_green_beans", "bean_sprouts_bamboo")
+LOW_CARB_PROTEIN = ("boiled_egg", "fried_tofu", "boiled_pork", "rolled_omelette", "fried_egg", "quail_egg")
+LOW_CARB_MAX = 7.0        # g tinh bột / 100 g: dưới mức này coi là món ít tinh bột
+MAIN_SHARE = 0.30         # món góp từ 30% tinh bột của bữa trở lên thì đáng nhắc
+ADVICE_CAVEAT = ("Gợi ý từ ước lượng ảnh (gram sai khoảng ±30%, cơm có thể ±50%) và vài lần đo; đường huyết sau ăn "
+                 "còn phụ thuộc thuốc, vận động và cả bữa, không chỉ một món. Không dùng để chỉnh liều thuốc hay "
+                 "insulin; bác sĩ có thể đặt mục tiêu khác.")
+
+
+def _round10(x):
+    return int(round(x / 10.0) * 10)
+
+
+def meal_advice(meals, readings, table=None, now=None, targets=None, days=14):
+    """Gợi ý nên hạn chế món nào, có thể ăn thêm món nào, từ các bữa đã ghi và đường huyết đo sau các bữa đó.
+
+    Trả về {"status", "headline", "limit": [...], "more": [...], "own_ok": [...], "lines": [...], "caveat"}.
+    status: "hypo" (24 giờ qua có hạ đường huyết: KHÔNG khuyên bớt tinh bột), "no_meals", "need_after" (chưa đo
+    sau ăn), "all_ok" (các bữa đã đo đều trong mục tiêu), "high" (có bữa cao sau ăn).
+    Chỉ nói "nhiều lần" khi có từ 2 bữa cao trở lên; một lần thì nói rõ một lần chưa đủ kết luận."""
+    from datetime import timedelta
+
+    from diacare import journal
+    table = table or load_table()
+    now = journal.to_vn(now or journal.now_vn())
+    t = targets or journal.resolve_targets()
+    out = {"status": None, "headline": "", "limit": [], "more": [], "own_ok": [], "lines": [], "caveat": ADVICE_CAVEAT}
+
+    # 1. An toàn trước: trong 24 giờ qua có hạ đường huyết thì không khuyên ăn bớt
+    hypo = [r for r in journal.glucose_rows(readings)
+            if now - timedelta(hours=24) <= journal.to_vn(r["measured_at"]) <= now
+            and journal.classify_glucose(r["value"], r["context"], t) in ("hypo_1", "hypo_2")]
+    if hypo:
+        out["status"] = "hypo"
+        out["headline"] = ("Trong 24 giờ qua bạn có lần hạ đường huyết, nên lúc này mình không gợi ý ăn bớt tinh bột. "
+                           "Ăn đủ bữa, đúng giờ, và báo bác sĩ về lần hạ đường huyết này.")
+        out["lines"] = [out["headline"], journal.ADVICE["hypo_1"][1]]
+        return out
+
+    recent = sorted((m for m in meals if now - timedelta(days=days) <= journal.to_vn(m["eaten_at"]) <= now),
+                    key=lambda m: journal.to_vn(m["eaten_at"]))
+    if not recent:
+        out["status"] = "no_meals"
+        out["headline"] = ("Chưa có bữa ăn nào được ghi. Chụp ảnh bữa ăn ở trang Bữa ăn, rồi đo đường huyết khoảng 2 giờ "
+                           "sau khi ăn, mình sẽ cho biết món nào góp nhiều tinh bột.")
+        out["lines"] = [out["headline"]]
+        return out
+    pairs = pair_after_meal(recent, readings, t)
+    measured = [p for p in pairs if p["reading"] is not None]
+    if not measured:
+        out["status"] = "need_after"
+        out["headline"] = (f"Bạn đã ghi {len(recent)} bữa nhưng chưa có lần đo nào 1–2 giờ sau các bữa đó. Đo đường "
+                           "huyết khoảng 2 giờ sau khi bắt đầu ăn để biết bữa nào làm đường huyết lên cao.")
+        out["lines"] = [out["headline"]]
+        return out
+
+    high = [p for p in measured if p["status"] in ("above_target", "very_high")]
+    ok = [p for p in measured if p["status"] == "in_target"]
+    post = journal._mmol(t["post"])
+
+    # 2. Món ít tinh bột: trước hết là món có trong các bữa vẫn trong mục tiêu của chính người dùng
+    own = {}
+    for p in ok:
+        for it in p["meal"]["items"]:
+            row = table.get(it.get("cls"))
+            if row and row["carb"] is not None and row["carb"] <= LOW_CARB_MAX:
+                own.setdefault(it["cls"], row["name"])
+    out["own_ok"] = list(own.values())
+    pick = [c for c in LOW_CARB_VEG if c in table][:3] + [c for c in LOW_CARB_PROTEIN if c in table][:3]
+    out["more"] = [{"cls": c, "name": table[c]["name"], "carb_per_100g": table[c]["carb"]} for c in pick]
+
+    if not high:
+        out["status"] = "all_ok"
+        out["headline"] = (f"{len(measured)} lần đo sau ăn đều dưới {post} mmol/L. Bạn cứ giữ cách ăn hiện tại, nhất "
+                           "là lượng cơm như các bữa đó.")
+        out["lines"] = [out["headline"]]
+        if out["own_ok"]:
+            out["lines"].append("Món ít tinh bột trong các bữa đó: " + ", ".join(out["own_ok"]) + ".")
+        return out
+
+    # 3. Món góp nhiều tinh bột trong các bữa cao sau ăn
+    dish = {}
+    for p in high:
+        meal_carb = sum(float(it.get("carb") or 0) for it in p["meal"]["items"] if not it.get("uncounted"))
+        if meal_carb <= 0:
+            continue
+        for it in p["meal"]["items"]:
+            c = float(it.get("carb") or 0)
+            if it.get("uncounted") or c <= 0 or c / meal_carb < MAIN_SHARE:
+                continue
+            d = dish.setdefault(it.get("cls") or it["name"], {"name": it["name"], "times": 0, "carb": 0.0,
+                                                               "grams": 0.0, "share": 0.0})
+            d["times"] += 1
+            d["carb"] += c
+            d["grams"] += float(it.get("grams") or 0)
+            d["share"] += c / meal_carb
+    limit = []
+    for d in sorted(dish.values(), key=lambda d: -d["carb"]):
+        n = d["times"]
+        grams = d["grams"] / n
+        limit.append({"name": d["name"], "times": n, "grams": round(grams), "carb": round(d["carb"] / n),
+                      "share": round(100 * d["share"] / n), "suggest_grams": max(_round10(grams * 2 / 3), 10)})
+    out["limit"] = limit[:3]
+    out["status"] = "high"
+
+    last = high[-1]
+    m, r = last["meal"], last["reading"]
+    when = journal.to_vn(m["eaten_at"])
+    if when.date() == now.date():
+        day = "hôm nay"
+    elif when.date() == now.date() - timedelta(days=1):
+        day = "hôm qua"
+    else:
+        day = f"ngày {when:%d/%m}"
+    out["headline"] = (f"Sau {SLOT_TEXT.get(m['slot'], 'bữa ăn')} {day} ({when:%H:%M}), đường huyết "
+                       f"{journal.fmt_glucose(r['value'], r.get('unit') or 'mmol/L')} sau {last['minutes']} phút, "
+                       f"cao hơn mục tiêu (dưới {post} mmol/L).")
+    lines = [out["headline"]]
+    if len(high) >= 2:
+        lines.append(f"Trong {days} ngày qua có {len(high)}/{len(measured)} bữa cao sau ăn.")
+    else:
+        lines.append("Mới có một lần cao sau ăn, chưa đủ để kết luận; đo thêm sau vài bữa nữa để chắc hơn.")
+    for d in out["limit"]:
+        often = f"{d['times']} bữa cao" if d["times"] >= 2 else "bữa cao"
+        lines.append(f"Nên hạn chế: {d['name']} khoảng {d['grams']} g, góp khoảng {d['carb']} g tinh bột "
+                     f"({d['share']}% tinh bột của {often}). Thử bớt còn khoảng {d['suggest_grams']} g.")
+    if len(high) >= 2 and len(ok) >= 2:
+        def mid(ps):
+            return sum(p["meal"]["carb_g"] for p in ps) / len(ps)
+        lines.append(f"Các bữa cao sau ăn trung bình khoảng {mid(high):.0f} g tinh bột, các bữa trong mục tiêu khoảng "
+                     f"{mid(ok):.0f} g.")
+    if out["more"]:
+        lines.append("Có thể ăn thêm thay phần bớt đi (ít tinh bột): "
+                     + ", ".join(f"{x['name']} ({x['carb_per_100g']:g} g/100 g)".replace(".", ",")
+                                 for x in out["more"]) + ".")
+    if out["own_ok"]:
+        lines.append("Món ít tinh bột đã có trong các bữa trong mục tiêu của bạn: " + ", ".join(out["own_ok"]) + ".")
+    out["lines"] = lines
+    return out

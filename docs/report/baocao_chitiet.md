@@ -707,6 +707,15 @@ với $g_i$ gram, $c_i$ carb chính, $\bar c_i$ carb cận trên, sai số gram 
 
 **Vùng món trên ảnh và ảnh trong ô chat (V4.9).** Bảng món có cột số thứ tự, và ảnh khay được vẽ lại với vùng từng món (đa giác Calo Khay trả về, tô màu trong suốt) cùng số tương ứng, để người dùng thấy ngay món nào bị nhận sai (ví dụ ruốc bị nhận thành gà xào sả ớt). Ảnh đính kèm ở ô chat của trang Tư vấn được thử đọc chữ (OCR) trước: đọc ra chỉ số xét nghiệm thì lưu như phiếu xét nghiệm, không thì chuyển sang trang Bữa ăn để nhận diện món.
 
+**Gợi ý ăn uống từ đường huyết sau ăn (V4.9).** Hàm `meal_advice` (trong `meal_scan.py`) trả lời câu "nên hạn chế gì, ăn thêm gì" bằng code, từ các bữa đã ghi trong 14 ngày và lần đo sau mỗi bữa:
+
+1. *An toàn trước.* Trong 24 giờ qua có số đo hạ đường huyết thì không khuyên ăn bớt tinh bột, chỉ nhắc ăn đủ bữa và báo bác sĩ.
+2. *Thiếu dữ liệu thì nói thẳng.* Chưa ghi bữa nào, hoặc đã ghi bữa nhưng chưa đo sau ăn, thì nhắc đo khoảng 2 giờ sau khi bắt đầu ăn.
+3. *Nên hạn chế.* Trong các bữa có đường huyết sau ăn cao hơn mục tiêu, món góp từ 30% tinh bột của bữa trở lên được gộp theo món và xếp theo lượng tinh bột; mỗi món kèm gram trung bình, phần trăm tinh bột của bữa và gram gợi ý (bớt một phần ba, làm tròn 10 g). Chỉ nói "nhiều bữa" khi có từ hai bữa cao; một lần thì ghi rõ chưa đủ kết luận.
+4. *Có thể ăn thêm.* Món ít tinh bột (dưới 7 g/100 g) trong bảng, chia nhóm rau và đạm, kèm số tinh bột trên 100 g; ưu tiên món đã có trong các bữa vẫn trong mục tiêu của chính người dùng.
+
+Kết quả hiện thành thẻ "Gợi ý ăn uống" ở trang Hôm nay và Bữa ăn (Streamlit), trang Bữa ăn trên web (`GET .../meals/advice`), và được Journal agent thêm vào ngữ cảnh của Advisor với ngân sách riêng (`ADVICE_TOKEN_BUDGET`), kèm lời dặn giữ nguyên món và số. Câu trên thẻ là câu soạn sẵn. Thẻ luôn kèm lời nhắc: gram từ ảnh sai khoảng ±30% (cơm ±50%), đường huyết sau ăn còn phụ thuộc thuốc, vận động và cả bữa, nên hệ chỉ nói "món góp nhiều tinh bột nhất" chứ không nói "món này làm tăng đường huyết", và không dùng để chỉnh liều. Kho `kb/` chưa có hướng dẫn "đĩa ăn", nên phần "ăn thêm" chỉ dựa vào bảng tinh bột và dữ liệu của người dùng. Ví dụ với ba bữa trưa (cơm 300 g và 280 g, sau ăn 11,6 và 10,8 mmol/L; cơm 130 g kèm rau muống và trứng, sau ăn 7,9): "Nên hạn chế: cơm trắng khoảng 290 g, góp khoảng 81 g tinh bột (95% tinh bột của 2 bữa cao). Thử bớt còn khoảng 190 g", và "Món ít tinh bột đã có trong các bữa trong mục tiêu của bạn: rau muống, trứng luộc".
+
 **Nối với đường huyết.** Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi chú). Bảng "Các bữa đã ghi" có cột "Đường huyết sau ăn" (lần đo 45 phút–3 giờ sau bữa); trong khoảng đó mà chưa đo thì trang nhắc đo. Các dòng này cũng vào ngữ cảnh của trang Tư vấn (mục 3.13).
 
 # 4. Cơ sở dữ liệu

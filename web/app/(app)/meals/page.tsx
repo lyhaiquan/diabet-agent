@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorText, Notice } from "@/components/Notice";
 import { api, fmtTime, nowLocalVN, SLOTS, vnIso,
-         type Dish, type Meal, type MealItemIn, type MealTotal, type Slot } from "@/lib/api";
+         type Dish, type Meal, type MealAdvice, type MealItemIn, type MealTotal, type Slot } from "@/lib/api";
 import { usePatient } from "@/lib/session";
 
 const WARNINGS: Record<string, string> = {
@@ -36,12 +36,16 @@ export default function MealsPage() {
   const [when, setWhen] = useState(nowLocalVN());
   const [slot, setSlot] = useState<Slot>(slotFor(nowLocalVN()));
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [advice, setAdvice] = useState<MealAdvice | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
   const names = useMemo(() => Object.fromEntries(dishes.map((d) => [d.cls, d.name])), [dishes]);
-  const loadMeals = useCallback(() => api.meals(patient.id).then(setMeals).catch((e) => setError(e.message)), [patient.id]);
+  const loadMeals = useCallback(() => {
+    api.meals(patient.id).then(setMeals).catch((e) => setError(e.message));
+    api.mealAdvice(patient.id).then(setAdvice).catch(() => setAdvice(null));
+  }, [patient.id]);
 
   useEffect(() => {
     api.mealDishes().then((d) => setDishes([...d].sort((a, b) => a.name.localeCompare(b.name, "vi"))))
@@ -230,6 +234,26 @@ export default function MealsPage() {
         </section>
       )}
       <ErrorText error={error} />
+
+      {advice && advice.status !== "no_meals" && (
+        <section className="card stack">
+          <h2>Gợi ý ăn uống từ đường huyết sau ăn</h2>
+          {advice.status === "hypo" ? (
+            <Notice level="warning">{advice.lines.join(" ")}</Notice>
+          ) : (
+            <>
+              <p>{advice.headline}</p>
+              {advice.lines.slice(1).map((line, i) => (
+                <p key={i} className={line.startsWith("Nên hạn chế") || line.startsWith("Có thể ăn thêm") ? "" : "small"}>
+                  {line.startsWith("Nên hạn chế") ? "🔻 " : line.startsWith("Có thể ăn thêm") || line.startsWith("Món ít tinh bột") ? "🥬 " : ""}
+                  {line}
+                </p>
+              ))}
+              {(advice.status === "high" || advice.status === "all_ok") && <p className="small">{advice.caveat}</p>}
+            </>
+          )}
+        </section>
+      )}
 
       <section className="card stack">
         <h2>Các bữa đã ghi (7 ngày)</h2>

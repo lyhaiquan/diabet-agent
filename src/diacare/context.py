@@ -16,6 +16,7 @@ MEMORY_TOKEN_BUDGET = 150          # trí nhớ dài hạn về bệnh nhân, t�
 DOC_LABEL_TOKENS = 10           # chi phí nhãn [tên_file] cho mỗi tài liệu
 KG_TOKEN_BUDGET = 300           # tri thức từ đồ thị: tối đa 3 yếu tố, mỗi yếu tố một dòng (có cả gen chung PrimeKG)
 JOURNAL_TOKEN_BUDGET = 260      # nhật ký tự theo dõi đã tóm tắt sẵn (V4), ngay sau xét nghiệm
+ADVICE_TOKEN_BUDGET = 220       # gợi ý ăn uống tính sẵn (meal_scan.meal_advice): chỉ có khi đã ghi bữa ăn
 MEAL_TOKEN_BUDGET = 160         # bữa ăn quét ảnh + đường huyết sau ăn: ngân sách riêng, không lấn phần đường huyết
 RL_TOKEN_BUDGET = 120           # định hướng trọng tâm tư vấn từ RLAgent (V3)
 
@@ -62,6 +63,10 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             while meal and estimate_tokens("\n".join(meal)) > MEAL_TOKEN_BUDGET:
                 meal.pop()
             lines += meal
+            advice = list(state.journal.get("advice_lines") or [])
+            while len(advice) > 1 and estimate_tokens("\n".join(advice)) > ADVICE_TOKEN_BUDGET:
+                advice.pop()  # bỏ từ cuối: món ít tinh bột, rồi mới tới phần nên hạn chế
+            lines += advice if len(advice) > 1 else []
             if lines:
                 journal_text = format_journal({**state.journal, "lines": lines})
                 journal_tokens = estimate_tokens(journal_text)

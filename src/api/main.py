@@ -770,6 +770,15 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
                         "measure_now": waiting})
         return out
 
+    @app.get("/patients/{patient_id}/meals/advice", tags=["bữa ăn"])
+    def meal_advice(request: Request, days: int = Query(14, ge=1, le=90), patient=Depends(owned_patient),
+                    store: Store = Depends(get_store)):
+        """Gợi ý ăn uống từ đường huyết sau ăn: món nên hạn chế (góp nhiều tinh bột trong các bữa cao sau ăn), món ít
+        tinh bột có thể ăn thêm. Tính bằng code (meal_scan.meal_advice), không qua LLM; có hạ đường huyết trong 24 giờ
+        qua thì không khuyên ăn bớt (status "hypo")."""
+        return meal_scan.meal_advice(store.list_meals(patient["id"]), store.list_readings(patient["id"]),
+                                     now=now_of(request), targets=_targets_of(store, patient["id"]), days=days)
+
     @app.delete("/patients/{patient_id}/meals/{meal_id}", status_code=204, tags=["bữa ăn"])
     def meal_delete(meal_id: int, patient=Depends(owned_patient), store: Store = Depends(get_store)):
         store.delete_meal(meal_id, patient["id"])

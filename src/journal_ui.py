@@ -9,6 +9,7 @@ from diacare.coach import daily_nudge, load_coach
 from diacare.labs import classify
 from diacare.memory import has_diagnosis
 from diacare.visit_report import build_visit_pdf, glucose_chart_png
+from meal_ui import render_advice
 
 UNITS = ["mmol/L", "mg/dL"]
 PERIODS = {7: "7 ngày", 14: "14 ngày", 30: "30 ngày", 90: "90 ngày"}
@@ -113,6 +114,14 @@ def bp_weight_forms(store, patient_id):
             c2.success(f"Đã lưu {kg:.1f} kg.")
 
 
+@st.cache_data(max_entries=64, show_spinner=False)
+def _chart_png(series, days, day, targets=None):
+    """Biểu đồ đường huyết (PNG, matplotlib) được vẽ lại ở mỗi lần chạy lại trang, kể cả khi chỉ bấm chuyển trang;
+    nhớ lại theo (số liệu, ngày) vì biểu đồ chỉ dùng ngày của `now`. Đo 2026-11-25: trang Nhật ký 1,1 giây/lần bấm."""
+    now = datetime.combine(day, datetime.min.time(), tzinfo=journal.VN_TZ)
+    return glucose_chart_png(series, days, now, targets=targets)
+
+
 # ---- Hôm nay ----------------------------------------------------------------
 
 @st.cache_resource
@@ -159,6 +168,7 @@ def render_today(store, patient_id):
     st.markdown("#### Ghi đường huyết")
     glucose_form(store, patient_id, prefix="today")
     readings = store.list_readings(patient_id)  # có thể vừa thêm
+    render_advice(store, patient_id)  # sau ô ghi số đo: số vừa ghi được tính ngay
 
     st.markdown("#### 14 ngày qua")
     s = journal.summarize_glucose(readings, 14, now, targets)
@@ -179,7 +189,7 @@ def render_today(store, patient_id):
     c[3].metric("HbA1c gần nhất", f"{hba1c[-1]['value']:g}%" if hba1c else "-",
                 help="Mục tiêu chung ADA 2024: dưới 7%, bác sĩ có thể đặt khác")
     if s["n"]:
-        st.image(glucose_chart_png(journal.daily_series(readings, 14, now), 14, now), width="stretch")
+        st.image(_chart_png(journal.daily_series(readings, 14, now), 14, now.date()), width="stretch")
     else:
         st.caption("Chưa có lần đo nào. Ghi lần đầu ở ô phía trên.")
     st.caption("Nhắc nhở chỉ hiện khi bạn mở ứng dụng. Mục tiêu tham khảo theo " + journal.SOURCE +
@@ -262,7 +272,7 @@ def render_journal(store, patient_id, import_labs_fn):
         if not s["n"]:
             st.caption("Chưa có lần đo nào trong khoảng này.")
         else:
-            st.image(glucose_chart_png(journal.daily_series(readings, days, now), days, now, targets=targets),
+            st.image(_chart_png(journal.daily_series(readings, days, now), days, now.date(), targets=targets),
                      width="stretch")
             st.caption(f"{s['n']} lần đo trong {s['days_measured']}/{days} ngày · {s['in_target_pct']}% trong mục "
                        f"tiêu · hạ đường huyết {s['hypo']} lần · rất cao {s['very_high']} lần")
