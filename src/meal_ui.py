@@ -227,8 +227,14 @@ def render_advice(store, patient_id, show_empty=False):
         if a["status"] == "hypo":
             st.warning("\n\n".join(a["lines"]))
             return
-        if a["status"] in ("no_meals", "need_after"):
+        if a["status"] == "no_meals":
             st.caption(a["headline"])
+            return
+        if a["status"] == "need_after":
+            st.markdown(a["headline"])
+            for line in a["lines"][1:-1]:  # vì sao số đo chưa được tính, và khung giờ nên đo
+                st.info(line, icon=":material/schedule:")
+            st.caption(a["lines"][-1])
             return
         if a["status"] == "all_ok":
             st.success(a["headline"])

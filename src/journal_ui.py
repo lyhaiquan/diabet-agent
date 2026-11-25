@@ -52,6 +52,10 @@ def _save_glucose(store, patient_id, prefix):
         ss[f"{prefix}_msg"] = [("error", err)]
         return
     when = datetime.combine(ss[f"{prefix}_date"], ss[f"{prefix}_time"], tzinfo=journal.VN_TZ)
+    err = journal.validate_when(when)
+    if err:
+        ss[f"{prefix}_msg"] = [("error", err)]
+        return
     store.add_reading(patient_id, "glucose", mgdl, when, unit=unit, context=context,
                       note=(ss.get(f"{prefix}_note") or "").strip() or None)
     targets = journal.resolve_targets(store.get_targets(patient_id))
@@ -90,7 +94,7 @@ def bp_weight_forms(store, patient_id):
         when = _when("bp")
         ok = st.form_submit_button("Lưu huyết áp")
     if ok:
-        err = journal.validate_bp(sys_, dia)
+        err = journal.validate_bp(sys_, dia) or journal.validate_when(when)
         if err:
             c1.error(err)
         else:
@@ -106,7 +110,7 @@ def bp_weight_forms(store, patient_id):
         when = _when("w")
         ok = st.form_submit_button("Lưu cân nặng")
     if ok:
-        err = journal.validate_weight(kg)
+        err = journal.validate_weight(kg) or journal.validate_when(when)
         if err:
             c2.error(err)
         else:

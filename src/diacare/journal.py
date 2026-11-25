@@ -79,6 +79,15 @@ def fmt_glucose(mgdl, unit="mmol/L"):
     return f"{mgdl:.0f} mg/dL"
 
 
+def validate_when(when, now=None):
+    """Lỗi (chuỗi) nếu thời điểm đo ở tương lai (cho phép lệch đồng hồ 5 phút), không thì None. API đã chặn từ trước;
+    form Streamlit thì chưa, và một lần đo ghi giờ 19:06 lúc mới 16:08 làm thẻ gợi ý ăn uống tính sai (2026-11-25)."""
+    now = to_vn(now or now_vn())
+    if to_vn(when) > now + timedelta(minutes=5):
+        return f"Giờ đo {to_vn(when):%H:%M %d/%m} ở tương lai (bây giờ là {now:%H:%M}). Hãy chọn đúng giờ đã đo."
+    return None
+
+
 def validate_glucose(value, unit):
     mgdl = to_mgdl(value, unit)
     lo, hi = PLAUSIBLE["glucose"]

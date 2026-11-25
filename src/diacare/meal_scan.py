@@ -283,6 +283,51 @@ def _round10(x):
     return int(round(x / 10.0) * 10)
 
 
+def _hm(dt):
+    return f"{dt:%H:%M}"
+
+
+def _timing_hints(meals, readings, pairs, now):
+    """Câu giải thích khi số đo chưa ghép được với bữa nào, để người dùng biết phải làm gì (báo lỗi 2026-11-25: ghi
+    bữa 16:05 rồi ghi ngay số đo "1–2 giờ sau ăn" lúc 16:07, thẻ chỉ báo "chưa có lần đo" mà không nói vì sao):
+    1. lần đo ghi là sau ăn nhưng giờ đo quá sát (hoặc quá xa) bữa ăn gần nhất trước đó;
+    2. bữa gần nhất chưa có số đo: khung giờ nên đo (45 phút – 3 giờ sau giờ ăn đã ghi)."""
+    from datetime import timedelta
+
+    from diacare import journal
+    hints = []
+    paired = {(p["reading"]["measured_at"], p["reading"]["value"]) for p in pairs if p["reading"] is not None}
+    times = [(journal.to_vn(m["eaten_at"]), m) for m in meals]
+    for r in journal.glucose_rows(readings):
+        if r["context"] != "after_meal" or (r["measured_at"], r["value"]) in paired:
+            continue
+        at = journal.to_vn(r["measured_at"])
+        before = [e for e, _ in times if e <= at]
+        if not before or at - max(before) > timedelta(days=1):
+            continue
+        eaten = max(before)
+        gap = round((at - eaten).total_seconds() / 60)
+        if gap < AFTER_MIN:
+            why = f"chỉ {gap} phút sau bữa {_hm(eaten)}"
+        elif gap > AFTER_MAX:
+            why = f"đã {gap // 60} giờ {gap % 60} phút sau bữa {_hm(eaten)}, quá 3 giờ"
+        else:
+            continue  # trong khung nhưng bữa đó đã ghép với lần đo sớm hơn
+        hints.append(f"Lần đo {journal.fmt_glucose(r['value'], r.get('unit') or 'mmol/L')} lúc {_hm(at)} "
+                     f"{at:%d/%m} ghi là sau ăn nhưng {why}, nên chưa tính là đường huyết sau bữa đó. Nếu giờ ăn hoặc "
+                     "giờ đo ghi chưa đúng, xoá bản ghi đó rồi ghi lại với giờ thật.")
+    waiting = [p for p in pairs if p["reading"] is None
+               and now < journal.to_vn(p["meal"]["eaten_at"]) + timedelta(minutes=AFTER_MAX)]
+    if waiting:
+        eaten = journal.to_vn(waiting[-1]["meal"]["eaten_at"])
+        start, end = eaten + timedelta(minutes=AFTER_MIN), eaten + timedelta(minutes=AFTER_MAX)
+        when = (f"trong khoảng {_hm(start)}–{_hm(end)}" if now < start
+                else f"ngay bây giờ, trước {_hm(end)}")
+        hints.append(f"Để biết bữa {_hm(eaten)} ảnh hưởng thế nào, đo đường huyết {when} (tốt nhất khoảng "
+                     f"{_hm(eaten + timedelta(hours=2))}), rồi ghi ở trang Hôm nay.")
+    return hints
+
+
 def meal_advice(meals, readings, table=None, now=None, targets=None, days=14):
     """Gợi ý nên hạn chế món nào, có thể ăn thêm món nào, từ các bữa đã ghi và đường huyết đo sau các bữa đó.
 
@@ -319,11 +364,14 @@ def meal_advice(meals, readings, table=None, now=None, targets=None, days=14):
         return out
     pairs = pair_after_meal(recent, readings, t)
     measured = [p for p in pairs if p["reading"] is not None]
+    hints = _timing_hints(recent, readings, pairs, now)
     if not measured:
         out["status"] = "need_after"
-        out["headline"] = (f"Bạn đã ghi {len(recent)} bữa nhưng chưa có lần đo nào 1–2 giờ sau các bữa đó. Đo đường "
-                           "huyết khoảng 2 giờ sau khi bắt đầu ăn để biết bữa nào làm đường huyết lên cao.")
-        out["lines"] = [out["headline"]]
+        out["headline"] = (f"Bạn đã ghi {len(recent)} bữa nhưng chưa có lần đo nào 45 phút – 3 giờ sau các bữa đó, "
+                           "nên chưa biết bữa nào làm đường huyết lên cao.")
+        out["lines"] = [out["headline"]] + hints + [
+            "Chỉ tính số tự đo ghi ở trang Hôm nay hoặc Nhật ký; phiếu xét nghiệm không được tính vì không biết lấy "
+            "máu lúc nào so với bữa ăn."]
         return out
 
     high = [p for p in measured if p["status"] in ("above_target", "very_high")]
@@ -348,6 +396,7 @@ def meal_advice(meals, readings, table=None, now=None, targets=None, days=14):
         out["lines"] = [out["headline"]]
         if out["own_ok"]:
             out["lines"].append("Món ít tinh bột trong các bữa đó: " + ", ".join(out["own_ok"]) + ".")
+        out["lines"] += hints
         return out
 
     # 3. Món góp nhiều tinh bột trong các bữa cao sau ăn
@@ -407,5 +456,5 @@ def meal_advice(meals, readings, table=None, now=None, targets=None, days=14):
                                  for x in out["more"]) + ".")
     if out["own_ok"]:
         lines.append("Món ít tinh bột đã có trong các bữa trong mục tiêu của bạn: " + ", ".join(out["own_ok"]) + ".")
-    out["lines"] = lines
+    out["lines"] = lines + hints
     return out

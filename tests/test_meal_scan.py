@@ -332,7 +332,7 @@ def test_advice_never_says_cut_carbs_after_hypo():
 
 def test_advice_asks_to_measure_after_meals_first():
     a = meal_scan.meal_advice([_tray(6, 200)], [_glu(6.0, 10, context="fasting")], TABLE, now=NOW)
-    assert a["status"] == "need_after" and "2 giờ sau" in a["headline"] and not a["limit"]
+    assert a["status"] == "need_after" and "45 phút – 3 giờ sau" in a["headline"] and not a["limit"]
     assert meal_scan.meal_advice([], [], TABLE, now=NOW)["status"] == "no_meals"
 
 
@@ -358,3 +358,15 @@ def test_advisor_sees_precomputed_advice(tmp_path):
     state.journal = digest
     text = build_context("advisor", state)["journal_text"]
     assert "Nên hạn chế: cơm trắng" in text and "Thử bớt còn khoảng" in text
+
+
+def test_advice_explains_reading_too_close_to_meal_and_when_to_measure():
+    # lỗi 2026-11-25: bữa 16:05, ghi ngay "1-2 giờ sau ăn" lúc 16:07 -> thẻ phải nói vì sao chưa tính và khi nào đo
+    meal = _tray(0.5, 228)                                        # ăn lúc 19:30 (NOW = 20:00)
+    reading = _glu(13.5, 0.5 - 2 / 60)                           # đo 2 phút sau bữa
+    a = meal_scan.meal_advice([meal], [reading], TABLE, now=NOW)
+    assert a["status"] == "need_after"
+    text = " ".join(a["lines"])
+    assert "chỉ 2 phút sau bữa 19:30" in text and "13,5 mmol/L" in text
+    assert "trong khoảng 20:15–22:30" in text and "khoảng 21:30" in text
+    assert "phiếu xét nghiệm không được tính" in a["lines"][-1]

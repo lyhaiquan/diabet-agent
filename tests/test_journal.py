@@ -281,3 +281,12 @@ def test_journal_agent_reads_targets_from_store():
     assert d["custom_targets"] and any("trong mục tiêu (5,0–8,6 mmol/L)" in x for x in d["lines"])
     store.clear_targets(pid)
     assert store.get_targets(pid) is None and not agent.collect(pid)["custom_targets"]
+
+
+def test_validate_when_rejects_future_time():
+    from datetime import datetime, timedelta
+    now = datetime(2026, 11, 25, 16, 8, tzinfo=journal.VN_TZ)
+    assert journal.validate_when(now - timedelta(hours=2), now) is None
+    assert journal.validate_when(now + timedelta(minutes=3), now) is None   # lệch đồng hồ vài phút
+    err = journal.validate_when(datetime(2026, 11, 25, 19, 6, tzinfo=journal.VN_TZ), now)
+    assert err and "19:06" in err and "tương lai" in err
