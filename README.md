@@ -12,25 +12,20 @@ Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
 ## Kiến trúc
 
-```mermaid
-flowchart LR
-    Q[Câu hỏi + hồ sơ] --> O{Orchestrator}
-    O --> M[Memory<br/>nhớ thông tin bệnh nhân]
-    O --> L[Lab + OCR<br/>đối chiếu ngưỡng ADA 2024]
-    O --> P[Predictor<br/>đa nguồn · đã hiệu chỉnh]
-    O --> R[Retriever<br/>RAG · sbert]
-    O --> G[Graph<br/>Neo4j / NetworkX KG]
-    O --> N[Nutrition<br/>bảng USDA]
-    O --> RL[RL trọng tâm chat<br/>bandit γ = 0]
-    O --> C[Context<br/>cắt ngữ cảnh theo agent]
-    C --> A[Advisor<br/>LLM Ollama qwen2.5]
-    A --> RU[Rules<br/>lọc an toàn + cờ]
-    RU --> F[Trả lời cuối]
-    M & L -.-> DB[(SQLite / PostgreSQL)]
-    F -.-> LOG[(log từng bước agent)]
-    J[Nhật ký đường huyết] --> QC[Coach Q-learning<br/>lời nhắc mỗi ngày]
-    QC -.-> DB
-```
+![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, project riêng) và Ollama (trên máy hoặc trên Kaggle).](docs/report/figs/c10_kien_truc_v49.png)
+
+Ba phần:
+
+- **Pipeline tư vấn** (giữa hình): Orchestrator gọi 11 agent cho mỗi câu hỏi, Critic kiểm tra bản nháp, Rules luôn chạy
+  cuối. Chỉ Advisor gọi mô hình ngôn ngữ.
+- **Luồng ngoài pipeline, không gọi LLM** (bên trái): giọng nói (PhoWhisper nghe, Piper đọc, đều chạy trên máy), trợ lý
+  chủ động hỏi, nhập xét nghiệm (OCR), Agent bữa ăn.
+- **Dịch vụ ngoài** (khung tím): **Calo Khay** nhận diện món trên ảnh khay cơm, là project riêng của nhóm, chạy ở cổng
+  8010 trong môi trường có torch. Mã của nó **không nằm trong repo này**; DiaCare chỉ gọi HTTP (xem
+  [Dịch vụ nhận diện món Calo Khay](#dịch-vụ-nhận-diện-món-calo-khay-trang-bữa-ăn)). **Ollama** chạy trên máy (3B) hoặc
+  trên Kaggle (7B).
+
+Hình sinh bằng `python docs/report/make_figs.py`.
 
 Orchestrator gọi các agent **theo thứ tự cố định**; bốn agent chỉ đọc câu hỏi và hồ sơ (Predictor, Retriever, Graph,
 Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tuần tự). Mỗi agent chỉ nhận lát ngữ cảnh mình cần
@@ -49,6 +44,9 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
 | RL trọng tâm chat | `src/diacare/rl.py` | Contextual bandit ($\gamma = 0$) chọn trọng tâm tư vấn cho Advisor; 👍/👎 chỉ hiện ở chế độ nhà phát triển |
 | Advisor | `src/diacare/advisor.py`, `llm.py` | Gọi Ollama `/api/chat`, hỗ trợ stream |
 | Rules | `src/diacare/rules.py` | Chặn lời khuyên đổi thuốc, gắn cờ chuyển khám / cấp cứu / xét nghiệm |
+| Agent bữa ăn (ngoài pipeline) | `src/diacare/meal_scan.py`, `src/meal_ui.py` | Gửi ảnh khay cơm cho Calo Khay, vẽ vùng và số từng món lên ảnh, bắt xác nhận món chưa chắc, tính khoảng tinh bột bằng bảng |
+| Trợ lý chủ động hỏi (câu soạn sẵn, không phải agent) | `src/diacare/checkin.py`, `src/checkin_ui.py` | Mở lời mỗi ngày từ nhật ký; số đo trong câu trả lời hoặc câu kể ("vừa đo đường huyết 7,2") thành thẻ xác nhận |
+| Giọng nói | `src/diacare/speech.py`, `tts.py`, `src/voice_ui.py` | PhoWhisper nhận dạng, Piper đọc to, nút micro to để nói chuyện rảnh tay |
 | Critic (bước kiểm tra, không phải agent) | `src/diacare/critic.py` | So bản nháp với ngữ cảnh: nhãn nguồn lạ, con số có đơn vị không có trong ngữ cảnh; chỉ gắn cờ |
 | Guard | `src/diacare/guard.py` | Dò dấu hiệu prompt injection trong câu hỏi (gắn cờ), loại đoạn tài liệu có câu ra lệnh cho mô hình |
 
@@ -98,7 +96,9 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     là phần nhiều tinh bột nhất). Tinh bột tính theo bảng `data/nutrition/calo_khay_carb.csv`, ra một **khoảng**:
     thấp = gram × (1 − sai số) × carb, cao = gram × (1 + sai số) × carb cận trên; sai số gram ±30% (mức của Calo Khay),
     ±50% cho gram "trung bình" (cơm 228 g, hoặc không thấy đĩa), gram người dùng tự sửa thì ±15%. Đồ uống ghi "chưa tính". Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi
-    chú). Không con số nào do LLM viết; đây là ước lượng để theo dõi, không dùng để tính liều insulin.
+    chú). Không con số nào do LLM viết; đây là ước lượng để theo dõi, không dùng để tính liều insulin. Ảnh khay được
+    vẽ lại với vùng và số thứ tự từng món (trùng cột `#` của bảng), để thấy món nào bị nhận sai. Có thể gửi ảnh ngay ở
+    ô chat của trang Tư vấn.
 
     **Bữa không phải khay cơm** (V4.9): nút **Tự nhập món (không có ảnh)** mở bảng trống; bảng tinh bột có thêm 20 món
     người dùng tự chọn (phở, bún bò, bún chả, bánh cuốn, bánh mì, cháo, mì gói, xôi, khoai lang, ngô, yến mạch và 9 loại
@@ -122,6 +122,8 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
 - **Nhập kết quả xét nghiệm (kèm OCR cho PDF scan & ảnh chụp)**: tải `.txt`, `.csv`, `.json`, `.pdf` (có lớp chữ hoặc PDF scan),
   ảnh `.png`, `.jpg`, `.jpeg`, dán nội dung phiếu, hoặc gõ thẳng trong chat ("HbA1c của tôi 6.8%"). Tự đổi mmol/L sang mg/dL,
   mmol/mol sang %, tự sửa lỗi OCR đơn vị phổ biến (`0/0` -> `%`, `mg/d1` -> `mg/dL`). File mẫu: `docs/samples/xet_nghiem_mau.txt`.
+  Ở Nhật ký → Xét nghiệm, chọn tệp là tự lưu ngay. Ảnh phiếu gửi qua nút **+** của ô chat cũng được nhận ra và lưu
+  (ảnh không đọc ra chỉ số thì coi là ảnh bữa ăn).
 
   | Chỉ số | Bình thường | Tiền tiểu đường | Ngưỡng tiểu đường |
   |---|---|---|---|
@@ -133,7 +135,8 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
   Dưới 70 mg/dL được đánh dấu hạ đường huyết, kèm lời nhắc gọi 115.
 - **Xem agent hoạt động**: dưới mỗi câu trả lời có mục "Agent đã làm gì" (agent nào, làm gì, bao nhiêu ms).
   Trang **Hoạt động agent** có **sơ đồ động phát lại** đúng lượt chạy từ log, bảng từng bước, và biểu đồ thời gian
-  trung bình mỗi agent. Log lưu trong SQLite (`runs.trace_json`) và `logs/runs.jsonl`.
+  trung bình mỗi agent. Log lưu trong SQLite (`runs.trace_json`) và `logs/runs.jsonl`. Tệp JSONL không mã hoá nên chỉ ghi độ dài câu hỏi,
+  không ghi nguyên văn.
 - **Hồ sơ bệnh nhân, phiên hội thoại, lịch sử, thống kê** lưu trong SQLite. Các cột chữ chứa thông tin sức khoẻ (tên,
   hồ sơ, hội thoại, trí nhớ, ghi chú, câu hỏi và câu trả lời trong log) được mã hoá Fernet; khoá ở `DIACARE_DB_KEY` hoặc
   tệp `<tên DB>.key` sinh một lần cạnh DB. Mã hoá bảo vệ khi lộ riêng tệp `.db`, không bảo vệ khi lộ cả máy.
@@ -351,6 +354,12 @@ Người dùng nói thay vì gõ. Có hai chỗ dùng:
   "sáu tám" có thể là 68 mg/dL (đang hạ đường huyết) hoặc 6,8 mmol/L, nên app đưa cả hai lựa chọn và không tự đoán.
 - **Trang Tư vấn, nút micro.** Chữ nghe được hiện vào ô nhập để sửa trước khi gửi. Nút "Đọc to" đọc câu trả lời bằng
   giọng tiếng Việt có sẵn của máy, và chỉ đọc câu trả lời cuối đã qua Rules, không đọc bản nháp.
+- **Streamlit, trò chuyện bằng giọng nói** (V4.9). Bật "🎙️ Trò chuyện bằng giọng nói" ở trang Tư vấn: một nút micro
+  to ở giữa. Bấm một lần rồi cứ nói; nói xong (im 0,8 giây) trợ lý tự trả lời, đọc to bằng giọng tiếng Việt
+  [Piper](https://github.com/rhasspy/piper) chạy trên máy, rồi nghe tiếp. Bấm khi trợ lý đang nói để ngắt, bấm khi đang
+  nghe để dừng. Câu trả lời bằng giọng được dặn ngắn (50–90 chữ). Nói số đo lúc nào cũng hiện thẻ xác nhận ("vừa đo
+  đường huyết bảy phẩy hai"); câu hỏi có số đọc bằng chữ ("HbA1c sáu phẩy tám thì sao") được đổi thành số. Ô chat cũng
+  có nút micro nhỏ: chữ nghe được hiện ra để sửa trước khi gửi.
 - **Streamlit, trả lời trợ lý chủ động hỏi.** Ô ghi âm và nút "Đọc câu hỏi" dưới lời mở đầu (mục Tính năng).
   `chay_local.ps1` trỏ `DIACARE_ASR_MODEL` tới bản PhoWhisper đã tải ở `D:\hf_cache` nếu có, để chạy không cần mạng
   (nạp lần đầu khoảng 26 giây).
@@ -370,6 +379,13 @@ HF_HOME=D:/hf_cache uvicorn api.main:app --app-dir src --port 8000
 ```
 
 `DIACARE_ASR=demo` thay mô hình bằng bộ nhận dạng giả lập để test.
+
+Giọng đọc Piper (`pip install piper-tts`, đã có trong `requirements.txt`) cần tải giọng một lần (khoảng 61 MB);
+`chay_local.ps1` tự đặt `DIACARE_TTS_MODEL` nếu giọng nằm trong `D:\hf_cache`:
+
+```bash
+HF_HOME=D:/hf_cache python -c "from huggingface_hub import hf_hub_download as d; [d('rhasspy/piper-voices', 'vi/vi_VN/vais1000/medium/vi_VN-vais1000-medium.onnx' + e) for e in ('', '.json')]"
+```
 
 Lưu ý khi dùng:
 
@@ -468,7 +484,8 @@ Mỗi lượt hỏi, lời nhắn gửi cho model (gồm tài liệu và hồ s�
 | `DIACARE_KEY_DIR` | `data/` | thư mục khoá mã hoá DB (`diacare_db.key`) và khoá ký token khi dùng PostgreSQL |
 | `DIACARE_CHAT_CONCURRENCY` | `4` | số lượt tư vấn API chạy cùng lúc |
 | `DIACARE_CHAT_QUEUE_SECONDS` | `120` | thời gian chờ suất tư vấn trước khi trả 503 |
-| `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy |
+| `DIACARE_LOG` | `logs/runs.jsonl` | log JSONL từng lượt chạy (không ghi nguyên văn câu hỏi, chỉ ghi độ dài) |
+| `DIACARE_LOG_QUESTIONS` | tắt | `1`: ghi cả câu hỏi vào log JSONL, chỉ dùng khi chạy câu hỏi mẫu |
 | `DIACARE_FEATURES` | `default` | `default` = nutrition, memory, labs, kg, rl, journal; `v2` = nutrition, memory, labs (nhãn benchmark cũ, không KG, không RL); `all`/`v3` = thêm hybrid; `v1` = tắt hết; hoặc danh sách `nutrition,memory,labs,hybrid,kg,rl,journal` |
 | `DIACARE_KG` | `memory` | `memory` (networkx trong bộ nhớ) hoặc `neo4j` (đọc từ Neo4j trên Docker) |
 | `DIACARE_PARALLEL` | `1` | `0`: chạy bốn agent Predictor, Retriever, Graph, Nutrition tuần tự thay vì song song |

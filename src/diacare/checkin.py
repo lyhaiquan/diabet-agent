@@ -138,6 +138,26 @@ def route_reply(text, topic, now=None):
     return {"route": "ask"}
 
 
+# Số đo kể ra khi trợ lý KHÔNG hỏi ("vừa đo đường huyết 7,2", "huyết áp 130 trên 85", "tôi nặng 62 ký"): chỉ nhận câu
+# kể có từ khoá số đo, không nhận câu hỏi ("đường huyết 7,2 có cao không" vẫn sang tư vấn), để "ăn 50 g đường" hay
+# "nên ăn mấy bát cơm" không thành số đo. Trước V4.9 chỉ ghi được số đo lúc trợ lý đang hỏi.
+_REPORT = re.compile(r"đường huyết|đường máu|glucose|huyết áp|cân nặng|cân được|\bđo\b|\bnặng\s+\d")
+
+
+def unprompted_reading(text, now=None):
+    """Số đo trong câu kể tự nguyện, dạng {"reading", "when"}, hoặc None."""
+    now = journal.to_vn(now or journal.now_vn())
+    t = _norm(words_to_numbers(text or ""))
+    if _QUESTION.search(t) or not _REPORT.search(t):
+        return None
+    reading = parse_spoken_reading(text)
+    if reading is None:
+        return None
+    if reading["kind"] == "glucose" and not reading.get("context"):
+        reading["context"] = _guess_context(now)
+    return {"reading": reading, "when": _when_from_text(text, now)}
+
+
 def _guess_context(now):
     h = now.hour
     if 4 <= h < 9:
@@ -213,13 +233,17 @@ def pending_topic(store, patient_id, session_id, now):
 
 
 def handle_reply(store, patient, session_id, text, now):
-    """Xử lý câu người dùng vừa gõ/nói khi trợ lý đang đợi trả lời. Trả về
+    """Xử lý câu người dùng vừa gõ/nói: trả lời câu hỏi chủ động, hoặc kể một số đo lúc trợ lý không hỏi. Trả về
     {"handled": False} -> gửi câu này cho pipeline tư vấn như mọi câu hỏi (lượt hỏi đã đóng);
     {"handled": True, "reply": câu soạn sẵn đã lưu}            -> triệu chứng / chưa đo;
     {"handled": True, "card": {"reading", "when"}}            -> số đo: giao diện hiện thẻ xác nhận, CHƯA lưu gì."""
     topic = pending_topic(store, patient["id"], session_id, now)
     if topic is None:
-        return {"handled": False}
+        found = unprompted_reading(text, now)
+        if found is None:
+            return {"handled": False}
+        store.add_message(session_id, "user", text)
+        return {"handled": True, "card": found}
     r = route_reply(text, topic, now)
     if r["route"] == "ask":
         store.close_checkin(patient["id"], now.date(), "answered")

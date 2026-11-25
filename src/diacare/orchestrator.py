@@ -347,7 +347,10 @@ class Orchestrator:
             "request_id": state.request_id,
             "model_version": MODEL_VERSION,
             "system_version": SYSTEM_VERSION,
-            "question": state.question,
+            # Câu hỏi chứa thông tin sức khoẻ: trong DB thì được mã hoá (Store.log_run), còn tệp log là chữ thường nên
+            # mặc định chỉ ghi độ dài. DIACARE_LOG_QUESTIONS=1 ghi nguyên văn, chỉ dùng khi chạy câu hỏi mẫu (benchmark).
+            **({"question": state.question} if os.environ.get("DIACARE_LOG_QUESTIONS") == "1"
+               else {"question_chars": len(state.question or "")}),
             "risk": state.risk,
             "sources": [d["source"] for d in state.docs],
             "flags": state.flags,

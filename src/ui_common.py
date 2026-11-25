@@ -31,3 +31,16 @@ def chat_parts(raw):
         return raw, None, None
     files = list(raw.get("files") or [])
     return (raw.get("text") or "").strip() or None, files[0] if files else None, raw.get("audio")
+
+
+def photo_labs(store, patient_id, photo):
+    """Ảnh đính kèm ở ô chat: nếu đọc (OCR) ra chỉ số xét nghiệm thì lưu và trả danh sách đã lưu, không thì None
+    (coi là ảnh bữa ăn). Trước đây mọi ảnh đều sang nhận diện món ăn, ảnh phiếu xét nghiệm không được lưu.
+    OCR một ảnh khoảng 1 giây trên máy phát triển."""
+    from diacare.labs import LabAgent, parse_lab_file
+    try:
+        results = parse_lab_file(getattr(photo, "name", None) or "anh.png", photo.getvalue())
+    except Exception:  # không đọc được chữ: để phần nhận diện món ăn xử lý
+        return None
+    saved = LabAgent(store).import_results(patient_id, results, source="import") if results else []
+    return saved or None

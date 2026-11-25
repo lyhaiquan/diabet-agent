@@ -234,13 +234,14 @@ def render_labs_panel(store, patient_id, import_fn):
                        "Mục tiêu chung dưới 7%.")
     else:
         st.caption("Chưa có kết quả. Chụp hoặc tải phiếu xét nghiệm lên, hoặc gõ thẳng vào ô dưới.")
-    st.file_uploader("Ảnh hoặc file phiếu xét nghiệm (.png, .jpg, .pdf, .txt, .csv, .json)",
-                     type=["txt", "csv", "json", "pdf", "png", "jpg", "jpeg"], key="lab_file")
-    st.text_area("Hoặc gõ kết quả", key="lab_text", placeholder="HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L")
-    st.button("Nhập kết quả", key="lab_import", on_click=import_fn, args=(store, patient_id))
     msg = st.session_state.pop("lab_msg", None)
-    if msg:
+    if msg:  # ngay dưới bảng, để thấy kết quả vừa lưu cùng lời báo
         getattr(st, msg[0])(msg[1])
+    st.file_uploader("Ảnh hoặc file phiếu xét nghiệm (.png, .jpg, .pdf, .txt, .csv, .json), chọn xong là tự lưu",
+                     type=["txt", "csv", "json", "pdf", "png", "jpg", "jpeg"], key="lab_file",
+                     on_change=import_fn, args=(store, patient_id, "file"))
+    st.text_area("Hoặc gõ kết quả", key="lab_text", placeholder="HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L")
+    st.button("Lưu kết quả đã gõ", key="lab_import", on_click=import_fn, args=(store, patient_id, "text"))
 
 
 def render_journal(store, patient_id, import_labs_fn):

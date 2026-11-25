@@ -460,3 +460,15 @@ def test_truncated_draft_is_trimmed_and_flagged():
 def test_complete_draft_is_not_flagged_truncated():
     state = run_with_usage({"prompt_tokens": 100, "completion_tokens": 40})
     assert "answer_truncated" not in state.flags
+
+
+def test_log_file_does_not_keep_question_text(tmp_path, monkeypatch):
+    monkeypatch.delenv("DIACARE_LOG_QUESTIONS", raising=False)
+    orch, _ = make(0.5, tmp_path=tmp_path)
+    orch.run(State(question="Tôi bị tiểu đường type 2, HbA1c 8%", profile=LOW_RISK))
+    text = (tmp_path / "run.jsonl").read_text(encoding="utf-8")
+    record = json.loads(text.splitlines()[0])
+    assert "question" not in record and record["question_chars"] == 34 and "HbA1c 8%" not in text
+    monkeypatch.setenv("DIACARE_LOG_QUESTIONS", "1")  # câu hỏi mẫu của benchmark
+    orch.run(State(question="Ăn gì?", profile=LOW_RISK))
+    assert json.loads((tmp_path / "run.jsonl").read_text(encoding="utf-8").splitlines()[1])["question"] == "Ăn gì?"

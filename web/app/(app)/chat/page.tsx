@@ -123,8 +123,9 @@ export default function ChatPage() {
     setSpeaking(false);
     setCard(null);
     try {
-      if (checkinPending && sessionId != null) {
-        // câu trả lời cho câu hỏi chủ động: số đo -> thẻ xác nhận, "chưa đo"/triệu chứng -> câu soạn sẵn
+      if (sessionId != null) {
+        // câu trả lời cho câu hỏi chủ động, hoặc số đo kể ra lúc trợ lý không hỏi ("vừa đo đường huyết 7,2"):
+        // số đo -> thẻ xác nhận, "chưa đo"/triệu chứng -> câu soạn sẵn; câu hỏi thường -> handled=false, gửi /chat
         const r = await api.checkinReply(patient.id, sessionId, q);
         setCheckinPending(r.pending);
         if (r.handled) {

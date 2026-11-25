@@ -655,6 +655,10 @@ def test_checkin_flow_reading_needs_confirmation(client):
     # lượt hỏi đã đóng: câu sau đi vào pipeline tư vấn
     r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "7,0"}, headers=auth).json()
     assert r == {"handled": False, "pending": False}
+    # trợ lý không hỏi nhưng người dùng kể số đo: vẫn hiện thẻ xác nhận
+    r = client.post(f"/patients/{pid}/checkin/reply", json={"session_id": sid, "text": "vừa đo huyết áp 128 trên 82"},
+                    headers=auth).json()
+    assert r["handled"] and r["card"]["reading"]["kind"] == "bp" and not r["pending"]
 
 
 def test_checkin_question_goes_to_chat_and_others_blocked(client):

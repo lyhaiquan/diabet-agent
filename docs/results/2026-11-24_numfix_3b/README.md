@@ -62,3 +62,20 @@ không kèm số và cũng không gắn nhãn nguồn.
   ("32.8克"); hai lỗi này có trong bản nháp của lần chạy sau. Critic là cận dưới của số không có căn cứ.
 - Câu sai vẫn hiện cho người dùng: Critic chỉ đo và gắn cờ, không sửa câu trả lời. Chặn số nhóm (c) cần hiểu nghĩa
   (ví dụ "15 phút" trong quy tắc hạ đường huyết là lời khuyên đúng và an toàn), nên chưa làm.
+
+## 5. Chấm lại sau khi sửa Critic (2026-11-25): kết luận đảo chiều
+
+Critic được sửa để bắt số dạng khoảng ("45-60 gram"), số dính chữ ("100g") và số kèm chữ Hán ("32.8克"). Chấm lại
+bản nháp đã lưu của cả lần chạy trước (`2026-11-24_voice_3b/run`) và lần chạy sau (`run_4cat`, `run_rest`) theo
+cùng một cách, với ngữ cảnh dựng lại gần đúng:
+
+    python tools/critic_rescore.py docs/results/2026-11-24_voice_3b/run/results.json \
+        docs/results/2026-11-24_numfix_3b/run_4cat/results.json docs/results/2026-11-24_numfix_3b/run_rest/results.json
+
+| | Trước | Sau |
+|---|---|---|
+| Lượt có số không tìm thấy trong ngữ cảnh dựng lại | 19/150 | 23/150 (13 + 10) |
+| Lượt có gram, kcal tự đặt cho món (đọc tay) | 5 | 8 |
+
+Con số 4 → 2 ở mục 3 là do Critic cũ không thấy đúng những dạng số mà mô hình chuyển sang dùng sau lời dặn. Lời dặn
+**không** giảm được số tự đặt. Nó vẫn nằm trong `SYSTEM_PROMPT`; chưa quyết định giữ hay bỏ.

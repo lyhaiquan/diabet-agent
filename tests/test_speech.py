@@ -105,3 +105,14 @@ def test_has_speech_rejects_silence_and_short_clips():
     t = np.arange(rate) / rate
     assert has_speech((0.1 * np.sin(2 * np.pi * 220 * t)).astype(np.float32))
     assert not has_speech((0.1 * np.sin(2 * np.pi * 220 * t[: rate // 5])).astype(np.float32))  # 0,2 giây
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("HbA1c của tôi sáu phẩy tám thì sao?", "HbA1c của tôi 6.8 thì sao?"),
+    ("Đường huyết bảy phẩy hai có cao không", "Đường huyết 7.2 có cao không"),
+    ("Ăn một bát phở được không?", "Ăn một bát phở được không?"),  # không phải số thập phân: giữ nguyên
+    ("Không ăn sáng có sao không", "Không ăn sáng có sao không"),
+])
+def test_spoken_decimals(text, expected):
+    from diacare.speech import spoken_decimals
+    assert spoken_decimals(text) == expected

@@ -163,8 +163,104 @@ def deployment():
     plt.close(fig)
 
 
+FILL["ext"] = "#f3eef8"   # dịch vụ ngoài hệ (Calo Khay, Kaggle)
+FILL["side"] = "#f1f6ee"  # luồng ngoài pipeline tư vấn
+
+
+def system_v49():
+    """Kiến trúc toàn hệ ở V4.9: giao diện, lõi (pipeline tư vấn + các luồng không gọi LLM), tài nguyên, dịch vụ ngoài."""
+    W, H = 16.4, 11.6
+    fig, ax = plt.subplots(figsize=(W, H), dpi=200)
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.axis("off")
+    fig.patch.set_facecolor("white")
+    dash = dict(color=LINE, ls="--")
+
+    # ---- giao diện ----
+    zone(ax, 2.2, 9.55, 14.0, 1.85, "GIAO DIỆN")
+    user = box(ax, 0.15, 9.9, 1.75, 1.0, "Người dùng", "gõ · nói · chụp ảnh", "io", 10.5)
+    st_ = box(ax, 2.45, 9.75, 3.6, 1.15, "Streamlit (src/app.py)", "chat gõ/nói · nút micro to · ảnh · 8 trang", "io", 10.5)
+    web = box(ax, 6.6, 9.75, 2.75, 1.15, "Web Next.js (web/)", "5 trang · đọc to (trình duyệt)", "io", 10.5)
+    cli = box(ax, 9.65, 9.75, 2.2, 1.15, "CLI / benchmark", "src/cli.py · eval", "io", 10.5)
+    mcpc = box(ax, 12.2, 9.75, 3.8, 1.15, "Trợ lý AI khác (MCP)", "Claude Desktop, IDE...", "io", 10.5)
+    arrow(ax, mid(user, "r"), mid(st_, "l"))
+    api = box(ax, 6.6, 8.2, 2.75, 0.95, "API FastAPI (src/api)", "JWT · mỗi người chỉ thấy hồ sơ mình", "hub", 10)
+    mcps = box(ax, 12.2, 8.2, 3.8, 0.95, "MCP server (mcp_server.py)", "6 công cụ tất định, không mở dữ liệu bệnh nhân", "agent", 10)
+    arrow(ax, mid(web, "b"), mid(api, "t"), label="HTTP + token", lpos=0.75, loff=(0.75, 0))
+    arrow(ax, mid(mcpc, "b"), mid(mcps, "t"), label="stdio JSON-RPC", lpos=0.75, loff=(0.85, 0))
+
+    # ---- lõi ----
+    zone(ax, 2.2, 2.35, 14.0, 5.55, "LÕI (src/diacare)")
+    ax.text(2.45, 7.2, "Luồng ngoài pipeline (câu soạn sẵn, không gọi LLM)", fontsize=8.5, color=OK, fontweight="bold")
+    side = [("Giọng nói", "PhoWhisper nghe → câu hỏi · Piper đọc lại"),
+            ("Trợ lý chủ động hỏi", "checkin.py · thẻ xác nhận số đo"),
+            ("Nhập xét nghiệm", "labs.py + OCR · ảnh, PDF, chữ"),
+            ("Agent bữa ăn", "meal_scan.py · khoảng tinh bột")]
+    sb = [box(ax, 2.45, 6.05 - i * 1.05, 3.6, 0.88, t, s, "side", 10.5) for i, (t, s) in enumerate(side)]
+
+    orch = box(ax, 6.55, 6.2, 9.4, 0.95, "Orchestrator: pipeline tư vấn cho một câu hỏi",
+               "chặn câu chào / ngoài phạm vi · lọc tài liệu bị chèn lệnh · ghi trace · bắt lỗi", "hub", 11.5)
+    rowa = [("Memory", "trích & nhớ"), ("Lab", "ngưỡng ADA"), ("Journal", "nhật ký, bữa ăn"),
+            ("Predictor", "predictor_ms"), ("Retriever", "kb/ · sbert"), ("Graph", "Neo4j/networkx"),
+            ("Nutrition", "USDA FDC")]
+    rowb = [("RL", "bandit, phản hồi"), ("Context", "ngân sách token"), ("Advisor", "LLM, stream"),
+            ("Critic", "nguồn, con số"), ("Rules", "luật an toàn")]
+    xa = [6.55 + i * 1.355 for i in range(7)]
+    ra = [box(ax, x, 4.75, 1.25, 0.85, t, s, tsize=9.8) for x, (t, s) in zip(xa, rowa)]
+    zone(ax, xa[3] - 0.08, 4.62, 4 * 1.355 + 0.03, 1.1, "")
+    ax.text(xa[3], 5.78, "4 agent chỉ đọc: chạy song song", fontsize=7.8, color=MUTED, style="italic")
+    ax.text(7.3, 5.78, "1–3: lần lượt", fontsize=7.8, color=MUTED, style="italic")
+    for a, b in zip(ra[:3], ra[1:4]):
+        arrow(ax, mid(a, "r"), mid(b, "l"), lw=1.1)
+    xb = [6.55 + i * 1.6 for i in range(6)]
+    rb = [box(ax, x, 3.2, 1.4, 0.85, t, s, tsize=10) for x, (t, s) in zip(xb, rowb)]
+    ans = box(ax, xb[5], 3.2, 1.4, 0.85, "Câu trả lời", "+ cờ, nguồn", "out", 10)
+    for a, b in zip(rb + [ans], rb[1:] + [ans]):
+        arrow(ax, mid(a, "r"), mid(b, "l"), lw=1.1, color=OK if b is ans else ACC)
+    ax.text(6.55, 2.6, "tuần tự; Rules luôn chạy cuối", fontsize=7.8,
+            color=MUTED, style="italic")
+    arrow(ax, (7.15, 6.2), (7.15, 5.62), color=ACC)
+    ax.plot([15.3, 15.3, 7.25], [4.62, 4.36, 4.36], color=ACC, lw=1.4)
+    arrow(ax, (7.25, 4.36), (7.25, 4.05), color=ACC)
+
+    # vào lõi
+    arrow(ax, (mid(sb[0], "t")[0], 9.75), mid(sb[0], "t"), label="âm thanh", lpos=0.45, loff=(0.45, 0))
+    arrow(ax, (5.85, 9.75), (6.75, 7.15), label="trong tiến trình", lpos=0.5, loff=(-0.65, 0))
+    arrow(ax, mid(api, "b"), (mid(api, "b")[0], 7.15))
+    arrow(ax, mid(cli, "b"), (mid(cli, "b")[0], 7.15))
+    arrow(ax, mid(sb[0], "r"), (6.55, mid(sb[0], "r")[1]))
+    arrow(ax, (14.1, 8.2), (14.1, 7.15), **dash)
+    ax.text(14.2, 7.6, "gọi thẳng Lab, Nutrition,\nGraph, Predictor, Retriever", fontsize=7.6, color=MUTED)
+
+    # ---- tài nguyên và dịch vụ ngoài ----
+    zone(ax, 0.1, 0.1, 16.2, 2.0, "TÀI NGUYÊN  ·  DỊCH VỤ NGOÀI (khung tím)")
+    db = box(ax, 0.35, 0.3, 3.2, 1.15, "SQLite / PostgreSQL",
+             "hồ sơ · nhật ký · bữa ăn · xét nghiệm\ntrí nhớ · log (chữ sức khoẻ mã hoá)", "data", 10)
+    calo = box(ax, 3.8, 0.3, 2.75, 1.15, "Calo Khay :8010",
+               "YOLO26s-seg + DINOv2 · 44 món\nproject riêng, môi trường torch", "ext", 10)
+    carb = box(ax, 6.75, 0.3, 1.7, 1.15, "Bảng tinh bột", "Nutrition5k\nUSDA FNDDS", "data", 9.5)
+    llm = box(ax, 8.65, 0.3, 2.3, 1.15, "Ollama", "3B trên máy hoặc\n7B Kaggle T4 (đường hầm)", "ext", 10)
+    box(ax, 11.15, 0.3, 1.55, 1.15, "predictor_ms", "BRFSS · NHANES\n(Predictor)", "data", 9.5)
+    box(ax, 12.9, 0.3, 1.55, 1.15, "Kho tài liệu", "kb/ · ADA, WHO\n(Retriever)", "data", 9.5)
+    box(ax, 14.65, 0.3, 1.55, 1.15, "Đồ thị tri thức", "108 nút\n(Graph)", "data", 9.5)
+
+    arrow(ax, (3.6, mid(sb[3], "b")[1]), mid(calo, "t"), label="ảnh khay · HTTP", lpos=0.12, loff=(-0.85, 0), **dash)
+    arrow(ax, (5.4, mid(sb[3], "b")[1]), mid(carb, "t"), **dash)
+    for b in sb[1:]:
+        arrow(ax, mid(b, "l"), (0.9, mid(b, "l")[1]), style="-", **dash)
+    ax.plot([0.9, 0.9], [mid(sb[1], "l")[1], mid(sb[3], "l")[1]], color=LINE, ls="--", lw=1.4)
+    arrow(ax, (0.9, mid(sb[3], "l")[1]), (0.9, 1.45), **dash)
+    ax.text(0.98, 2.6, "ghi", fontsize=7.8, color=MUTED, style="italic")
+    arrow(ax, mid(rb[2], "b"), (mid(llm, "t")[0] + 0.5, 1.45), style="<|-|>", label="stream token", lpos=0.3,
+          loff=(0.6, 0), **dash)
+    fig.savefig(FIGS / "c10_kien_truc_v49.png", bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     architecture()
     harness()
     deployment()
+    system_v49()
     print("ok")

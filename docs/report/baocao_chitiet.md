@@ -135,6 +135,17 @@ Pipeline mười một agent ở trên chỉ là phần lõi. Bao quanh nó có 
 
 Cách chia này giữ đúng nguyên tắc ở mục 2.2: mọi phép tính cần chính xác (so mục tiêu, đổi đơn vị, đọc số nói bằng chữ) nằm trong code Python có test và dùng chung cho cả hai giao diện; giao diện chỉ hiển thị.
 
+## 2.5. Toàn hệ ở V4.9: thêm Calo Khay và các luồng quanh pipeline
+
+![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, project riêng) và Ollama (trên máy hoặc trên Kaggle).](figs/c10_kien_truc_v49.png){width=100%}
+
+Pipeline mười một agent ở mục 2.1 không đổi. Những gì thêm ở V4.9 đều nằm quanh nó:
+
+- **Dịch vụ ngoài Calo Khay.** Nhận diện món trên ảnh khay cơm cần torch, ultralytics và transformers, nên Calo Khay (đồ án Xử lý ảnh số của nhóm) chạy như một dịch vụ HTTP riêng ở cổng 8010, trong môi trường Python của nó. Mã Calo Khay không nằm trong repo DiaCare; DiaCare chỉ gọi `POST /api/scan`. Tắt Calo Khay thì chỉ trang Bữa ăn báo lỗi, các trang khác vẫn chạy.
+- **Agent bữa ăn** (`meal_scan.py`, mục 3.16) chạy ngoài pipeline, khi người dùng gửi ảnh. Bữa đã lưu đi vào pipeline gián tiếp qua Journal: mỗi bữa được ghép với lần đo đường huyết sau bữa.
+- **Các luồng không gọi LLM**: trợ lý chủ động hỏi (mục 3.15), nhập xét nghiệm (OCR), và giọng nói hai chiều (mục 3.14). Câu của trợ lý ở các luồng này là câu soạn sẵn.
+- **Ollama** chạy trên máy (3B) hoặc trên Kaggle (7B, mục 6.3); với pipeline đó chỉ là một địa chỉ khác.
+
 # 3. Thiết kế chi tiết từng thành phần
 
 ## 3.1. Trạng thái dùng chung
@@ -639,6 +650,15 @@ Có một trường hợp hệ cố ý không tự chọn. Câu "đường huy�
 
 **Trả lời trợ lý chủ động bằng giọng nói trên Streamlit (V4.9).** Khi trợ lý đang chờ câu trả lời (mục 3.15), trang Tư vấn có ô ghi âm (`st.audio_input`, WAV 16 kHz) và nút "Đọc câu hỏi" (đọc lời mở đầu bằng `speechSynthesis`, chạy trong trình duyệt). Âm thanh được nhận dạng ngay trong tiến trình Streamlit bằng cùng PhoWhisper-small, không lưu lại. Chữ nghe được **không gửi đi ngay** mà hiện trong một ô để người dùng sửa rồi bấm Gửi: khi thử với tiếng ồn, Whisper "bịa" ra cả một câu tiếng Việt trôi chảy, và câu đó nếu gửi thẳng sẽ thành câu hỏi cho trợ lý. Sau khi bấm Gửi, câu đi đúng đường của câu gõ chữ, nên số đo vẫn phải qua thẻ xác nhận. Bộ định tuyến đổi số đọc bằng chữ trước ("sáu phẩy năm" → 6,5; "bảy rưỡi" → 7,5), riêng chữ "không" đứng một mình giữ nguyên để "không ổn" vẫn là kể triệu chứng. Nạp mô hình lần đầu mất khoảng 26 giây trên CPU; `chay_local.ps1` trỏ tới bản PhoWhisper đã tải sẵn để chạy không cần mạng.
 
+**Trò chuyện bằng giọng nói trên Streamlit (V4.9).** Bật "Trò chuyện bằng giọng nói" ở trang Tư vấn thì hiện một nút micro to ở giữa (`voice_ui.py`, viết bằng Custom Components v2 của Streamlit, chạy trong trang chính nên dùng được micro và phát âm thanh ngay sau cú bấm đầu). Bấm một lần, sau đó là vòng: nghe → nhận dạng → trả lời → đọc to → nghe tiếp, giống chế độ giọng nói của các trợ lý chat.
+
+- *Biết lúc người dùng nói xong.* Trình duyệt đo mức ồn nền trong 0,4 giây đầu, coi là đang nói khi năng lượng (RMS) vượt max(0,012; 3 × mức ồn), giữ 0,3 giây trước tiếng nói đầu tiên, và kết thúc câu sau 0,8 giây im lặng (tối đa 30 giây). Tiếng động ngắn dưới 0,25 giây bị bỏ. Đoạn ghi được hạ mẫu xuống 16 kHz và gửi cho Python.
+- *Không nhận dạng tiếng ồn.* Máy chủ kiểm tra lại (`has_speech`: ít nhất 4 khung 50 ms có RMS từ 0,006) trước khi chạy PhoWhisper, vì gặp im lặng Whisper trả về một câu tiếng Việt trôi chảy không ai nói. Không nghe rõ thì trợ lý nói "Mình chưa nghe rõ" rồi nghe tiếp.
+- *Đọc to bằng Piper* (`tts.py`, giọng `vi_VN-vais1000-medium`, CC BY 4.0, khoảng 61 MB). Không dùng `speechSynthesis`: máy phát triển chạy Windows không có giọng tiếng Việt cục bộ, còn giọng của Edge là giọng trực tuyến, câu trả lời có thông tin sức khoẻ sẽ bị gửi ra ngoài. Piper chạy offline, khoảng 1 giây cho 21 giây âm thanh. Trước khi đọc, chữ được chuẩn hoá: bỏ nhãn nguồn và lời miễn trừ (vẫn hiện trên màn hình), đọc đơn vị ("mmol/L" thành "mi li mol trên lít"), "6,8" thành "6 phẩy 8", "4,4–7,2" thành "4 phẩy 4 đến 7 phẩy 2".
+- *Trả lời ngắn và nhanh.* Khi câu hỏi đến từ giọng nói, Advisor được dặn trả lời 50–90 chữ theo kiểu nói, không gạch đầu dòng (`VOICE_REMINDER`, thay cho lời dặn 120–200 chữ); benchmark và chat gõ chữ không đổi. Ollama được yêu cầu giữ mô hình trong GPU 30 phút (`keep_alive`, mặc định của Ollama là 5 phút), vì một lần nạp lại đo được mất 24 giây. Đo trên máy (qwen2.5:3b): câu trả lời bằng giọng khoảng 3 giây ở Advisor; với 7B trên Kaggle, câu ngắn khoảng 1,5 giây sau khi mô hình đã nóng.
+- *Ghi số đo bất cứ lúc nào.* Câu kể có từ khoá số đo và không phải câu hỏi ("vừa đo đường huyết 7,2", "huyết áp 130 trên 85", "tôi nặng 62 ký") hiện thẻ xác nhận như khi trợ lý hỏi; câu hỏi ("đường huyết 7,2 có cao không?") vẫn sang tư vấn, và "ăn 50 g đường" không thành số đo. Câu hỏi nói ra có số thập phân đọc bằng chữ được đổi thành số ("HbA1c sáu phẩy tám" thành "HbA1c 6.8") để Lab agent và Critic thấy con số; phần còn lại của câu giữ nguyên.
+- Ô chat cũng nhận ghi âm (nút micro nhỏ): chữ nghe được hiện ra để sửa rồi mới gửi. Âm thanh ở mọi chỗ đều không được lưu.
+
 ## 3.15. Trợ lý chủ động hỏi
 
 Tệp `checkin.py` (quyết định) và `src/checkin_ui.py` (giao diện). Mỗi ngày một lần, khi người đã chẩn đoán mở trang Tư vấn, trợ lý **mở lời trước** thay vì đợi người dùng gõ. Nó chọn một điều đáng hỏi nhất từ nhật ký, theo thứ tự ưu tiên:
@@ -685,6 +705,8 @@ với $g_i$ gram, $c_i$ carb chính, $\bar c_i$ carb cận trên, sai số gram 
 
 ![Trang Bữa ăn trên web: ảnh khay mẫu `B_212.jpg` qua Calo Khay, sáu món kèm độ tin cậy, một món cần xác nhận, nhắc sửa gram cơm, khoảng tinh bột; bên dưới là các bữa đã ghi với đường huyết sau ăn.](figs/c9_web_bua_an.png){height=21cm}
 
+**Vùng món trên ảnh và ảnh trong ô chat (V4.9).** Bảng món có cột số thứ tự, và ảnh khay được vẽ lại với vùng từng món (đa giác Calo Khay trả về, tô màu trong suốt) cùng số tương ứng, để người dùng thấy ngay món nào bị nhận sai (ví dụ ruốc bị nhận thành gà xào sả ớt). Ảnh đính kèm ở ô chat của trang Tư vấn được thử đọc chữ (OCR) trước: đọc ra chỉ số xét nghiệm thì lưu như phiếu xét nghiệm, không thì chuyển sang trang Bữa ăn để nhận diện món.
+
 **Nối với đường huyết.** Bữa đã lưu ở bảng `meals` (danh sách món mã hoá như ghi chú). Bảng "Các bữa đã ghi" có cột "Đường huyết sau ăn" (lần đo 45 phút–3 giờ sau bữa); trong khoảng đó mà chưa đo thì trang nhắc đo. Các dòng này cũng vào ngữ cảnh của trang Tư vấn (mục 3.13).
 
 # 4. Cơ sở dữ liệu
@@ -712,7 +734,7 @@ Tệp `db.py`, chạy trên SQLite (mặc định khi chạy trên máy, test, K
 | `checkins` | lượt trợ lý chủ động hỏi, mỗi người một lượt mỗi ngày (V4.9) | `patient_id`, `day`, `session_id`, `topic_json` (chỉ loại câu hỏi), `status` |
 | `meals` | bữa ăn quét ảnh đã xác nhận (V4.9) | `patient_id`, `eaten_at`, `slot`, `items_json` (mã hoá), `carb_g`, `carb_low`, `carb_high`, `kcal` |
 
-Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê và Hoạt động agent. Cột `trace_json` được thêm ở V2.2, cột `messages.rl_event_id` ở V3.2 (nối câu trả lời với quyết định RL, để chấm và để phạt lặp); khi mở một cơ sở dữ liệu cũ, hệ tự thêm các cột này bằng `ALTER TABLE`. Song song với SQLite, mỗi lượt chạy còn được ghi một dòng JSON vào `logs/runs.jsonl`.
+Bảng `runs` là nguồn dữ liệu cho các trang Lịch sử, Thống kê và Hoạt động agent. Cột `trace_json` được thêm ở V2.2, cột `messages.rl_event_id` ở V3.2 (nối câu trả lời với quyết định RL, để chấm và để phạt lặp); khi mở một cơ sở dữ liệu cũ, hệ tự thêm các cột này bằng `ALTER TABLE`. Song song với SQLite, mỗi lượt chạy còn được ghi một dòng JSON vào `logs/runs.jsonl`. Tệp này không mã hoá, nên từ V4.9 chỉ ghi độ dài câu hỏi (`question_chars`) chứ không ghi nguyên văn; đặt `DIACARE_LOG_QUESTIONS=1` khi chạy bộ câu hỏi mẫu cần đọc lại câu hỏi.
 
 Cột `patients.user_id` nối hồ sơ với tài khoản: một tài khoản theo dõi được nhiều người (ví dụ con theo dõi cho bố mẹ), và mọi truy vấn của API đều lọc theo tài khoản đang đăng nhập. Số đo được lưu kèm `measured_at` (thời điểm đo, người dùng ghi bù được) tách khỏi `created_at` (lúc ghi), có chỉ mục theo `(patient_id, measured_at)` để thống kê 14 ngày đọc nhanh. Khi chạy dưới API, cơ sở dữ liệu được bật chế độ WAL để nhiều request đọc trong lúc một request ghi.
 
@@ -770,7 +792,9 @@ Lịch sử liệt kê mọi lượt chạy: thời gian, câu hỏi, mức nguy
 ## 5.5. Các trang tự theo dõi trên Streamlit
 
 - **Hôm nay**: cảnh báo và nhắc nhở ở đầu trang, ô ghi đường huyết (số lớn, chọn thời điểm đo bằng nút bấm), bốn ô số liệu 14 ngày (lần đo gần nhất, phần trăm trong mục tiêu, trung bình lúc đói, HbA1c gần nhất) và biểu đồ.
-- **Nhật ký**: ba thẻ đường huyết, huyết áp và cân nặng, xét nghiệm; chọn khoảng 7, 14, 30 hoặc 90 ngày; bảng thống kê theo thời điểm đo; danh sách từng lần đo có nút xoá.
+- **Nhật ký**: ba thẻ đường huyết, huyết áp và cân nặng, xét nghiệm; chọn khoảng 7, 14, 30 hoặc 90 ngày; bảng thống kê theo thời điểm đo; danh sách từng lần đo có nút xoá. Ở thẻ Xét nghiệm, chọn ảnh hay tệp phiếu là tự đọc và lưu ngay (V4.9). Bản trước chỉ đọc tệp khi bấm nút "Nhập kết quả" nằm dưới ô gõ chữ; người dùng chọn ảnh rồi chuyển trang thì Streamlit bỏ tệp đang chọn và không có gì được lưu (lỗi người dùng gặp khi chạy thật).
+
+Streamlit dùng chung một đối tượng Store (một kết nối SQLite) cho mọi phiên, nhưng mỗi phiên chạy trên một luồng riêng. Mở app ở hai tab cùng lúc thì con trỏ của luồng này đọc nhầm kết quả của luồng kia (`IndexError`, `InterfaceError`). Lớp `SerialStore` (`src/ui_common.py`) cho mỗi lời gọi phương thức của Store chạy trọn dưới một khoá chung.
 - **Tái khám**: đặt lịch hẹn, ghi câu muốn hỏi bác sĩ, tải bản tóm tắt PDF.
 - **Bữa ăn** (V4.9): ảnh khay cơm, bảng món để xác nhận, khoảng tinh bột, các bữa đã ghi kèm đường huyết sau ăn (mục 3.16).
 - **Tư vấn**: ngoài khung chat, mỗi ngày trợ lý mở lời trước một lần cho người đã chẩn đoán, trả lời được bằng chữ hoặc giọng nói (mục 3.15).
@@ -1109,7 +1133,9 @@ Số thật sự không có căn cứ tập trung ở hai chỗ: gram, kcal củ
 | trong đó bốn nhóm hay có số (diet, nutrition, memory, risk_referral) | 4 | 1 |
 | Ca chỉ đạt ở một bản, bốn nhóm hay có số | 6 | 2 |
 
-McNemar theo ca: 9 ca chỉ đạt trước, 6 ca chỉ đạt sau, $p = 0{,}61$, không khác biệt có ý nghĩa. Ở bốn nhóm hay có số, 6 ca chỉ đạt trước và 2 ca chỉ đạt sau: các lượt trượt mới chủ yếu là "không trích nguồn" ở nhóm diet, mô hình gợi ý món không kèm số và cũng không gắn nhãn. Lượt không có căn cứ còn lại ở bảy nhóm kia là "hôn mê thường do đường huyết dưới 50 mg/dL". Số không có căn cứ giảm đúng ở chỗ được nhắm tới, nhưng 4 → 2 là mẫu quá nhỏ để khẳng định, và cái giá về trích nguồn cũng chưa chắc. Lời dặn được giữ vì không thấy hại có ý nghĩa và nó nhắm vào lỗi có thể gây hại. Đọc bản nháp cũng thấy Critic bỏ sót số dạng khoảng ("45-60 gram"), số dính liền chữ ("100g") và số kèm chữ Hán ("32.8克"), nên Critic là cận dưới. Thêm một trang khuyến cáo có nguồn vào `kb/` sẽ biến nhóm thứ hai thành số có căn cứ, nhưng đổi ngữ cảnh của mọi ca benchmark nên chưa làm. Chi tiết ở `docs/results/2026-11-24_numfix_3b/`.
+McNemar theo ca: 9 ca chỉ đạt trước, 6 ca chỉ đạt sau, $p = 0{,}61$, không khác biệt có ý nghĩa. Ở bốn nhóm hay có số, 6 ca chỉ đạt trước và 2 ca chỉ đạt sau: các lượt trượt mới chủ yếu là "không trích nguồn" ở nhóm diet, mô hình gợi ý món không kèm số và cũng không gắn nhãn. Lượt không có căn cứ còn lại ở bảy nhóm kia là "hôn mê thường do đường huyết dưới 50 mg/dL". Số không có căn cứ giảm đúng ở chỗ được nhắm tới, nhưng 4 → 2 là mẫu quá nhỏ để khẳng định, và cái giá về trích nguồn cũng chưa chắc. Đọc bản nháp cũng thấy Critic bỏ sót số dạng khoảng ("45-60 gram"), số dính liền chữ ("100g") và số kèm chữ Hán ("32.8克").
+
+**Chấm lại sau khi sửa Critic: kết luận đảo chiều.** Critic được sửa để bắt cả ba dạng trên (test trong `tests/test_critic.py`). Lần chạy cũ không lưu ngữ cảnh đã đưa cho Advisor, nên `tools/critic_rescore.py` dựng lại ngữ cảnh gần đúng (câu hỏi, toàn văn các tệp nguồn đã truy hồi, bảng dinh dưỡng, khối xét nghiệm) và chấm lại bản nháp đã lưu của **cả hai** lần chạy theo cùng một cách. Kết quả: lượt có số không tìm thấy trong ngữ cảnh 19 → 23/150; đọc lại riêng gram, kcal tự đặt cho món: 5 → 8 lượt. Con số 4 → 2 ở bảng trên là do Critic cũ không thấy đúng những dạng số mà mô hình chuyển sang dùng sau lời dặn. Vậy lời dặn **không** làm giảm số tự đặt; nó vẫn nằm trong prompt và chưa quyết định giữ hay bỏ. Bài học: một thước đo bỏ sót có hệ thống có thể tạo ra cải thiện giả, nên khi sửa thước đo phải chấm lại cả mốc so sánh. Thêm một trang khuyến cáo có nguồn vào `kb/` sẽ biến nhóm thứ hai thành số có căn cứ, nhưng đổi ngữ cảnh của mọi ca benchmark nên chưa làm. Chi tiết ở `docs/results/2026-11-24_numfix_3b/`.
 
 ## 7.5. Thử trợ lý đọc nhật ký
 

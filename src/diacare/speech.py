@@ -207,6 +207,23 @@ def words_to_numbers(text):
     return " ".join(out)
 
 
+_NUM_WORD_RX = "|".join(sorted(map(re.escape, _NUMBER_WORDS | {r"\d+"}), key=len, reverse=True))
+_SPOKEN_DECIMAL = re.compile(rf"(?<!\w)(?:(?:{_NUM_WORD_RX})\s+)+(?:phẩy|chấm)(?:\s+(?:{_NUM_WORD_RX}))+(?!\w)",
+                             re.IGNORECASE)
+
+
+def spoken_decimals(text):
+    """Chỉ đổi số thập phân đọc bằng chữ ("HbA1c sáu phẩy tám" -> "HbA1c 6.8"), giữ nguyên phần còn lại của câu (chữ
+    hoa, dấu câu). Dùng cho câu hỏi nói ra ở chế độ trò chuyện bằng giọng nói, để Lab agent và Critic thấy con số;
+    words_to_numbers đổi cả câu nên chỉ dùng khi đọc số đo."""
+    text = unicodedata.normalize("NFC", text or "")
+
+    def conv(m):
+        out = words_to_numbers(m.group(0))
+        return out if re.fullmatch(r"\d+(?:\.\d+)?", out) else m.group(0)
+    return _SPOKEN_DECIMAL.sub(conv, text)
+
+
 # ---- đọc số đo trong câu ---------------------------------------------------------------
 
 _NUM = r"(\d+(?:\.\d+)?)"

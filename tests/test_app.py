@@ -128,13 +128,52 @@ def test_import_lab_results_from_pasted_text(env):
     at.text_area(key="lab_text").set_value("HbA1c: 6.8 %\nGlucose lúc đói: 5.0 mmol/L").run()
     at.button(key="lab_import").click().run()
     assert not at.exception
-    assert any("Đã nhập 2 chỉ số" in s.value for s in at.success)
+    assert any("Đã lưu 2 chỉ số" in s.value for s in at.success)
     table = next(d.value for d in at.dataframe if "Đối chiếu" in d.value.columns)
     assert "6.8 %" in list(table["Kết quả"]) and any("ngưỡng chẩn đoán" in v for v in table["Đối chiếu"])
     at.radio(key="page").set_value("Tư vấn").run()
     at.chat_input[0].set_value("Kết quả xét nghiệm của tôi thế nào?").run()
     assert not at.exception
     assert any("lab_diabetes_range" in m.value for m in at.markdown)
+
+
+def test_lab_file_saved_as_soon_as_chosen(env):
+    # lỗi 2026-11-25: chọn tệp phiếu xét nghiệm, không bấm nút, chuyển trang rồi quay lại thì kết quả mất
+    at = create_patient(new_app().run(), page="Nhật ký")
+    sheet = "HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L".encode("utf-8")
+    at.file_uploader(key="lab_file").set_value(("phieu.txt", sheet, "text/plain")).run()
+    assert not at.exception
+    assert any("Đã lưu 2 chỉ số từ tệp phieu.txt" in s.value for s in at.success)
+    at.radio(key="page").set_value("Tư vấn").run()
+    at.radio(key="page").set_value("Nhật ký").run()
+    table = next(d.value for d in at.dataframe if "Đối chiếu" in d.value.columns)
+    assert len(table) == 2 and "6.8 %" in list(table["Kết quả"])
+    at.button(key="lab_import").click().run()  # ô chữ trống: không nhập lại tệp lần nữa
+    table = next(d.value for d in at.dataframe if "Đối chiếu" in d.value.columns)
+    assert len(table) == 2
+
+
+def test_lab_file_without_values_warns(env):
+    at = create_patient(new_app().run(), page="Nhật ký")
+    at.file_uploader(key="lab_file").set_value(("ghi_chu.txt", "không có số".encode("utf-8"), "text/plain")).run()
+    assert any("chưa lưu gì" in w.value for w in at.warning)
+
+
+def test_chat_photo_of_lab_sheet_is_saved_as_lab(tmp_path, monkeypatch):
+    from ui_common import photo_labs
+
+    class Photo:
+        name = "phieu.jpg"
+
+        def getvalue(self):
+            return b"anh"
+    store = open_store(str(tmp_path / "s.db"))
+    pid = store.save_patient("An", {})
+    monkeypatch.setattr("diacare.labs.ocr_image", lambda data, ocr_fn=None: "HbA1c: 7.2 %")
+    assert [r["test"] for r in photo_labs(store, pid, Photo())] == ["hba1c"]
+    assert [r["value"] for r in store.list_labs(pid)] == [7.2]
+    monkeypatch.setattr("diacare.labs.ocr_image", lambda data, ocr_fn=None: "Cơm tấm sườn bì chả")
+    assert photo_labs(store, pid, Photo()) is None  # ảnh bữa ăn: để nhận diện món ăn xử lý
 
 
 def test_import_without_values_warns(env):

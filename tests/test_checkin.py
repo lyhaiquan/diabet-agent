@@ -4,7 +4,7 @@ import pytest
 
 from diacare import journal
 from diacare.checkin import (NOT_YET_REPLY, opener_text, plan_topic, route_reply, saved_reply,
-                             symptom_reply)
+                             symptom_reply, unprompted_reading)
 
 NOW = datetime(2026, 11, 24, 7, 30, tzinfo=journal.VN_TZ)
 
@@ -144,3 +144,27 @@ def test_alert_reply_with_number_is_still_reading():
 def test_spoken_numbers_become_readings(text, value):
     r = route_reply(text, MISSING, NOW)
     assert r["route"] == "reading" and r["reading"]["value"] == value
+
+
+@pytest.mark.parametrize("text, kind", [
+    ("Mình vừa đo đường huyết được 7,2", "glucose"),
+    ("đường huyết sáng nay lúc đói sáu phẩy tám", "glucose"),
+    ("huyết áp 130 trên 85", "bp"),
+    ("tôi nặng 62 ký", "weight"),
+])
+def test_unprompted_reading_found(text, kind):
+    found = unprompted_reading(text, NOW)
+    assert found["reading"]["kind"] == kind and found["when"] <= NOW
+    if kind == "glucose":
+        assert found["reading"]["context"] in journal.CONTEXTS
+
+
+@pytest.mark.parametrize("text", [
+    "đường huyết 7,2 có cao không?",   # câu hỏi: sang tư vấn
+    "đường huyết bao nhiêu là tốt",
+    "mỗi ngày ăn 50 g đường được không",
+    "tôi ăn 2 bát cơm",
+    "Ăn chuối có sao không?",
+])
+def test_unprompted_reading_ignores_questions(text):
+    assert unprompted_reading(text, NOW) is None

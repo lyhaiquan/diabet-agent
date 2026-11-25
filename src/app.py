@@ -31,10 +31,10 @@ from diacare.state import State  # noqa: E402
 from diacare.typewriter import Typewriter  # noqa: E402
 from journal_ui import render_journal, render_today, render_visit  # noqa: E402
 from diacare import tts  # noqa: E402
-from diacare.speech import AudioError, decode_wav, has_speech  # noqa: E402
+from diacare.speech import AudioError, decode_wav, has_speech, spoken_decimals  # noqa: E402
 import checkin_ui  # noqa: E402
 import voice_ui  # noqa: E402
-from ui_common import SerialStore, chat_parts as _chat_parts  # noqa: E402
+from ui_common import SerialStore, chat_parts as _chat_parts, photo_labs as _photo_labs  # noqa: E402
 import meal_ui  # noqa: E402
 from meal_ui import render_meal  # noqa: E402
 
@@ -168,13 +168,19 @@ def _render_memories(store, patient_id):
 LEVEL_ICON = {"normal": "🟢", "prediabetes": "🟡", "diabetes": "🔴", "low": "🔵", "unclassified": "⚪"}
 
 
-def _import_labs(store, patient_id):
+def _import_labs(store, patient_id, source="text"):
+    """Nhập kết quả xét nghiệm. source="file": gọi ngay khi chọn tệp (on_change của ô tải tệp); "text": nút
+    "Nhập kết quả" cho chữ gõ tay. Trước đây tệp chỉ được đọc khi bấm nút nằm dưới ô gõ chữ: người dùng chọn ảnh
+    phiếu rồi chuyển trang, Streamlit bỏ tệp đang chọn, kết quả không được lưu (báo lỗi 2026-11-25)."""
     results = []
     upload = st.session_state.get("lab_file")
     try:
-        if upload is not None:
+        if source == "file":
+            if upload is None:  # bấm dấu x bỏ tệp
+                return
             results += parse_lab_file(upload.name, upload.getvalue())
-        results += parse_lab_text(st.session_state.get("lab_text", ""))
+        else:
+            results += parse_lab_text(st.session_state.get("lab_text", ""))
     except UploadRejected as exc:  # quá nhiều trang, ảnh quá lớn
         st.session_state["lab_msg"] = ("error", str(exc))
         return
@@ -184,12 +190,16 @@ def _import_labs(store, patient_id):
     saved = LabAgent(store).import_results(patient_id, results, source="import")
     if saved:
         names = ", ".join(LAB_LABELS[r["test"]] for r in saved)
-        st.session_state["lab_msg"] = ("success", f"Đã nhập {len(saved)} chỉ số: {names}.")
-        st.session_state["lab_text"] = ""
+        where = f" từ tệp {upload.name}" if source == "file" else ""
+        st.session_state["lab_msg"] = ("success", f"Đã lưu {len(saved)} chỉ số{where}: {names}.")
+        if source == "text":
+            st.session_state["lab_text"] = ""
     else:
+        what = "trong ảnh hoặc tệp này" if source == "file" else "trong đoạn chữ"
         st.session_state["lab_msg"] = (
-            "warning", "Không tìm thấy chỉ số hợp lệ. Hỗ trợ: HbA1c, đường huyết lúc đói, "
-                       "đường huyết 2 giờ (OGTT), đường huyết bất kỳ.")
+            "warning", f"Không tìm thấy chỉ số hợp lệ {what}, chưa lưu gì. Hỗ trợ: HbA1c, đường huyết lúc đói, "
+                       "đường huyết 2 giờ (OGTT), đường huyết bất kỳ. Ảnh mờ hoặc chụp nghiêng thì gõ thẳng vào ô "
+                       "bên dưới.")
 
 
 def render_sidebar(store):
@@ -461,7 +471,7 @@ def _voice_question(utterance):
             text = checkin_ui._transcriber()(samples)
     if not text:
         st.session_state["voice_say"] = "Mình chưa nghe rõ, bạn nói lại giúp mình nhé."
-    return text or None
+    return spoken_decimals(text) if text else None
 
 
 def render_chat(store, base, patient_id):
@@ -497,10 +507,20 @@ def render_chat(store, base, patient_id):
         utterance = voice_ui.voice_chat(
             reply=_voice_reply(store, sid), key="voice_chat",
             hint="Lần đầu bật có thể chờ khoảng 30 giây để nạp mô hình nghe. Trình duyệt sẽ hỏi quyền dùng micro.")
-    raw = st.chat_input("Nhập câu hỏi, bấm micro để nói, hoặc đính kèm ảnh bữa ăn",
+    raw = st.chat_input("Nhập câu hỏi, bấm micro để nói, hoặc đính kèm ảnh bữa ăn hay phiếu xét nghiệm",
                         accept_audio=True, audio_sample_rate=16000,
                         accept_file=True, file_type=["jpg", "jpeg", "png", "webp"], max_upload_size=10)
     question, photo, audio = _chat_parts(raw)
+    notice = st.session_state.pop("chat_notice", None)
+    if notice:
+        getattr(st, notice[0])(notice[1])
+    lab_saved = _photo_labs(store, patient_id, photo) if photo is not None else None
+    if lab_saved:  # ảnh phiếu xét nghiệm: lưu như ở trang Nhật ký, không đưa sang nhận diện món ăn
+        names = ", ".join(f"{LAB_LABELS[r['test']]} {r['value']:g} {r.get('unit') or ''}".strip() for r in lab_saved)
+        st.session_state["chat_notice"] = (
+            "success", f"Ảnh này là phiếu xét nghiệm: đã lưu {len(lab_saved)} chỉ số ({names}) vào Nhật ký → "
+                       "Xét nghiệm. Bạn có thể hỏi trợ lý ý nghĩa các chỉ số này.")
+        st.rerun()
     if photo is not None:  # ảnh bữa ăn: nhận diện món rồi sang trang Bữa ăn để xác nhận
         err = meal_ui.start_scan(photo, meal_ui._table())
         if err:

@@ -35,10 +35,10 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 | 2 | **Truy xuất và trả lời có căn cứ y văn xác thực**: Mọi lời khuyên phải được bảo chứng bởi tài liệu y khoa uy tín, có trích dẫn nguồn minh bạch. | Hiện thực hóa qua `Retriever` ([`retriever.py`](file:///C:/DATA/diacare-mas/src/diacare/retriever.py)) và `GraphAgent` ([`kg.py`](file:///C:/DATA/diacare-mas/src/diacare/kg.py)). Kết hợp RAG dense MiniLM-L12-v2 với Đồ thị tri thức Neo4j, trích dẫn chính xác nhãn nguồn `[medlineplus_*]`, `[who_*]`, `[ada_2024]`. | **Đã cài đặt** |
 | 3 | **Trí nhớ ngữ cảnh dài hạn qua nhiều phiên**: Duy trì và ghi nhớ trạng thái sức khỏe, tiền sử bệnh án, thuốc đang dùng của bệnh nhân qua các phiên trò chuyện độc lập. | Hiện thực hóa qua `MemoryAgent` ([`memory.py`](file:///C:/DATA/diacare-mas/src/diacare/memory.py)) kết nối SQLite bảng `memories`. Tự động quan sát và trích xuất sự kiện (`observe`), hồi tưởng (`recall`), kết hợp tóm tắt lịch sử vượt ngưỡng qua LLM (`compress_history`), lưu và dùng lại bản tóm tắt theo dấu nhận dạng, tự tắt thông tin thuốc khi người dùng nói đã ngừng. | **Đã cài đặt** |
 | 4 | **Phân tích kết quả xét nghiệm đa phương thức**: Tiếp nhận kết quả cận lâm sàng dạng văn bản, hình ảnh hoặc tài liệu PDF scan, đối chiếu ngưỡng chuẩn quốc tế. | Hiện thực hóa qua `LabAgent` ([`labs.py`](file:///C:/DATA/diacare-mas/src/diacare/labs.py)) tích hợp module OCR ([`ocr.py`](file:///C:/DATA/diacare-mas/src/diacare/ocr.py)). Tự động chuyển đổi đơn vị ($mg/dL \leftrightarrow mmol/L$), xếp mức theo Hiệp hội Đái tháo đường Hoa Kỳ (ADA 2024) cho 4 chỉ số chính (HbA1c, FPG, OGTT 2h, Random Glucose). | **Đã cài đặt** |
-| 5 | **Tra cứu thành phần dinh dưỡng món ăn Việt Nam**: Đánh giá định lượng carbohydrate, chất xơ, calo của bữa ăn bản địa, hỗ trợ kiểm soát đường huyết sau ăn. | Hiện thực hóa qua `NutritionAgent` ([`nutrition.py`](file:///C:/DATA/diacare-mas/src/diacare/nutrition.py)) với cơ sở dữ liệu `vn_foods.json` gồm 50 món ăn Việt Nam chuẩn hóa từ USDA FoodData Central. Thuật toán phân tích ngữ cảnh 2 từ trước/sau xử lý các trường hợp từ đa nghĩa đã gặp. | **Đã cài đặt** |
+| 5 | **Tra cứu thành phần dinh dưỡng món ăn Việt Nam**: Đánh giá định lượng carbohydrate, chất xơ, calo của bữa ăn bản địa, hỗ trợ kiểm soát đường huyết sau ăn. | Hiện thực hóa qua `NutritionAgent` ([`nutrition.py`](file:///C:/DATA/diacare-mas/src/diacare/nutrition.py)) với cơ sở dữ liệu `vn_foods.json` gồm 50 món ăn Việt Nam chuẩn hóa từ USDA FoodData Central. Thuật toán phân tích ngữ cảnh 2 từ trước/sau xử lý các trường hợp từ đa nghĩa đã gặp. Từ V4.9 có thêm **Agent bữa ăn**: ảnh khay cơm được dịch vụ Calo Khay nhận diện món và gram, tinh bột tính thành một khoảng bằng bảng Nutrition5k/USDA. | **Đã cài đặt** |
 | 6 | **Rào chắn an toàn y khoa bất biến & Chuyển viện kịp thời**: Chặn lời khuyên tự ý đổi thuốc, phát hiện dấu hiệu cấp cứu, triệu chứng lâm sàng và bắt buộc chuyển viện. | Hiện thực hóa qua `Rules` ([`rules.py`](file:///C:/DATA/diacare-mas/src/diacare/rules.py)) hoạt động độc lập ở bước cuối pipeline. Chặn lời khuyên thuốc bằng regex đa tầng (`_UNSAFE`, `_NEGATION`, `_CAUTION`), kích hoạt 13 cờ an toàn, truyền phát an toàn từng câu qua `SafeStream`. | **Đã cài đặt** |
 | 7 | **Cá nhân hóa tư vấn bằng Học tăng cường (Reinforcement Learning)**: Tự động điều chỉnh trọng tâm can thiệp phù hợp với từng bệnh nhân dựa trên tối ưu hóa hàm thưởng lâm sàng. | Hiện thực hóa ở phiên bản V3 qua `RLAgent` ([`rl.py`](file:///C:/DATA/diacare-mas/src/diacare/rl.py)). Contextual bandit tuyến tính, 13 đặc trưng trạng thái, 6 trọng tâm can thiệp, học trực tuyến từ phản hồi 👍/👎 của người dùng, có mặt nạ an toàn và đánh giá SNIPS. Chưa có phản hồi thật. | **Đã cài đặt; chưa đánh giá với người dùng** |
-| 8 | **Khả năng quan sát, kiểm chuẩn và triển khai trên phần cứng tối thiểu**: Hệ thống phải trong suốt, đo đạc được tài nguyên, có bộ kiểm thử tự động và chạy được trên môi trường miễn phí. | Hiện thực hóa qua `_Tracer` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)), trang Hoạt động agent động SVG/JS ([`flowviz.py`](file:///C:/DATA/diacare-mas/src/diacare/flowviz.py)), 705 bài kiểm thử tự động, chạy được trên laptop có GPU 4 GB hoặc môi trường Kaggle T4 miễn phí. | **Đã cài đặt** |
+| 8 | **Khả năng quan sát, kiểm chuẩn và triển khai trên phần cứng tối thiểu**: Hệ thống phải trong suốt, đo đạc được tài nguyên, có bộ kiểm thử tự động và chạy được trên môi trường miễn phí. | Hiện thực hóa qua `_Tracer` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)), trang Hoạt động agent động SVG/JS ([`flowviz.py`](file:///C:/DATA/diacare-mas/src/diacare/flowviz.py)), hơn 1.000 bài kiểm thử tự động (1.014 qua ở V4.9), chạy được trên laptop có GPU 4 GB hoặc môi trường Kaggle T4 miễn phí. | **Đã cài đặt** |
 
 ---
 
@@ -51,21 +51,26 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 1. **Lớp Tương tác & Trình diễn (Interaction & Presentation Layer)**:
    - **Giao diện người dùng Web**: Xây dựng bằng Streamlit (`src/app.py`), tổ chức thành 4 phân hệ chính: (1) *Tư vấn trực tiếp* với khả năng hiển thị chữ dần theo câu an toàn qua `SafeStream`; (2) *Hoạt động agent* mô phỏng luồng dữ liệu thời gian thực dạng SVG tương tác; (3) *Lịch sử & Thống kê* hiển thị chi tiết các lần chạy; (4) *Quản lý hồ sơ bệnh nhân* và nhập kết quả xét nghiệm/tải ảnh OCR.
    - **Giao diện Dòng lệnh (CLI)**: Cung cấp công cụ chạy kiểm thử nhanh, huấn luyện mô hình và đánh giá hàng loạt.
+   - **Giao diện web Next.js** (`web/`, V4.1 trở đi) cho người bệnh, chỉ nói chuyện với **API FastAPI** (`src/api/`) qua HTTP kèm token; Streamlit gọi thẳng thư viện lõi trong cùng tiến trình.
+   - **Giọng nói hai chiều** (V4.9): nút micro to ở trang Tư vấn, PhoWhisper nhận dạng, Piper đọc câu trả lời; cả hai chạy trên máy, âm thanh không được lưu.
+   - **MCP server** (`mcp_server.py`): mở các công cụ tất định cho trợ lý AI khác, không mở dữ liệu bệnh nhân.
 2. **Lớp Điều phối & Quản lý Luồng (Orchestration & Coordination Layer)**:
    - Thành phần trung tâm là `Orchestrator` ([`orchestrator.py`](file:///C:/DATA/diacare-mas/src/diacare/orchestrator.py)). Đóng vai trò Coordinator điều hành toàn bộ vòng đời xử lý yêu cầu.
    - Quản trị cấu trúc dữ liệu trạng thái tập trung `State` ([`state.py`](file:///C:/DATA/diacare-mas/src/diacare/state.py)).
    - Tích hợp bộ chặn hội thoại xã giao (`is_small_talk`), bộ giám sát vết thực thi (`_Tracer`) và cơ chế bẫy lỗi toàn cục (`system_error`).
 3. **Lớp Tác tử Chuyên trách (Specialized Agent Layer)**:
-   - Bao gồm 8 tác tử công nhân (Worker Agents) và 2 tác tử giám sát/chính sách (Control/Policy Agents).
+   - Bao gồm 8 tác tử công nhân (Worker Agents) và 2 tác tử giám sát/chính sách (Control/Policy Agents) theo đặc tả; thêm JournalAgent (V4.4) trong pipeline và Agent bữa ăn (V4.9) ngoài pipeline. Trợ lý chủ động hỏi và Critic là các bước tất định, không tính là agent.
    - Mỗi tác tử hoạt động độc lập, không giao tiếp ngang hàng trực tiếp mà tương tác gián tiếp qua bảng đen (Blackboard pattern) được hiện thực hóa bằng đối tượng `State`.
 4. **Lớp Tri thức & Suy luận (Knowledge & Inference Layer)**:
-   - **Mô hình Ngôn ngữ cục bộ**: Ollama phục vụ các mô hình mã nguồn mở thế hệ mới như `qwen2.5:7b` hoặc `qwen2.5:3b`.
+   - **Mô hình Ngôn ngữ cục bộ**: Ollama phục vụ các mô hình mã nguồn mở thế hệ mới như `qwen2.5:7b` hoặc `qwen2.5:3b`. Từ V4.9, `qwen2.5:7b` có thể chạy trên GPU T4 của Kaggle sau một cổng có token và đường hầm Cloudflare, giao diện vẫn ở máy.
+   - **Mô hình giọng nói**: PhoWhisper-small (VinAI, nhận dạng) và Piper `vi_VN-vais1000-medium` (đọc), chạy CPU.
+   - **Dịch vụ ngoài Calo Khay**: YOLO26s-seg + DINOv2 nhận diện 44 món căng tin, chạy riêng ở cổng 8010 (V4.9).
    - **Mạng Nơ-ron Học sâu**: PyTorch MLP dự đoán nguy cơ.
    - **Chính sách RL**: 6 mô hình ridge tuyến tính ($A_a \in \mathbb{R}^{13 \times 13}$, $b_a \in \mathbb{R}^{13}$) của `RLAgent`, khởi động từ `models/rl_policy.json`, học tiếp trong SQLite.
    - **Hệ thống Tri thức Chuẩn mực**: Hướng dẫn thực hành ADA 2024, Bảng cơ sở dữ liệu dinh dưỡng USDA FoodData Central.
 5. **Lớp Lưu trữ & Dữ liệu Bền vững (Persistence & Storage Layer)**:
-   - **Cơ sở dữ liệu quan hệ SQLite hoặc PostgreSQL** (SQLite `data/diacare.db` khi chạy trên máy; PostgreSQL 16 cho dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`; cùng mã truy vấn qua lớp `pg.py`; qua [`db.py`](file:///C:/DATA/diacare-mas/src/diacare/db.py)): Quản lý 9 bảng quan hệ (`patients`, `sessions`, `messages`, `memories`, `labs`, `summaries`, `runs`, `rl_events`, `rl_model`).
-   - **Nhật ký Thực thi (JSONL Run Logs)**: Ghi vết tuần tự các lượt suy luận vào `logs/runs.jsonl`.
+   - **Cơ sở dữ liệu quan hệ SQLite hoặc PostgreSQL** (SQLite `data/diacare.db` khi chạy trên máy; PostgreSQL 16 cho dịch vụ API trong Docker Compose, bật bằng `DIACARE_DATABASE_URL`; cùng mã truy vấn qua lớp `pg.py`; qua [`db.py`](file:///C:/DATA/diacare-mas/src/diacare/db.py)): Quản lý 18 bảng quan hệ: hồ sơ và hội thoại (`users`, `patients`, `sessions`, `messages`, `memories`, `summaries`), dữ liệu sức khoẻ (`labs`, `readings`, `appointments`, `targets`, `doctor_questions`, `meals`, `checkins`), log (`runs`) và học tăng cường (`rl_events`, `rl_model`, `coach_events`, `coach_model`).
+   - **Nhật ký Thực thi (JSONL Run Logs)**: Ghi vết tuần tự các lượt suy luận vào `logs/runs.jsonl`. Tệp này không mã hoá nên từ V4.9 chỉ ghi độ dài câu hỏi, không ghi nguyên văn (`DIACARE_LOG_QUESTIONS=1` khi chạy câu hỏi mẫu).
    - **Đồ thị Tri thức Neo4j** (`neo4j_data/` qua `bolt://localhost:7688`): Lưu trữ đồ thị tri thức 108 nút và 228 cạnh (6 loại quan hệ, có 8 cạnh gen chung lấy từ PrimeKG). Mặc định đồ thị chạy bằng networkx trong bộ nhớ; đặt `DIACARE_KG=neo4j` thì đọc từ Neo4j.
    - **Kho Văn bản Y khoa (Knowledge Base)**: Thư mục `kb/` chứa các tài liệu MedlinePlus, WHO và các đoạn cắt vector hóa.
 6. **Lớp An toàn & Rào chắn Pháp lý (Safety & Compliance Layer)**:
@@ -73,87 +78,73 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
    - Bộ lọc biểu thức chính quy đa tầng phát hiện các cấu trúc câu nguy hiểm liên quan đến thuốc.
    - Hệ thống cờ cảnh báo lâm sàng (Clinical Alert Flags) và tuyên bố từ chối trách nhiệm y khoa (`DISCLAIMER`).
 
-## 2.2. Sơ đồ Kiến trúc Phân tầng Tổng thể (Mermaid)
+## 2.2. Sơ đồ Kiến trúc Tổng thể (cập nhật V4.9)
+
+![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, project riêng) và Ollama (trên máy hoặc trên Kaggle).](figs/c10_kien_truc_v49.png){width=100%}
+
+So với bản V3 của sơ đồ, ba thay đổi kiến trúc:
+
+1. **Thêm một dịch vụ ngoài: Calo Khay.** Đây là đồ án Xử lý ảnh số của nhóm (YOLO26s-seg + DINOv2, 44 món căng tin), chạy như một dịch vụ HTTP riêng ở cổng 8010 trong môi trường Python có torch của nó (`chay_calo_khay.bat`). Mã Calo Khay **không nằm trong repo DiaCare**: DiaCare chỉ gọi `POST /api/scan`, nên không phải cài torch, và các trang khác vẫn chạy khi Calo Khay tắt. Trên web, trình duyệt không gọi thẳng Calo Khay mà đi qua API (`POST /meals/scan`).
+2. **Thêm Agent bữa ăn** (`meal_scan.py`) ở ngoài pipeline tư vấn: gửi ảnh cho Calo Khay, cho người dùng xác nhận món và gram, tính khoảng tinh bột bằng bảng (không qua LLM), lưu bảng `meals`. Bữa đã lưu đi vào pipeline gián tiếp: JournalAgent ghép mỗi bữa với lần đo đường huyết sau bữa và đưa vào ngữ cảnh của Advisor.
+3. **Thêm các luồng không gọi LLM quanh pipeline**: trợ lý chủ động hỏi (`checkin.py`, câu soạn sẵn, thẻ xác nhận số đo), giọng nói hai chiều (PhoWhisper nhận dạng, Piper đọc to, đều chạy trên máy) và giao diện web Next.js đi qua API FastAPI; MCP server mở các công cụ tất định cho trợ lý AI khác.
+
+Pipeline tư vấn (Orchestrator và 11 agent, Critic, Rules luôn chạy cuối) **không đổi**, nên các benchmark trước vẫn so được với nhau.
+
+Sơ đồ dạng Mermaid (cùng nội dung, để xem trực tiếp trên GitHub):
 
 ```mermaid
 flowchart TD
-    subgraph L1 ["1. LỚP TƯƠNG TÁC & TRÌNH DIỄN (Interaction & Presentation Layer)"]
-        UI["Giao diện Streamlit (src/app.py)<br/>• Tư vấn • Hoạt động Agent • Lịch sử • Bệnh nhân"]
-        STREAM["Bộ lọc Stream An toàn (SafeStream)"]
-        CLI["Giao diện Dòng lệnh (CLI & Bench)"]
-        UI --- STREAM
+    subgraph L1 ["1. GIAO DIỆN"]
+        UI["Streamlit (src/app.py)<br/>chat gõ/nói · nút micro to · ảnh"]
+        WEB["Web Next.js (web/)"]
+        CLI["CLI / benchmark"]
+        MCPC["Trợ lý AI khác (MCP)"]
+    end
+    API["API FastAPI (src/api)<br/>JWT"]
+    MCPS["MCP server<br/>6 công cụ tất định"]
+    WEB -->|HTTP + token| API
+    MCPC -->|stdio| MCPS
+
+    subgraph L2 ["2. LUỒNG NGOÀI PIPELINE (không gọi LLM)"]
+        VOICE["Giọng nói<br/>PhoWhisper → câu hỏi · Piper đọc lại"]
+        CHECK["Trợ lý chủ động hỏi<br/>checkin.py"]
+        LABIN["Nhập xét nghiệm<br/>labs.py + OCR"]
+        MEAL["Agent bữa ăn<br/>meal_scan.py"]
     end
 
-    subgraph L2 ["2. LỚP ĐIỀU PHỐI & QUẢN LÝ LUỒNG (Orchestration & Coordination Layer)"]
-        ORCH["Orchestrator (orchestrator.py)<br/>Bộ điều phối đường ống có kiểm soát"]
-        STATE["Trạng thái Dùng chung (State)<br/>question, profile, labs, memory, risk, docs, draft, final, flags, trace"]
-        TRACER["Bộ Giám sát & Đo đạc (_Tracer)"]
-        ORCH <--> STATE
-        ORCH --- TRACER
+    subgraph L3 ["3. PIPELINE TƯ VẤN (Orchestrator)"]
+        ORCH["Orchestrator"]
+        SEQ["Memory → Lab → Journal"]
+        PAR["Predictor · Retriever · Graph · Nutrition<br/>(song song)"]
+        TAIL["RL → Context → Advisor → Critic → Rules"]
+        ORCH --> SEQ --> PAR --> TAIL
     end
 
-    subgraph L3 ["3. LỚP TÁC TỬ CHUYÊN TRÁCH (Specialized Agent Layer)"]
-        direction TB
-        subgraph Workers ["Tác tử Công nhân (Worker Agents)"]
-            AG_MEM["MemoryAgent<br/>🧠 Quan sát & Ghi nhớ"]
-            AG_LAB["LabAgent & OCR<br/>🧪 Xét nghiệm & ADA 2024"]
-            AG_PRED["Predictor<br/>📈 Mạng nơ-ron MLP"]
-            AG_RET["Retriever<br/>🔎 RAG lai Dense/BM25"]
-            AG_KG["GraphAgent<br/>🕸️ Tra cứu Đồ thị Neo4j"]
-            AG_NUT["NutritionAgent<br/>🥗 Dinh dưỡng món Việt"]
-            AG_CTX["ContextAgent<br/>🧩 Lập ngân sách Token"]
-            AG_ADV["Advisor<br/>💬 Sinh bản nháp LLM"]
-        end
-        subgraph Guards ["Tác tử Rào chắn & Chính sách"]
-            AG_RL["RLAgent<br/>🎯 Contextual bandit học từ 👍/👎"]
-            AG_RULE["Rule-Based Agent<br/>🛡️ Rào chắn An toàn Y khoa"]
-        end
+    subgraph L4 ["4. TÀI NGUYÊN"]
+        DB[("SQLite / PostgreSQL<br/>chữ sức khoẻ mã hoá")]
+        KB["kb/ (ADA, WHO, MedlinePlus)"]
+        KG["Neo4j / networkx"]
+        PM["predictor_ms"]
+        CARB["Bảng tinh bột (Nutrition5k)"]
     end
 
-    subgraph L4 ["4. LỚP TRI THỨC & SUY LUẬN (Knowledge & Inference Layer)"]
-        OLLAMA["Ollama LLM (qwen2.5:7b / 3b)"]
-        PYTORCH["PyTorch Engine (MLP Model)"]
-        RL_MODEL["Chính sách RL (rl_policy.json + SQLite rl_model)"]
-        ADA_RULES["Quy chuẩn Lâm sàng ADA 2024"]
-        USDA_DATA["Dữ liệu Dinh dưỡng USDA FDC"]
+    subgraph EXT ["5. DỊCH VỤ NGOÀI"]
+        CALO["Calo Khay :8010<br/>YOLO26s-seg + DINOv2"]
+        OLLAMA["Ollama<br/>3B trên máy / 7B Kaggle"]
     end
 
-    subgraph L5 ["5. LỚP LƯU TRỮ & DỮ LIỆU BỀN VỮNG (Persistence & Storage Layer)"]
-        SQLITE[("SQLite Database (data/diacare.db)<br/>Cột chữ sức khoẻ mã hoá Fernet")]
-        NEO4J[("Neo4j Graph Database<br/>Bolt Port 7688 / DB_diabet.cypher")]
-        JSONL["Nhật ký Chạy (logs/runs.jsonl)"]
-        KBFOLDER["Kho Tri thức Y văn (kb/*.txt)"]
-    end
-
-    subgraph L6 ["6. LỚP AN TOÀN & RÀO CHẮN PHÁP LÝ (Safety & Compliance Layer)"]
-        MED_INVARIANTS["Ràng buộc Bất biến An toàn Y tế<br/>• Cấm đổi thuốc/insulin • Cảnh báo triệu chứng • Báo động cấp cứu"]
-        DISCLAIMER_BOX["Tuyên bố Miễn trừ Trách nhiệm Lâm sàng Bắt buộc"]
-    end
-
-    %% Liên kết giữa các tầng
-    UI -->|Gửi yêu cầu| ORCH
-    ORCH -->|Điều phối; bước 6–9 song song| Workers
-    ORCH -->|Áp dụng chính sách & An toàn| Guards
-    
-    Workers -->|Đọc/Ghi trạng thái| STATE
-    Guards -->|Kiểm soát/Bổ sung| STATE
-
-    AG_ADV -.-> OLLAMA
-    AG_PRED -.-> PYTORCH
-    AG_RL -.-> RL_MODEL
-    AG_LAB -.-> ADA_RULES
-    AG_NUT -.-> USDA_DATA
-
-    AG_MEM <--> SQLITE
-    AG_LAB <--> SQLITE
-    AG_KG <--> NEO4J
-    AG_RET <--> KBFOLDER
-    ORCH --> JSONL
-
-    AG_RULE --> MED_INVARIANTS
-    MED_INVARIANTS --> DISCLAIMER_BOX
-    DISCLAIMER_BOX -->|Trả kết quả an toàn| STREAM
-    STREAM --> UI
+    UI --> VOICE
+    UI --> ORCH
+    API --> ORCH
+    CLI --> ORCH
+    MCPS -.-> PAR
+    VOICE --> ORCH
+    MEAL -->|ảnh · HTTP| CALO
+    MEAL -.-> CARB
+    CHECK & LABIN & MEAL -.-> DB
+    SEQ -.-> DB
+    PAR -.-> KB & KG & PM
+    TAIL -->|stream token| OLLAMA
 ```
 
 ---
@@ -162,7 +153,7 @@ flowchart TD
 
 ## 3.1. Phân loại Chi tiết 8+2 Agent Chuyên trách
 
-Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử thực thi nhiệm vụ** và **2 tác tử kiểm soát/giám sát hệ thống**:
+Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử thực thi nhiệm vụ** và **2 tác tử kiểm soát/giám sát hệ thống**. Các dòng ghi "bổ sung ở V4.x" là phần thêm sau đặc tả:
 
 | Tên Tác tử | Nhóm | Vai trò & Trách nhiệm Chính | Đầu vào (Input) | Đầu ra (Output) | Công nghệ / Nguồn dữ liệu |
 |---|:---:|---|---|---|---|
@@ -173,9 +164,12 @@ Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử th�
 | **GraphAgent (KG)** | Worker | Định vị các thực thể nguy cơ trong câu hỏi, tra cứu tri thức quan hệ và đối chiếu bằng chứng y khoa. | `question` | Danh sách thực thể, tỷ số chênh OR, khẳng định đối chiếu (`state.kg`) | Neo4j 5 Community, Cypher queries, NetworkX, `DB_diabet.cypher` |
 | **NutritionAgent** | Worker | Nhận diện món ăn Việt, ước lượng khẩu phần, tra cứu năng lượng, carbohydrate, chất xơ. | `question` | Bảng dinh dưỡng phân tích (`state.nutrition`) | `vn_foods.json` (50 món Việt quy đổi từ USDA FDC) |
 | **JournalAgent** (bổ sung ở V4.4, ngoài đặc tả 8+2) | Worker | Đọc nhật ký tự theo dõi 14 ngày của người đã chẩn đoán (đường huyết, huyết áp, cân nặng, lịch tái khám), tổng hợp thành vài dòng đã ghi sẵn nhận định so với mục tiêu (mục tiêu chung ADA 2024 hoặc mục tiêu riêng do bác sĩ đặt). | `patient_id` | Bản tóm tắt nhật ký (`state.journal`) | `journal.py`, SQLite (`readings`, `appointments`, `targets`) |
+| **Agent bữa ăn** (bổ sung ở V4.9, chạy ngoài pipeline tư vấn) | Worker | Gửi ảnh khay cơm cho dịch vụ Calo Khay, đánh số và tô vùng từng món lên ảnh, bắt người dùng xác nhận món chưa chắc và sửa gram, tính tinh bột thành một khoảng bằng bảng (không qua LLM), lưu bữa ăn. | Ảnh khay cơm, hoặc món tự nhập | Danh sách món đã xác nhận, khoảng tinh bột, kcal (bảng `meals`) | `meal_scan.py`, dịch vụ Calo Khay qua HTTP, `calo_khay_carb.csv` (Nutrition5k, USDA FNDDS) |
 | **ContextAgent** | Worker | Cắt lát trạng thái và phân bổ ngân sách token tối ưu cho từng tác tử tiếp theo. | Đối tượng `State`, trần ngân sách `num_ctx` | Lát cắt ngữ cảnh chuyên biệt (`ctx` cho Predictor, Advisor, Rules) | `context.build_context`, giải thuật cấp phát ngân sách ưu tiên |
 | **Advisor** | Worker | Tổng hợp toàn bộ lát cắt tri thức, đóng vai trò chuyên viên tư vấn y khoa viết bản nháp câu trả lời. | Lát ngữ cảnh đầy đủ từ ContextAgent | Bản nháp câu trả lời tiếng Việt (`state.draft`), số token sử dụng | Ollama (`qwen2.5:7b` / `qwen2.5:3b`), Streaming Generator |
 | **Critic** (bổ sung ở V4.6, bước kiểm tra, không tính là agent) | Control | Đối chiếu bản nháp với ngữ cảnh đã cấp cho Advisor: nhãn nguồn `[...]` có nằm trong ngữ cảnh không, và các con số có đơn vị trong bản nháp có xuất hiện trong ngữ cảnh không. Chỉ đo và gắn cờ, không sửa câu trả lời. Không gọi LLM. | Bản nháp, ngữ cảnh Advisor | `state.grounding` (tỉ lệ con số có căn cứ, nguồn lạ), cờ `unknown_source_cited`, `unsupported_number` | `critic.py`, so khớp chuỗi và đổi đơn vị mg/dL–mmol/L |
+| **Trợ lý chủ động hỏi** (bổ sung ở V4.9, câu soạn sẵn, không tính là agent) | Control | Mỗi ngày mở lời một lần với người đã chẩn đoán, chọn điều đáng hỏi nhất từ nhật ký; đọc số đo trong câu trả lời (hoặc câu kể tự nguyện như "vừa đo đường huyết 7,2") thành thẻ xác nhận, chỉ lưu khi người dùng bấm Lưu. | Nhật ký, câu trả lời gõ hoặc nói | Lời mở đầu, thẻ số đo, câu xác nhận soạn sẵn | `checkin.py`, bảng `checkins` |
+| **Giọng nói** (bổ sung ở V4.4 và V4.9, không tính là agent) | Giao diện | Nhận dạng câu nói (bỏ qua đoạn chỉ có tiếng ồn), đổi số đọc bằng chữ thành số, đọc to câu trả lời; khi trò chuyện bằng giọng nói, Advisor được dặn trả lời ngắn 50–90 chữ. | Âm thanh WAV 16 kHz | Câu hỏi (chữ), âm thanh trả lời | `speech.py` (PhoWhisper), `tts.py` (Piper), `voice_ui.py` |
 | **Orchestrator** | Control | Điều phối đường ống cố định (bốn agent chỉ đọc chạy song song), quản lý trạng thái, phát hiện câu chào, lọc tài liệu bị chèn lệnh, bắt lỗi. | Yêu cầu người dùng, cấu hình hệ thống | Trạng thái hoàn chỉnh của lượt hỏi (`State`) | Bộ điều phối Pipeline hướng sự kiện, Blackboard Pattern |
 | **Monitoring (_Tracer) & RLAgent** | Policy & Telemetry | **_Tracer**: Đo đạc độ trễ từng bước ($ms$), token, ghi log.<br/>**RLAgent**: Chọn trọng tâm can thiệp và học từ phản hồi người dùng. | **_Tracer**: Mốc thời gian agent.<br/>**RL**: Trạng thái bệnh nhân tổng hợp $\phi(s) \in \{0,1\}^{13}$. | **_Tracer**: Danh sách vết (`state.trace`).<br/>**RL**: Khuyến nghị trọng tâm (`state.rl`: action, điểm, propensity, event_id). | **_Tracer**: `time.perf_counter`, SQLite `runs`.<br/>**RL**: Ridge tuyến tính theo hành động, epsilon-greedy có mặt nạ an toàn, SQLite `rl_events`, `rl_model`. |
 
@@ -877,7 +871,13 @@ McNemar theo ca: $p = 0{,}0018$ (13 ca chỉ 7B đạt, 1 ca chỉ 3B đạt, v�
 
 **Lỗi mô hình ở xa nói rõ cho người dùng.** Khi Ollama chạy trên Kaggle (có token), `OllamaLLM` chỉ chờ 90 giây (trên máy: 300 giây) và đổi hết thời gian chờ, mất kết nối, mã 502/530 của Cloudflare thành lỗi `LLMUnavailable` mang một câu viết cho người dùng; Orchestrator hiện câu đó thay cho "Hệ thống đang gặp sự cố".
 
-**Số "không có trong ngữ cảnh".** Phân loại tay các số Critic gắn cờ (3B: 20 lượt, 7B: 23 lượt): phần lớn là số có trong `kb/` mà lượt đó không truy hồi tới (5 / 3) hoặc khuyến cáo chuẩn mà `kb/` chưa có, như 30 phút vận động hay quy tắc 15 phút khi hạ đường huyết (11 / 15); chỉ 4 / 5 lượt là số thật sự không có căn cứ, chủ yếu gram, kcal của món và ngưỡng chẩn đoán. Prompt được dặn thêm đúng hai chỗ đó; chạy lại 150 lượt 3B: đạt 127 → 124 (McNemar $p = 0{,}61$), lượt bị gắn cờ 20 → 17, số không có căn cứ 4 → 2; đổi lại, ở bốn nhóm hay có số 6 ca chỉ đạt trước so với 2 ca chỉ đạt sau (bản nháp nhóm diet bớt gắn nhãn nguồn). Mẫu nhỏ, cả hai chiều chỉ là chiều hướng.
+**Số "không có trong ngữ cảnh".** Phân loại tay các số Critic gắn cờ (3B: 20 lượt, 7B: 23 lượt): phần lớn là số có trong `kb/` mà lượt đó không truy hồi tới (5 / 3) hoặc khuyến cáo chuẩn mà `kb/` chưa có, như 30 phút vận động hay quy tắc 15 phút khi hạ đường huyết (11 / 15); chỉ 4 / 5 lượt là số thật sự không có căn cứ, chủ yếu gram, kcal của món và ngưỡng chẩn đoán. Prompt được dặn thêm đúng hai chỗ đó; chạy lại 150 lượt 3B: đạt 127 → 124 (McNemar $p = 0{,}61$). Lúc đầu Critic cho thấy lượt bị gắn cờ 20 → 17 và số không có căn cứ 4 → 2. **Kết luận này sai**: Critic khi đó bỏ sót số dạng khoảng ("45-60 gram"), số dính chữ ("100g") và số kèm chữ Hán ("32.8克"), đúng những dạng mô hình chuyển sang dùng. Sau khi sửa Critic, chấm lại bản nháp đã lưu của cả hai lần chạy cùng một cách (`tools/critic_rescore.py`): lượt có số không tìm thấy trong ngữ cảnh 19 → 23/150, riêng gram, kcal tự đặt cho món 5 → 8 lượt. Lời dặn **không** giảm được số tự đặt; nó vẫn nằm trong prompt và chưa quyết định giữ hay bỏ.
+
+**Trò chuyện bằng giọng nói** (`voice_ui.py`, `tts.py`). Trang Tư vấn có chế độ nói chuyện rảnh tay: một nút micro to ở giữa, bấm một lần rồi cứ nói. Trình duyệt tự nhận ra lúc người dùng nói xong (đo mức ồn nền 0,4 giây đầu, ngưỡng gấp ba mức ồn, 0,8 giây im lặng là hết câu), gửi đoạn WAV 16 kHz cho Python; PhoWhisper nhận dạng (khoảng 2,4 giây trên CPU), câu đi pipeline tư vấn, câu trả lời được Piper đọc thành âm thanh (khoảng 1 giây cho 20 giây nói) rồi trình duyệt phát và nghe tiếp. Đoạn chỉ có tiếng ồn bị bỏ ở cả hai đầu (trình duyệt và `has_speech` ở máy chủ), vì Whisper "bịa" ra câu tiếng Việt trôi chảy khi gặp im lặng. Không dùng giọng đọc của trình duyệt: Windows không có giọng tiếng Việt cục bộ, còn giọng trực tuyến của Edge gửi câu trả lời (có thông tin sức khoẻ) ra ngoài. Khi nói chuyện bằng giọng, Advisor được dặn trả lời 50–90 chữ theo kiểu nói (`VOICE_REMINDER`); Ollama giữ mô hình trong GPU 30 phút (`keep_alive`) để câu sau không phải chờ nạp lại. Số đo nói ra lúc nào cũng hiện thẻ xác nhận, kể cả khi trợ lý không hỏi; số thập phân đọc bằng chữ trong câu hỏi ("HbA1c sáu phẩy tám") được đổi thành số trước khi vào pipeline.
+
+**Ảnh trong ô chat và vùng món trên ảnh.** Ô chat của Streamlit nhận ảnh: ảnh có chữ đọc ra chỉ số xét nghiệm (OCR) thì được lưu như phiếu xét nghiệm, còn lại đi sang Agent bữa ăn. Kết quả nhận diện món vẽ lại vùng từng món (đa giác của Calo Khay) và đánh số trùng với số trong bảng món, để người dùng thấy món nào bị nhận sai.
+
+**Lỗi sửa sau khi chạy thật.** (1) Phiếu xét nghiệm chọn trong ô tải tệp chỉ được đọc khi bấm một nút nằm dưới ô gõ chữ; người dùng chuyển trang thì tệp mất và không có gì được lưu. Nay chọn tệp là tự lưu. (2) Hai tab trình duyệt dùng chung một kết nối SQLite làm lỗi `IndexError`/`InterfaceError`; mỗi lời gọi Store nay chạy dưới một khoá (`SerialStore`). (3) `logs/runs.jsonl` không mã hoá mà ghi nguyên văn câu hỏi; nay chỉ ghi độ dài.
 
 **MCP server** (`mcp_server.py`, stdio, JSON-RPC viết bằng thư viện chuẩn). Mở sáu công cụ tất định (xét nghiệm, tài liệu, đồ thị tri thức, dinh dưỡng, khay cơm, nguy cơ) và kho `kb/` cho các trợ lý AI khác; không mở công cụ "tư vấn" (sẽ bỏ qua Rules) và không mở dữ liệu người bệnh.
 
@@ -889,7 +889,7 @@ Kiến trúc này có thể mở rộng theo hai hướng:
 
 ## 11.5. Kết luận
 
-**DiaCare-MAS** hiện thực Đặc tả Kiến trúc Hybrid Multiagent System của PTIT bằng 11 agent do một Orchestrator điều phối, kết hợp mô hình dự đoán nguy cơ, đồ thị tri thức Neo4j, RAG lai, contextual bandit học từ phản hồi, trí nhớ dài hạn, OCR và lớp luật an toàn. Những điều đã đo được: trí nhớ dài hạn nâng nhóm ca trí nhớ từ 0,25 lên 1,00; JournalAgent nâng tỉ lệ đạt từng lượt ở nhóm ca nhật ký từ 3/36 lên 28/36; trong 414 lượt benchmark không ghi nhận câu trả lời nào khuyên tự đổi thuốc. Những điều chưa có: mức tăng chung giữa các cấu hình chưa có ý nghĩa thống kê; benchmark KG/RL không thấy khác biệt (p từ 0,5 đến 1,0) nhưng bộ ca chỉ chạm tới đồ thị ở 7/50 ca nên chưa đo được tác dụng của đồ thị; RLAgent chưa có phản hồi thật; mô hình dự đoán học trên dữ liệu Hoa Kỳ và chưa kiểm chứng trên người Việt; đồ thị tri thức chưa được bác sĩ thẩm định. Hệ thống giảm rủi ro ảo giác và rủi ro an toàn của LLM chứ không loại bỏ được, và là công cụ hỗ trợ tự theo dõi, không thay thế bác sĩ.
+**DiaCare-MAS** hiện thực Đặc tả Kiến trúc Hybrid Multiagent System của PTIT bằng 11 agent trong pipeline tư vấn do một Orchestrator điều phối, thêm Agent bữa ăn ngoài pipeline (nhận diện món qua dịch vụ Calo Khay), kết hợp mô hình dự đoán nguy cơ, đồ thị tri thức Neo4j, RAG lai, contextual bandit học từ phản hồi, trí nhớ dài hạn, OCR, giọng nói chạy trên máy và lớp luật an toàn. Những điều đã đo được: trí nhớ dài hạn nâng nhóm ca trí nhớ từ 0,25 lên 1,00; JournalAgent nâng tỉ lệ đạt từng lượt ở nhóm ca nhật ký từ 3/36 lên 28/36; trong 414 lượt benchmark không ghi nhận câu trả lời nào khuyên tự đổi thuốc. Những điều chưa có: mức tăng chung giữa các cấu hình chưa có ý nghĩa thống kê; benchmark KG/RL không thấy khác biệt (p từ 0,5 đến 1,0) nhưng bộ ca chỉ chạm tới đồ thị ở 7/50 ca nên chưa đo được tác dụng của đồ thị; RLAgent chưa có phản hồi thật; mô hình dự đoán học trên dữ liệu Hoa Kỳ và chưa kiểm chứng trên người Việt; đồ thị tri thức chưa được bác sĩ thẩm định. Hệ thống giảm rủi ro ảo giác và rủi ro an toàn của LLM chứ không loại bỏ được, và là công cụ hỗ trợ tự theo dõi, không thay thế bác sĩ.
 
 ---
 
