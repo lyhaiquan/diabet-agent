@@ -16,7 +16,7 @@ from diacare.journal import now_vn  # noqa: E402
 from diacare.factory import ROOT, build_orchestrator, open_store  # noqa: E402
 from diacare.flowviz import flow_html  # noqa: E402
 from diacare.kg import subgraph_dot, subgraph_edges  # noqa: E402
-from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file,  # noqa: E402
+from diacare.labs import (LABELS as LAB_LABELS, unit_text, LabAgent, classify, parse_lab_file,  # noqa: E402
                           parse_lab_text, worst_level)
 from diacare.memory import KIND_LABELS, has_diagnosis  # noqa: E402
 from diacare.ocr import UploadRejected  # noqa: E402
@@ -536,7 +536,7 @@ def render_chat(store, base, patient_id):
         getattr(st, notice[0])(notice[1])
     lab_saved = _photo_labs(store, patient_id, photo) if photo is not None else None
     if lab_saved:  # ảnh phiếu xét nghiệm: lưu như ở trang Nhật ký, không đưa sang nhận diện món ăn
-        names = ", ".join(f"{LAB_LABELS[r['test']]} {r['value']:g} {r.get('unit') or ''}".strip() for r in lab_saved)
+        names = ", ".join(f"{LAB_LABELS[r['test']]} {r['value']:g} {unit_text(r.get('unit')) or ''}".strip() for r in lab_saved)
         st.session_state["chat_notice"] = (
             "success", f"Ảnh này là phiếu xét nghiệm: đã lưu {len(lab_saved)} chỉ số ({names}) vào Nhật ký → "
                        "Xét nghiệm. Bạn có thể hỏi trợ lý ý nghĩa các chỉ số này.")

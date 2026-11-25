@@ -11,6 +11,7 @@ Thiết kế:
   một khoá riêng (đọc-sửa-ghi); với PostgreSQL đó là advisory lock nên đúng cả khi chạy nhiều tiến trình.
 - Mọi tài nguyên đều thuộc về một hồ sơ (patient) của một tài khoản; tài nguyên của người khác trả 404.
 """
+import base64
 import json
 import os
 import queue
@@ -33,14 +34,17 @@ from diacare.coach import NUDGES, daily_nudge, load_coach
 from diacare.crypto import key_dir
 from diacare.db import Store
 from diacare.factory import DEFAULT_DB_PATH, ROOT, build_parts, orchestrator_from_parts
-from diacare.labs import LABELS as LAB_LABELS, LabAgent, classify, parse_lab_file, parse_lab_text
+from diacare.labs import (LABELS as LAB_LABELS, LabAgent, classify, import_photo, parse_lab_file,
+                          parse_lab_text, unit_text)
 from diacare.memory import KIND_LABELS, has_diagnosis
 from diacare.ocr import UploadRejected
 from diacare.rl import ACTION_LABELS, RLAgent
 from diacare.predictor import compare_models
 from diacare.rules import FEATURE_RANGES, SafeStream, risk_band, validate_profile
 from diacare.samples import LOW_RISK
-from diacare.speech import AudioError, decode_wav, make_transcriber, parse_spoken_reading
+from diacare import tts
+from diacare.speech import (AudioError, decode_wav, has_speech, make_transcriber, parse_spoken_reading,
+                            spoken_decimals)
 from diacare.state import State
 from diacare.visit_report import build_visit_pdf
 
@@ -57,7 +61,8 @@ oauth2 = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 # ---- dựng ứng dụng ------------------------------------------------------------
 
-def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=None, transcriber=None):
+def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=None, transcriber=None,
+               speaker=None):
     """db_path: tệp SQLite hoặc URL postgresql://... Mặc định: DIACARE_DATABASE_URL, rồi DIACARE_DB, rồi data/diacare.db.
     Tham số để test: db_path (tệp SQLite tạm), parts (LLM giả lập), secret, clock (giờ cố định)."""
     db_path = str(db_path or os.environ.get("DIACARE_DATABASE_URL") or os.environ.get("DIACARE_DB")
@@ -88,6 +93,7 @@ def create_app(db_path=None, parts=None, secret=None, clock=None, cors_origins=N
     app.state.limiter = security.RateLimiter(
         clock=(lambda: app.state.clock().timestamp()) if clock is not None else time.time)
     app.state.transcriber = transcriber  # None: nạp PhoWhisper ở lần nói đầu tiên
+    app.state.speaker = speaker  # None: nạp giọng đọc Piper ở lần đọc đầu tiên (POST /tts)
     app.state.coach = load_coach()  # agent Q-learning chọn lời nhắc mỗi ngày; None nếu chưa huấn luyện
     origins = cors_origins if cors_origins is not None else [
         o.strip() for o in os.environ.get("DIACARE_CORS", "http://localhost:3000").split(",") if o.strip()]
@@ -254,6 +260,12 @@ class ChatIn(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     session_id: int | None = Field(default=None, description="Bỏ trống để mở phiên mới")
     stream: bool = Field(default=False, description="true: trả về luồng Server-Sent Events")
+    voice: bool = Field(default=False, description="câu hỏi nói ra ở chế độ trò chuyện bằng giọng nói: trả lời ngắn, "
+                                                   "kiểu nói (advisor.VOICE_REMINDER)")
+
+
+class SpeakIn(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class FeedbackIn(BaseModel):
@@ -383,7 +395,7 @@ def _import_labs(store, patient_id, results):
         raise HTTPException(422, "Không tìm thấy chỉ số hợp lệ. Hỗ trợ: HbA1c, đường huyết lúc đói, "
                                  "đường huyết 2 giờ (OGTT), đường huyết bất kỳ.")
     return {"imported": [{"test": r["test"], "label": LAB_LABELS[r["test"]], "value": r["value"],
-                          "unit": r.get("unit")} for r in saved],
+                          "unit": unit_text(r.get("unit"))} for r in saved],
             "labs": _labs_out(store, patient_id)}
 
 
@@ -397,7 +409,7 @@ def _chat_slot(app):
                             headers={"Retry-After": "30"})
 
 
-def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
+def _run_chat(app, user_id, patient_id, question, session_id, emit=None, voice=False):
     """Chạy một lượt tư vấn trên kết nối DB riêng (dùng được trong luồng phụ của SSE) và lưu tin nhắn.
     emit(event, data): báo bước agent và chữ đã qua bộ lọc an toàn trong lúc chạy.
     Người gọi đã giữ một suất (_chat_slot); hàm này trả suất khi xong, kể cả khi lỗi."""
@@ -423,7 +435,7 @@ def _run_chat(app, user_id, patient_id, question, session_id, emit=None):
 
             stream = SafeStream(on_text) if emit else None
             state = orch.run(State(question=question, profile=patient["profile"], history=history,
-                                   patient_id=patient_id),
+                                   patient_id=patient_id, voice=voice),
                              on_token=stream,
                              on_step=(lambda e: emit("step", e)) if emit else None)
             if stream is not None:
@@ -723,12 +735,18 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             raise HTTPException(413, "Ảnh lớn hơn 10 MB.")
         try:
             res = meal_scan.scan(data, image.filename or "khay.jpg", image.content_type or "image/jpeg")
+            items = meal_scan.items_from_scan(res, meal_scan.load_table())
+            try:  # ảnh có vùng từng món tô màu và đánh số (số = "no" của món); lỗi vẽ thì giao diện hiện ảnh gốc
+                annotated = base64.b64encode(meal_scan.annotate(data, items, res.get("image"))).decode("ascii")
+            except Exception:  # noqa: BLE001
+                annotated = None
         except meal_scan.CaloKhayError as exc:
             raise HTTPException(503, str(exc)) from exc
         finally:
             del data
-        table = meal_scan.load_table()
-        return {"items": meal_scan.items_from_scan(res, table), "warnings": res.get("warnings", [])}
+        for it in items:  # toạ độ đa giác đã vẽ vào ảnh, không cần gửi cho trình duyệt
+            it.pop("polygons", None)
+        return {"items": items, "warnings": res.get("warnings", []), "annotated_png": annotated}
 
     @app.post("/patients/{patient_id}/meals/estimate", tags=["bữa ăn"])
     def meal_estimate(body: MealItemsIn, patient=Depends(owned_patient)):
@@ -853,6 +871,34 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             raise HTTPException(422, f"Không đọc được file ({type(exc).__name__}).") from exc
         return _import_labs(store, patient["id"], results)
 
+    @app.post("/patients/{patient_id}/photo", tags=["xét nghiệm", "bữa ăn"])
+    def chat_photo(image: UploadFile = File(..., description="Ảnh gửi ở ô chat, JPG/PNG/WEBP, tối đa 10 MB"),
+                   patient=Depends(owned_patient), store: Store = Depends(get_store)):
+        """Ảnh gửi ở ô chat: đọc ra chỉ số xét nghiệm thì lưu như phiếu xét nghiệm (kind "labs"), không thì gửi Calo
+        Khay nhận diện món (kind "meal", chưa lưu gì; giao diện mở trang Bữa ăn để xác nhận). Ảnh không được lưu."""
+        data = image.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "Ảnh lớn hơn 10 MB.")
+        name = image.filename or "anh.jpg"
+        saved = import_photo(store, patient["id"], name, data)
+        if saved:
+            return {"kind": "labs",
+                    "imported": [{"test": r["test"], "label": LAB_LABELS[r["test"]], "value": r["value"],
+                                  "unit": unit_text(r.get("unit"))} for r in saved],
+                    "labs": _labs_out(store, patient["id"])}
+        try:
+            res = meal_scan.scan(data, name, image.content_type or "image/jpeg")
+        except meal_scan.CaloKhayError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        items = meal_scan.items_from_scan(res, meal_scan.load_table())
+        try:
+            annotated = base64.b64encode(meal_scan.annotate(data, items, res.get("image"))).decode("ascii")
+        except Exception:  # noqa: BLE001
+            annotated = None
+        for it in items:
+            it.pop("polygons", None)
+        return {"kind": "meal", "items": items, "warnings": res.get("warnings", []), "annotated_png": annotated}
+
     # -- tái khám --
     @app.get("/patients/{patient_id}/appointment", tags=["tái khám"])
     def get_appointment(patient=Depends(owned_patient), store: Store = Depends(get_store)):
@@ -929,14 +975,14 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
         app_ = request.app
         _chat_slot(app_)  # _run_chat trả suất khi xong
         if not body.stream:
-            return _run_chat(app_, user["id"], patient["id"], body.question, body.session_id)
+            return _run_chat(app_, user["id"], patient["id"], body.question, body.session_id, voice=body.voice)
 
         events = queue.Queue()
 
         def worker():
             try:
                 result = _run_chat(app_, user["id"], patient["id"], body.question, body.session_id,
-                                   emit=lambda ev, data: events.put((ev, data)))
+                                   emit=lambda ev, data: events.put((ev, data)), voice=body.voice)
                 events.put(("done", result))
             except Exception as exc:  # lỗi trong pipeline: báo cho giao diện, không treo luồng
                 events.put(("error", {"message": f"Lỗi hệ thống ({type(exc).__name__}). Vui lòng thử lại."}))
@@ -955,6 +1001,8 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
 
     @app.post("/transcribe", tags=["giọng nói"])
     def transcribe(request: Request, audio: UploadFile = File(..., description="WAV PCM 16 bit, tối đa 60 giây"),
+                   voice: bool = Query(False, description="chế độ trò chuyện bằng giọng nói: bỏ đoạn chỉ có tiếng "
+                                                          "ồn (trả text rỗng), đổi số thập phân đọc bằng chữ"),
                    user=Depends(current_user)):
         """Chuyển lời nói tiếng Việt thành chữ. Âm thanh không được lưu lại.
         `reading` là số đo nghe được trong câu (nếu có), chỉ để giao diện hỏi lại người dùng trước khi lưu."""
@@ -967,12 +1015,35 @@ def _routes(app):  # noqa: C901 - danh sách endpoint, đọc tuần tự dễ h
             raise HTTPException(422, str(exc)) from exc
         finally:
             del data
+        if voice and not has_speech(samples):  # Whisper "bịa" ra câu khi gặp im lặng: không gửi đi
+            return {"text": "", "reading": None, "seconds": 0.0, "audio_seconds": round(len(samples) / 16000, 1)}
         if request.app.state.transcriber is None:
             request.app.state.transcriber = make_transcriber()
         t0 = time.perf_counter()
         text = request.app.state.transcriber(samples)
+        if voice and text:
+            text = spoken_decimals(text)
         return {"text": text, "reading": parse_spoken_reading(text) if text else None,
                 "seconds": round(time.perf_counter() - t0, 2), "audio_seconds": round(len(samples) / 16000, 1)}
+
+    @app.post("/tts", tags=["giọng nói"])
+    def speak(body: SpeakIn, request: Request, user=Depends(current_user)):
+        """Đọc to câu trả lời bằng giọng tiếng Việt Piper chạy trên máy chủ (offline), trả về WAV. Chữ được chuẩn hoá
+        trước (bỏ nhãn nguồn, đọc đơn vị, "6,8" thành "6 phẩy 8"). Không dùng giọng của trình duyệt: Windows không có
+        giọng tiếng Việt cục bộ, còn giọng trực tuyến của Edge gửi câu trả lời ra ngoài."""
+        if request.app.state.speaker is None:
+            request.app.state.speaker = tts.Speaker()
+        speaker = request.app.state.speaker
+        if not speaker.available:
+            raise HTTPException(503, "Máy chủ chưa có giọng đọc tiếng Việt (Piper). Xem hướng dẫn tải trong "
+                                     "src/diacare/tts.py.")
+        try:
+            wav = speaker.wav(body.text)
+        except tts.TTSUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
+        if not wav:
+            return Response(status_code=204)
+        return Response(content=wav, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
     @app.post("/feedback/{event_id}", tags=["tư vấn"])
     def feedback(event_id: int, body: FeedbackIn, request: Request, user=Depends(current_user),

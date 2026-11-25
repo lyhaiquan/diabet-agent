@@ -7,6 +7,7 @@ import { VoiceReading } from "@/components/VoiceReading";
 import { ErrorText, Notices } from "@/components/Notice";
 import { DailyNudge } from "@/components/DailyNudge";
 import { Reminders } from "@/components/Reminders";
+import { MealAdviceCard } from "@/components/MealAdviceCard";
 import { api, fmtDate, fmtMmol, fmtTime, type Summary, type Today } from "@/lib/api";
 import { usePatient } from "@/lib/session";
 
@@ -15,12 +16,14 @@ export default function TodayPage() {
   const [today, setToday] = useState<Today | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
 
   const load = useCallback(async () => {
     try {
       const [t, s] = await Promise.all([api.today(patient.id), api.summary(patient.id, 14)]);
       setToday(t);
       setSummary(s);
+      setVersion((v) => v + 1);  // số đo vừa ghi có thể ghép với bữa ăn: tải lại thẻ gợi ý
     } catch (e) {
       setError((e as Error).message);
     }
@@ -46,6 +49,7 @@ export default function TodayPage() {
         <div style={{ height: 14 }} />
         <GlucoseForm patientId={patient.id} onSaved={load} showAdvice={false} />
       </section>
+      <MealAdviceCard patientId={patient.id} version={version} />
 
       {today && summary && (
         <>

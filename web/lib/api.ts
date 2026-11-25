@@ -262,18 +262,31 @@ export const api = {
   mealScan: (image: Blob, name = "khay.jpg") => {
     const fd = new FormData();
     fd.append("image", image, name);
-    return json<{ items: ScannedItem[]; warnings: string[] }>("/meals/scan", { method: "POST", body: fd });
+    return json<MealScan>("/meals/scan", { method: "POST", body: fd });
   },
   mealEstimate: (pid: number, items: MealItemIn[]) => post<MealTotal>(`/patients/${pid}/meals/estimate`, { items }),
   addMeal: (pid: number, b: { items: MealItemIn[]; eaten_at: string; slot: Slot }) => post<MealTotal>(`/patients/${pid}/meals`, b),
   meals: (pid: number, days = 7) => json<Meal[]>(`/patients/${pid}/meals?days=${days}`),
   deleteMeal: (pid: number, mid: number) => json<null>(`/patients/${pid}/meals/${mid}`, { method: "DELETE" }),
   mealAdvice: (pid: number) => json<MealAdvice>(`/patients/${pid}/meals/advice`),
+  /** Ảnh gửi ở ô chat: phiếu xét nghiệm thì lưu luôn ("labs"), không thì nhận diện món ("meal", chưa lưu). */
+  chatPhoto: (pid: number, image: Blob, name = "anh.jpg") => {
+    const fd = new FormData();
+    fd.append("image", image, name);
+    return json<ChatPhoto>(`/patients/${pid}/photo`, { method: "POST", body: fd });
+  },
 
-  transcribe: (wav: Blob) => {
+  /** voice=true (chế độ trò chuyện bằng giọng nói): đoạn chỉ có tiếng ồn trả text rỗng, số thập phân đọc bằng chữ được
+   *  đổi thành số. */
+  transcribe: (wav: Blob, voice = false) => {
     const fd = new FormData();
     fd.append("audio", wav, "noi.wav");
-    return json<Transcript>("/transcribe", { method: "POST", body: fd });
+    return json<Transcript>(`/transcribe${voice ? "?voice=true" : ""}`, { method: "POST", body: fd });
+  },
+  /** Đọc to bằng giọng Piper trên máy chủ: trả về WAV (null khi không có chữ để đọc). */
+  tts: async (text: string): Promise<Blob | null> => {
+    const res = await request("/tts", { method: "POST", body: JSON.stringify({ text }) });
+    return res.status === 204 ? null : await res.blob();
   },
 };
 
@@ -293,9 +306,16 @@ export type Slot = "breakfast" | "lunch" | "dinner" | "snack";
 export const SLOTS: Record<Slot, string> = { breakfast: "Bữa sáng", lunch: "Bữa trưa", dinner: "Bữa tối", snack: "Bữa phụ" };
 export type Dish = { cls: string; name: string; carb_per_100g: number | null; carb_high: number | null; manual: boolean };
 export type ScannedItem = {
-  cls: string | null; name: string; grams: number; conf: number | null; needs_confirm: boolean;
+  no: number; cls: string | null; name: string; grams: number; conf: number | null; needs_confirm: boolean;
   suggestions: string[]; gram_method: string | null;
 };
+/** Kết quả nhận diện: món và ảnh PNG (base64) có vùng từng món tô màu, đánh số theo `no`. */
+export type MealScan = { items: ScannedItem[]; warnings: string[]; annotated_png: string | null };
+export type ChatPhoto =
+  | { kind: "labs"; imported: { test: string; label: string; value: number; unit: string | null }[]; labs: Lab[] }
+  | ({ kind: "meal" } & MealScan);
+/** Trang Tư vấn gửi kết quả nhận diện ảnh bữa ăn sang trang Bữa ăn qua sessionStorage (khoá này). */
+export const MEAL_SCAN_KEY = "diacare_meal_scan";
 export type MealItemIn = { cls: string; grams: number; model_grams?: number | null; gram_method?: string | null };
 export type MealTotal = {
   carb_g: number; carb_low: number; carb_high: number; kcal: number; text: string; uncounted: string[];
@@ -341,10 +361,11 @@ export function parseSse(buffer: string, emit: (event: string, data: unknown) =>
 }
 
 /** EventSource chỉ gửi được GET, nên đọc luồng SSE từ fetch POST. Trả về kết quả cuối (sự kiện done). */
-export async function chatStream(pid: number, question: string, sessionId: number | null, ev: ChatEvents): Promise<ChatResult> {
+export async function chatStream(pid: number, question: string, sessionId: number | null, ev: ChatEvents,
+                                 voice = false): Promise<ChatResult> {
   const res = await request(`/patients/${pid}/chat`, {
     method: "POST",
-    body: JSON.stringify({ question, session_id: sessionId, stream: true }),
+    body: JSON.stringify({ question, session_id: sessionId, stream: true, voice }),
   });
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();

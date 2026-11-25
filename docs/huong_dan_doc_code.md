@@ -124,7 +124,7 @@ Lá mỏng: gọi cành, thân rồi hiển thị. Đọc cuối cùng.
 
 - **Streamlit** (`src/app.py`, 820 dòng): `main` (dòng 785) chọn trang; `load_parts` (dòng 79) dựng phần nặng một lần; `render_chat` (dòng 477) là trang Tư vấn; `_ask` (dòng 382) gọi `Orchestrator.run` và stream câu trả lời. Các trang khác tách ra tệp riêng: `journal_ui.py` (Hôm nay, Nhật ký), `meal_ui.py` (Bữa ăn), `checkin_ui.py` (thẻ trợ lý chủ động hỏi), `voice_ui.py` (nút micro to, có JavaScript bên trong). `ui_common.py` giữ phần thuần Python để test được (`SerialStore`, `chat_parts`, `photo_labs`).
 - **API** (`src/api/main.py`, 986 dòng): FastAPI, mọi endpoint lọc theo tài khoản đăng nhập (`security.py`). Gọi cùng các hàm của rễ và cành như Streamlit.
-- **Web** (`web/`, Next.js): `web/lib/api.ts` là mọi lời gọi API; mỗi trang ở `web/app/(app)/<trang>/page.tsx`; thành phần dùng lại ở `web/components/`.
+- **Web** (`web/`, Next.js): `web/lib/api.ts` là mọi lời gọi API; mỗi trang ở `web/app/(app)/<trang>/page.tsx`; thành phần dùng lại ở `web/components/` (ví dụ `MealAdviceCard` cho thẻ gợi ý ăn uống, `VoiceChat` cho nút micro to, `CheckinCard` cho thẻ xác nhận số đo).
 - **Khác**: `src/cli.py` (chat trong terminal), `mcp_server.py` (công cụ cho trợ lý AI khác), `flowviz.py` (sơ đồ động của trang Hoạt động agent), `present.py` (định dạng câu trả lời).
 
 Quy tắc của lá: không tính toán y khoa ở đây. Nếu thấy một phép so ngưỡng hay đổi đơn vị trong tệp giao diện, đó là chỗ nên chuyển xuống rễ.

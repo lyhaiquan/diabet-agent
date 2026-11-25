@@ -1,4 +1,5 @@
 import base64
+import base64
 import io
 import json
 from datetime import datetime, timedelta
@@ -693,6 +694,14 @@ def test_meal_scan_estimate_save_list(client, monkeypatch):
     assert any(d["cls"] == "pho_bo" and d["manual"] for d in dishes) and any(d["cls"] == "rice" for d in dishes)
     r = client.post("/meals/scan", files={"image": ("khay.jpg", b"\xff\xd8fake", "image/jpeg")}, headers=auth)
     assert r.status_code == 200 and r.json()["items"]
+    assert all("polygons" not in it and it["no"] for it in r.json()["items"])
+    assert r.json()["annotated_png"] is None  # ảnh giả không mở được: giao diện hiện ảnh gốc
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (scan["image"]["w"], scan["image"]["h"]), "white").save(buf, "PNG")
+    r2 = client.post("/meals/scan", files={"image": ("khay.png", buf.getvalue(), "image/png")}, headers=auth)
+    assert base64.b64decode(r2.json()["annotated_png"]).startswith(bytes([0x89]) + b"PNG")
     items = [{"cls": it["cls"], "grams": it["grams"], "model_grams": it["grams"], "gram_method": it["gram_method"]}
              for it in r.json()["items"] if it["cls"]]
     est = client.post(f"/patients/{pid}/meals/estimate", json={"items": items}, headers=auth).json()
@@ -728,3 +737,74 @@ def test_meal_scan_service_down(client, monkeypatch):
     auth = register(client)
     r = client.post("/meals/scan", files={"image": ("k.jpg", b"x", "image/jpeg")}, headers=auth)
     assert r.status_code == 503 and "dịch vụ nhận diện" in r.json()["detail"]
+
+
+def test_chat_photo_lab_sheet_or_meal(client, monkeypatch):
+    from diacare import meal_scan
+    scan = json.loads((Path(__file__).parent / "fixtures" / "calo_scan_B212.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(meal_scan, "scan", lambda data, name, ctype: scan)
+    auth = register(client)
+    pid = new_patient(client, auth, diagnosed=True)
+    photo = {"image": ("anh.jpg", b"\xff\xd8fake", "image/jpeg")}
+    monkeypatch.setattr("diacare.labs.ocr_image", lambda data, ocr_fn=None: "HbA1c: 7.2 %")
+    r = client.post(f"/patients/{pid}/photo", files=photo, headers=auth).json()
+    assert r["kind"] == "labs" and r["imported"][0]["test"] == "hba1c" and r["labs"]
+    monkeypatch.setattr("diacare.labs.ocr_image", lambda data, ocr_fn=None: "Cơm trắng, đậu phụ")
+    r = client.post(f"/patients/{pid}/photo", files=photo, headers=auth).json()
+    assert r["kind"] == "meal" and r["items"] and all("polygons" not in it for it in r["items"])
+    other = register(client, email="b@example.com")
+    assert client.post(f"/patients/{pid}/photo", files=photo, headers=other).status_code == 404
+
+
+def test_transcribe_voice_mode_drops_noise_and_converts_decimals(voice_client):
+    import wave as _wave
+    import numpy as _np
+    auth = register(voice_client)
+    noise = (0.003 * _np.random.default_rng(0).standard_normal(16000) * 32767).astype("<i2")  # tiếng ồn nhỏ
+    buf = io.BytesIO()
+    with _wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(noise.tobytes())
+    r = voice_client.post("/transcribe?voice=true", files={"audio": ("a.wav", buf.getvalue(), "audio/wav")},
+                          headers=auth)
+    assert r.status_code == 200 and r.json()["text"] == ""  # chỉ có tiếng ồn: không chạy Whisper, không bịa câu
+    r = voice_client.post("/transcribe?voice=true", files={"audio": ("a.wav", _wav(), "audio/wav")},
+                          headers=auth).json()
+    assert r["text"] == "Đường huyết sáng nay lúc đói 6.8"
+
+
+def test_tts_returns_wav_and_needs_login(tmp_path, parts):
+    class FakeSpeaker:
+        available = True
+
+        def wav(self, text):
+            return b"RIFF" + text.encode("utf-8")
+    app = create_app(db_path=tmp_path / "api.db", parts=parts, secret=SECRET, clock=lambda: NOW,
+                     speaker=FakeSpeaker())
+    with TestClient(app) as c:
+        auth = register(c)
+        assert c.post("/tts", json={"text": "xin chào"}).status_code == 401
+        r = c.post("/tts", json={"text": "xin chào"}, headers=auth)
+        assert r.status_code == 200 and r.headers["content-type"] == "audio/wav" and r.content.startswith(b"RIFF")
+
+    class NoVoice:
+        available = False
+    app = create_app(db_path=tmp_path / "api2.db", parts=parts, secret=SECRET, clock=lambda: NOW, speaker=NoVoice())
+    with TestClient(app) as c:
+        auth = register(c)
+        r = c.post("/tts", json={"text": "xin chào"}, headers=auth)
+        assert r.status_code == 503 and "Piper" in r.json()["detail"]
+
+
+def test_chat_voice_flag_reaches_advisor(client, monkeypatch):
+    from diacare import advisor
+    seen = []
+    real = advisor.build_messages
+    monkeypatch.setattr(advisor, "build_messages", lambda ctx: seen.append(ctx.get("voice")) or real(ctx))
+    auth = register(client)
+    pid = new_patient(client, auth)
+    assert client.post(f"/patients/{pid}/chat", json={"question": "Nên ăn rau gì?", "voice": True},
+                       headers=auth).status_code == 200
+    assert seen and seen[-1] is True

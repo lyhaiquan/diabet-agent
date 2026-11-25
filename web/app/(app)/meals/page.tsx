@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorText, Notice } from "@/components/Notice";
-import { api, fmtTime, nowLocalVN, SLOTS, vnIso,
-         type Dish, type Meal, type MealAdvice, type MealItemIn, type MealTotal, type Slot } from "@/lib/api";
+import { MealAdviceCard } from "@/components/MealAdviceCard";
+import { api, fmtTime, MEAL_SCAN_KEY, nowLocalVN, SLOTS, vnIso,
+         type Dish, type Meal, type MealItemIn, type MealScan, type MealTotal, type Slot } from "@/lib/api";
 import { usePatient } from "@/lib/session";
 
 const WARNINGS: Record<string, string> = {
@@ -14,7 +15,7 @@ const WARNINGS: Record<string, string> = {
 
 /** Một dòng trên bảng xác nhận. model_grams: gram mô hình đưa ra (null = người dùng tự thêm món). */
 type Row = {
-  key: number; cls: string; grams: number; model_grams: number | null; gram_method: string | null;
+  key: number; no: number | null; cls: string; grams: number; model_grams: number | null; gram_method: string | null;
   confirmed: boolean; hint: string;
 };
 
@@ -24,6 +25,8 @@ function slotFor(local: string): Slot {
 }
 
 let nextKey = 1;
+// cùng bảng màu với meal_scan.OVERLAY_COLORS, để số trên ảnh và số ở danh sách cùng màu
+const OVERLAY = ["#e6194b", "#3cb44b", "#0082c8", "#f58230", "#911eb4", "#46f0f0", "#f032e6", "#d2f53c", "#fabed4", "#008080", "#aa6e28", "#800000"];
 
 export default function MealsPage() {
   const patient = usePatient();
@@ -32,11 +35,12 @@ export default function MealsPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [annotated, setAnnotated] = useState<string | null>(null); // ảnh có vùng món đánh số (data URL)
   const [total, setTotal] = useState<MealTotal | null>(null);
   const [when, setWhen] = useState(nowLocalVN());
   const [slot, setSlot] = useState<Slot>(slotFor(nowLocalVN()));
   const [meals, setMeals] = useState<Meal[]>([]);
-  const [advice, setAdvice] = useState<MealAdvice | null>(null);
+  const [adviceVersion, setAdviceVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -44,7 +48,7 @@ export default function MealsPage() {
   const names = useMemo(() => Object.fromEntries(dishes.map((d) => [d.cls, d.name])), [dishes]);
   const loadMeals = useCallback(() => {
     api.meals(patient.id).then(setMeals).catch((e) => setError(e.message));
-    api.mealAdvice(patient.id).then(setAdvice).catch(() => setAdvice(null));
+    setAdviceVersion((v) => v + 1);
   }, [patient.id]);
 
   useEffect(() => {
@@ -82,19 +86,32 @@ export default function MealsPage() {
     setSlot(slotFor(now));
   }
 
-  async function scan() {
-    if (!photo) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api.mealScan(photo, photo.name || "khay.jpg");
+  function openScan(res: MealScan) {
+      setAnnotated(res.annotated_png ? `data:image/png;base64,${res.annotated_png}` : null);
       open(res.items.map((it) => ({
-        key: nextKey++, cls: it.cls ?? "", grams: it.grams, model_grams: it.grams, gram_method: it.gram_method,
+        key: nextKey++, no: it.no, cls: it.cls ?? "", grams: it.grams, model_grams: it.grams, gram_method: it.gram_method,
         confirmed: !it.needs_confirm,
         hint: it.needs_confirm
           ? "cần xác nhận" + (it.suggestions.length ? ` (có thể là: ${it.suggestions.slice(0, 3).map((s) => names[s] ?? s).join(", ")})` : "")
           : it.conf != null ? `tin cậy ${Math.round(it.conf * 100)}%` : "",
       })), res.warnings);
+  }
+
+  // ảnh bữa ăn gửi từ ô chat trang Tư vấn: kết quả nhận diện đã có sẵn, mở thẻ xác nhận luôn
+  useEffect(() => {
+    if (!dishes.length) return;
+    const raw = sessionStorage.getItem(MEAL_SCAN_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(MEAL_SCAN_KEY);
+    try { openScan(JSON.parse(raw)); } catch { /* bỏ qua dữ liệu hỏng */ }
+  }, [dishes]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function scan() {
+    if (!photo) return;
+    setBusy(true);
+    setError(null);
+    try {
+      openScan(await api.mealScan(photo, photo.name || "khay.jpg"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -107,13 +124,14 @@ export default function MealsPage() {
   }
 
   function addRow() {
-    setRows((rs) => [...(rs ?? []), { key: nextKey++, cls: "", grams: 100, model_grams: null, gram_method: null, confirmed: true, hint: "bạn tự thêm" }]);
+    setRows((rs) => [...(rs ?? []), { key: nextKey++, no: null, cls: "", grams: 100, model_grams: null, gram_method: null, confirmed: true, hint: "bạn tự thêm" }]);
   }
 
   function close() {
     setRows(null);
     setTotal(null);
     setPhoto(null);
+    setAnnotated(null);
     setWarnings([]);
   }
 
@@ -174,7 +192,13 @@ export default function MealsPage() {
       ) : (
         <section className="card stack" aria-label="Kiểm tra lại các món">
           <h2>Kiểm tra lại các món trước khi lưu</h2>
-          {preview && <img src={preview} alt="Ảnh khay cơm" style={{ maxWidth: 320, borderRadius: 8 }} />}
+          {(annotated || preview) && (
+            <figure style={{ margin: 0 }}>
+              <img src={annotated ?? preview!} alt="Ảnh khay cơm, vùng từng món được tô màu và đánh số"
+                   style={{ maxWidth: "100%", width: 420, borderRadius: 8 }} />
+              {annotated && <figcaption className="small muted">Số trên ảnh trùng với số của từng món bên dưới.</figcaption>}
+            </figure>
+          )}
           {warnings.map((w) => WARNINGS[w] && <Notice key={w} level="warning">{WARNINGS[w]}</Notice>)}
           {riceMean && (
             <Notice level="info">
@@ -186,6 +210,7 @@ export default function MealsPage() {
           <div className="stack" role="list" aria-label="Các món">
             {rows.map((r) => (
               <div key={r.key} role="listitem" className="meal-row">
+                {r.no != null && <span className="meal-no" style={{ background: OVERLAY[(r.no - 1) % OVERLAY.length] }} aria-label={`Món số ${r.no}`}>{r.no}</span>}
                 <select aria-label="Món" value={r.cls} onChange={(e) => patch(r.key, { cls: e.target.value })}>
                   <option value="">— chọn món —</option>
                   {dishes.map((d) => <option key={d.cls} value={d.cls}>{d.name}</option>)}
@@ -235,25 +260,7 @@ export default function MealsPage() {
       )}
       <ErrorText error={error} />
 
-      {advice && advice.status !== "no_meals" && (
-        <section className="card stack">
-          <h2>Gợi ý ăn uống từ đường huyết sau ăn</h2>
-          {advice.status === "hypo" ? (
-            <Notice level="warning">{advice.lines.join(" ")}</Notice>
-          ) : (
-            <>
-              <p>{advice.headline}</p>
-              {advice.lines.slice(1).map((line, i) => (
-                <p key={i} className={line.startsWith("Nên hạn chế") || line.startsWith("Có thể ăn thêm") ? "" : "small"}>
-                  {line.startsWith("Nên hạn chế") ? "🔻 " : line.startsWith("Có thể ăn thêm") || line.startsWith("Món ít tinh bột") ? "🥬 " : ""}
-                  {line}
-                </p>
-              ))}
-              {(advice.status === "high" || advice.status === "all_ok") && <p className="small">{advice.caveat}</p>}
-            </>
-          )}
-        </section>
-      )}
+      <MealAdviceCard patientId={patient.id} version={adviceVersion} hideEmpty={true} />
 
       <section className="card stack">
         <h2>Các bữa đã ghi (7 ngày)</h2>

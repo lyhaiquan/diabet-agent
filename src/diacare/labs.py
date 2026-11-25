@@ -203,3 +203,23 @@ class LabAgent:
         for r in from_question:
             merged[r["test"]] = r
         return classify(list(merged.values()))
+
+
+def import_photo(store, patient_id, name, data):
+    """Ảnh người dùng gửi ở ô chat (Streamlit, web): đọc chữ (OCR); ra chỉ số xét nghiệm hợp lệ thì lưu và trả danh
+    sách đã lưu, không thì None để giao diện coi là ảnh bữa ăn. Trước V4.9 mọi ảnh ở ô chat đều sang nhận diện món,
+    ảnh phiếu xét nghiệm không được lưu. OCR một ảnh khoảng 1 giây trên máy phát triển."""
+    try:
+        results = parse_lab_file(name or "anh.png", data)
+    except Exception:  # noqa: BLE001  (không đọc được chữ: để phần nhận diện món xử lý)
+        return None
+    saved = LabAgent(store).import_results(patient_id, results, source="import") if results else []
+    return saved or None
+
+
+_UNIT_TEXT = {"mmol/l": "mmol/L", "mg/dl": "mg/dL"}
+
+
+def unit_text(unit):
+    """Đơn vị để hiển thị: bộ đọc phiếu trả chữ thường ("mmol/l"), người đọc quen "mmol/L"."""
+    return _UNIT_TEXT.get((unit or "").lower(), unit)

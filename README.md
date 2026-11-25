@@ -232,10 +232,12 @@ Mở `http://localhost:8000/docs` để xem và thử mọi endpoint. Bấm **Au
 | Hồ sơ | `GET/POST /patients`, `GET/PATCH /patients/{id}`, `GET/DELETE /patients/{id}/memories` |
 | Nhật ký | `POST /patients/{id}/readings/glucose`, `.../bp`, `.../weight`; `GET .../readings`, `DELETE .../readings/{rid}`, `GET .../today`, `GET .../summary?days=14`, `GET/PUT/DELETE .../targets` (mục tiêu riêng do bác sĩ đặt) |
 | Xét nghiệm | `GET/POST /patients/{id}/labs` (gõ chữ), `POST .../labs/file` (ảnh, PDF; tối đa 10 MB) |
+| Ảnh ở ô chat | `POST /patients/{id}/photo`: đọc ra chỉ số xét nghiệm thì lưu (`kind: "labs"`), không thì nhận diện món (`kind: "meal"`, chưa lưu) |
 | Tái khám | `GET/PUT .../appointment`, `GET/POST .../questions`, `POST .../questions/{qid}/done`, `GET .../visit-report.pdf` |
 | Tư vấn | `POST /patients/{id}/chat` (JSON, hoặc `"stream": true` để nhận luồng SSE), `GET .../sessions`, `GET .../sessions/{sid}/messages`, `POST /feedback/{event_id}` (👍/👎 cho agent RL) |
 | Trợ lý chủ động hỏi | `POST .../checkin/open` (mở lời mỗi ngày một lần), `.../checkin/reply` (`handled=false` thì gửi câu cho `/chat`; có `card` thì hiện thẻ xác nhận), `.../checkin/save`, `.../checkin/cancel` |
-| Bữa ăn | `GET /meals/dishes`, `POST /meals/scan` (ảnh -> Calo Khay, chưa lưu), `POST .../meals/estimate`, `GET/POST .../meals`, `DELETE .../meals/{mid}` |
+| Bữa ăn | `GET /meals/dishes`, `POST /meals/scan` (ảnh -> Calo Khay, chưa lưu; kèm `annotated_png`: ảnh có vùng món đánh số), `POST .../meals/estimate`, `GET/POST .../meals`, `DELETE .../meals/{mid}`, `GET .../meals/advice` (gợi ý ăn uống) |
+| Giọng nói | `POST /transcribe` (`?voice=true`: bỏ đoạn chỉ có tiếng ồn, đổi số đọc bằng chữ), `POST /tts` (đọc to bằng Piper, trả WAV) |
 | Lời nhắc | `POST .../nudge/feedback` (👍/👎 cho lời nhắc Q-learning hôm nay) |
 
 Luồng SSE của `/chat` gửi lần lượt các sự kiện:
@@ -278,14 +280,19 @@ Trong `web/` có giao diện cho người bệnh, ưu tiên màn hình điện t
 
 - Đăng nhập, đăng ký.
 - Tạo hồ sơ theo dõi. Một tài khoản theo dõi được cho nhiều người thân.
-- **Hôm nay**: cảnh báo, ghi đường huyết, số liệu và biểu đồ 14 ngày, cài giờ nhắc đo.
+- **Hôm nay**: cảnh báo, ghi đường huyết, thẻ gợi ý ăn uống (khi đã ghi bữa ăn), số liệu và biểu đồ 14 ngày, cài
+  giờ nhắc đo.
   Nhắc đo là thông báo của trình duyệt: chọn tối đa 4 mốc giờ, tới giờ mà 2 giờ trước đó chưa có số đo thì nhắc.
   Chỉ hoạt động khi DiaCare đang mở trên trình duyệt (tab nền cũng được); chưa phải thông báo đẩy.
-- **Nhật ký**: đường huyết; huyết áp và cân nặng; xét nghiệm, có chụp ảnh phiếu.
+- **Nhật ký**: đường huyết; huyết áp và cân nặng; xét nghiệm, có chụp ảnh phiếu (chọn ảnh là tự lưu).
 - **Bữa ăn**: chụp ảnh khay cơm (trên điện thoại mở thẳng camera sau) hoặc tự nhập món, kiểm tra từng món và gram,
-  xem khoảng tinh bột, lưu; bảng các bữa 7 ngày kèm đường huyết sau ăn.
+  xem khoảng tinh bột, lưu; ảnh khay có vùng từng món tô màu và đánh số (số và màu trùng với danh sách món); thẻ gợi ý
+  ăn uống; bảng các bữa 7 ngày kèm đường huyết sau ăn.
 - **Tư vấn**: chữ hiện dần qua SSE, có nút 👍/👎 cho agent RL. Người đã chẩn đoán được trợ lý hỏi trước mỗi ngày một
-  lần; số đo trong câu trả lời hiện thẻ xác nhận.
+  lần; số đo trong câu trả lời (hoặc kể ra lúc trợ lý không hỏi) hiện thẻ xác nhận. Nút 📎 gửi ảnh: ảnh phiếu xét
+  nghiệm được lưu ngay, ảnh bữa ăn mở trang Bữa ăn với kết quả nhận diện. Nút **🎙️ Trò chuyện bằng giọng nói** mở nút
+  micro to như trên Streamlit: cứ nói, trợ lý tự trả lời ngắn và đọc to bằng giọng Piper của máy chủ (`POST /tts`),
+  rồi nghe tiếp.
 - **Tái khám**: lịch hẹn, mục tiêu đường huyết riêng do bác sĩ đặt, câu hỏi cho bác sĩ, tải PDF.
   Mặc định so với mục tiêu chung ADA 2024 (trước ăn 4,4–7,2; sau ăn dưới 10,0 mmol/L). Nhập mục tiêu riêng thì mọi
   thống kê, biểu đồ, PDF và trợ lý Tư vấn đều dùng mục tiêu đó. Ngưỡng hạ đường huyết (3,9) không đổi.
@@ -382,6 +389,9 @@ Cách làm:
 - API nhận dạng bằng [PhoWhisper-small](https://huggingface.co/vinai/PhoWhisper-small) của VinAI (BSD-3), chạy CPU:
   khoảng 2–3 giây cho một câu ngắn, lần đầu mất khoảng 30 giây để nạp mô hình.
 - Âm thanh không được lưu; endpoint là `POST /transcribe`.
+- Web (V4.9) có chế độ trò chuyện bằng giọng nói giống Streamlit (`web/components/VoiceChat.tsx`): trình duyệt tự nhận
+  ra lúc nói xong, gửi `/transcribe?voice=true`, hỏi `/chat` với `"voice": true` (trả lời ngắn), đọc câu trả lời bằng
+  `POST /tts` (Piper trên máy chủ, không dùng giọng của trình duyệt).
 - Đọc số tiếng Việt nằm trong `src/diacare/speech.py`: "một trăm linh năm", "bảy rưỡi", "sáu phẩy tám".
 
 ```bash
@@ -800,6 +810,9 @@ tests/                  test (pytest)
 
 ## Hạn chế đã biết
 
+- Khi được hỏi "hôm nay nên ăn gì", mô hình 3B có lúc không bám gợi ý đã tính sẵn: thử trên web ngày 25/11 (chế độ
+  giọng nói), câu trả lời tự đặt gram cho các món ít tinh bột và không nhắc bớt cơm, dù ngữ cảnh có dòng "Nên hạn chế:
+  cơm trắng". Thẻ gợi ý (câu soạn sẵn) vẫn đúng; câu trả lời của trợ lý thì chưa.
 - Gợi ý ăn uống chỉ nói "món góp nhiều tinh bột nhất" trong các bữa cao sau ăn, không chứng minh được món đó làm tăng
   đường huyết: gram từ ảnh sai khoảng ±30% (cơm ±50%), và đường huyết sau ăn còn phụ thuộc thuốc, vận động, cả bữa.
   Phần "có thể ăn thêm" chỉ dựa vào bảng tinh bột vì `kb/` chưa có hướng dẫn "đĩa ăn".

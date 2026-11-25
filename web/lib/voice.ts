@@ -56,7 +56,7 @@ export async function startRecording(onTick?: (seconds: number) => void, onAutoS
   };
 }
 
-async function resample(input: Float32Array, from: number, to: number): Promise<Float32Array> {
+export async function resample(input: Float32Array, from: number, to: number): Promise<Float32Array> {
   if (from === to || input.length === 0) return input;
   const frames = Math.max(1, Math.round((input.length * to) / from));
   const off = new OfflineAudioContext(1, frames, to);

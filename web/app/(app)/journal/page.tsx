@@ -235,30 +235,43 @@ function BodyTab({ pid, days }: { pid: number; days: number }) {
 function LabsTab({ pid }: { pid: number }) {
   const [labs, setLabs] = useState<Lab[]>([]);
   const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ level: "success" | "error"; text: string } | null>(null);
+  const [fileKey, setFileKey] = useState(0);  // đổi key để xoá tệp đã chọn khỏi ô chọn tệp
+  const [msg, setMsg] = useState<{ level: "success" | "warning" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     api.labs(pid).then(setLabs).catch((e) => setMsg({ level: "error", text: e.message }));
   }, [pid]);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file && !text.trim()) return;
+  async function importWith(run: () => Promise<{ imported: unknown[]; labs: Lab[] }>, where: string) {
     setBusy(true);
     setMsg(null);
     try {
-      const r = file ? await api.labsFromFile(pid, file) : await api.labsFromText(pid, text);
+      const r = await run();
       setLabs(r.labs);
-      setMsg({ level: "success", text: `Đã nhập ${r.imported.length} chỉ số.` });
-      setText("");
-      setFile(null);
+      setMsg(r.imported.length
+        ? { level: "success", text: `Đã lưu ${r.imported.length} chỉ số${where}.` }
+        : { level: "warning", text: "Không tìm thấy chỉ số hợp lệ, chưa lưu gì. Ảnh mờ hoặc chụp nghiêng thì gõ thẳng vào ô bên dưới." });
+      return r.imported.length > 0;
     } catch (err) {
       setMsg({ level: "error", text: (err as Error).message });
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  // Chọn tệp là lưu ngay: trước đây tệp chỉ được đọc khi bấm nút, người dùng chọn ảnh rồi rời trang thì mất (như Streamlit, 25/11)
+  async function onFile(f: File | null) {
+    if (!f) return;
+    await importWith(() => api.labsFromFile(pid, f), ` từ tệp ${f.name}`);
+    setFileKey((k) => k + 1);
+  }
+
+  async function submitText(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    if (await importWith(() => api.labsFromText(pid, text), "")) setText("");
   }
 
   return (
@@ -281,19 +294,20 @@ function LabsTab({ pid }: { pid: number }) {
           <p className="muted">Chưa có kết quả.</p>
         )}
       </section>
-      <form className="card stack" onSubmit={submit}>
+      <form className="card stack" onSubmit={submitText}>
         <h2 style={{ margin: 0 }}>Nhập phiếu xét nghiệm</h2>
         <label>
-          Chụp ảnh hoặc chọn file (.jpg, .png, .pdf, .txt; tối đa 10 MB)
-          <input type="file" accept="image/*,.pdf,.txt,.csv,.json" capture="environment"
-                 onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          Chụp ảnh hoặc chọn file (.jpg, .png, .pdf, .txt; tối đa 10 MB), chọn xong là tự lưu
+          <input key={fileKey} type="file" accept="image/*,.pdf,.txt,.csv,.json" capture="environment" disabled={busy}
+                 onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
         </label>
+        {busy && <p className="small muted">Đang đọc phiếu...</p>}
+        {msg && <Notice level={msg.level}>{msg.text}</Notice>}
         <label>
           Hoặc gõ kết quả
           <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={"HbA1c: 6.8 %\nGlucose lúc đói: 7.4 mmol/L"} />
         </label>
-        <button className="btn-primary" disabled={busy || (!file && !text.trim())}>{busy ? "Đang đọc..." : "Nhập kết quả"}</button>
-        {msg && <Notice level={msg.level}>{msg.text}</Notice>}
+        <button className="btn-primary" disabled={busy || !text.trim()}>Lưu kết quả đã gõ</button>
         <p className="small muted">Hỗ trợ HbA1c, đường huyết lúc đói, đường huyết 2 giờ (OGTT), đường huyết bất kỳ. Đây là đối
           chiếu với ngưỡng tham khảo ADA 2024, không phải chẩn đoán.</p>
       </form>
