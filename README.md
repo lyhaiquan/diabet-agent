@@ -183,6 +183,75 @@ python tools/train_aux_models.py    # kiểm tra ngoài trên Pima, mô hình tr
 
 Bản cũ chỉ học BRFSS 2015 (`python src/train_predictor.py`) vẫn dùng được bằng `DIACARE_PREDICTOR=v1`.
 
+### Chạy trên máy khác: cần tải những gì
+
+**Đã có trong repo, clone về là đủ** (không cần push hay tải thêm):
+
+| Thành phần | Nằm ở |
+|---|---|
+| Kho tài liệu (MedlinePlus, WHO) cho Retriever | `kb/` |
+| Đồ thị tri thức (dựng trong bộ nhớ bằng networkx) | `kb/graph/` |
+| Mô hình dự đoán nguy cơ đã huấn luyện | `models/predictor_ms.joblib`, `models/symptom_model.joblib` |
+| Chính sách RL, bảng Q của Coach, dữ liệu demo | `models/rl_policy.json`, `models/q_coach.json`, `kb/rl/`, `data/rl_demo/` |
+| Bảng dinh dưỡng, bảng tinh bột | `data/nutrition/` |
+| Calo Khay và mô hình nhận diện món (`.pt`, `.npz`) | `services/calo_khay/` |
+
+**Không có trong repo, cũng không cần:** bộ dataset gốc (BRFSS, NHANES, Pima..., khoảng 1,3 GB) chỉ dùng để huấn luyện
+lại Predictor (tải theo `../diacare_datasets/LINK_DATASET.md`). `data/diacare.db` và tệp khoá `*.key` là dữ liệu sức
+khoẻ của từng máy, không bao giờ đưa lên GitHub; máy mới chạy lần đầu tự tạo DB trống.
+
+**Tự tải ở lần chạy đầu** (cần mạng, sau đó chạy offline được):
+
+| Mô hình | Dùng cho | Dung lượng | Cách tải |
+|---|---|---|---|
+| `qwen2.5:3b` (hoặc `qwen2.5:7b`) | Advisor trả lời | 1,9 GB (7B: 4,7 GB) | `ollama pull qwen2.5:3b`; `chay_local.bat` tự làm |
+| `paraphrase-multilingual-MiniLM-L12-v2` | tìm tài liệu (Retriever), trí nhớ | khoảng 470 MB | tự tải từ Hugging Face |
+| `vinai/PhoWhisper-small` | nhận dạng giọng nói | khoảng 1 GB | tự tải khi dùng micro lần đầu |
+| Piper `vi_VN-vais1000-medium` | đọc to câu trả lời | khoảng 61 MB | lệnh ở đầu `src/diacare/tts.py` |
+| `facebook/dinov2-base` | Calo Khay phân loại món | khoảng 350 MB | tự tải khi bật Calo Khay lần đầu (xoá hai dòng `*_OFFLINE` trong `chay_calo_khay.bat`) |
+
+**Phần mềm cài tay:** Python 3.10–3.12 (`pip install -r requirements.txt`), [Ollama](https://ollama.com/download),
+Node.js 20 trở lên nếu dùng giao diện web, và một môi trường Python riêng có torch cho Calo Khay (xem
+`services/calo_khay/README_DIACARE.md`). Có GPU NVIDIA thì cài driver và bản torch CUDA; không có GPU vẫn chạy được,
+chậm hơn.
+
+#### Trên Ubuntu / Linux
+
+Khác Windows ba chỗ:
+
+1. **OCR ảnh phiếu xét nghiệm phải cài thêm.** Windows dùng bộ đọc chữ có sẵn của hệ điều hành; Linux không có, nên
+   cài một trong hai (không cài thì gõ chữ và PDF có lớp chữ vẫn chạy, chỉ ảnh chụp là không đọc được):
+
+   ```bash
+   pip install rapidocr_onnxruntime
+   # hoặc
+   sudo apt install tesseract-ocr tesseract-ocr-vie
+   ```
+
+2. **Các tệp `.bat` không chạy được**, gõ lệnh tay:
+
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh     # cài Ollama (một lần)
+   ollama pull qwen2.5:3b
+   DIACARE_FEATURES=v2,kg,rl,journal streamlit run src/app.py     # Streamlit, http://localhost:8501
+   ```
+
+   Calo Khay (thay cho `chay_calo_khay.bat`; môi trường `.venv` tạo như README_DIACARE.md, thay `.venv\Scripts\` bằng
+   `.venv/bin/`):
+
+   ```bash
+   mkdir -p data/calo_khay
+   cd services/calo_khay
+   CALO_DATA_DIR=$PWD/../../data/calo_khay CALO_DATABASE_URL=sqlite:///$PWD/../../data/calo_khay/calo.db \
+     CALO_ENGINE=real .venv/bin/python -m uvicorn backend.app:app --host 127.0.0.1 --port 8010
+   ```
+
+3. **Docker Compose là cách gọn nhất trên Linux**: `cp .env.example .env`, đặt `POSTGRES_PASSWORD`, rồi
+   `docker compose up --build` là có PostgreSQL, Ollama (tự tải `qwen2.5:3b`), API và web (xem
+   [Chạy bằng Docker Compose](#chạy-bằng-docker-compose)). Calo Khay chưa có trong Compose, vẫn bật riêng như trên.
+
+Giọng nói (PhoWhisper, Piper), đồ thị tri thức, Predictor và RL chạy trên Linux như trên Windows, không cần cài thêm.
+
 ## Chạy
 
 **Trên Windows, một cú bấm:** bấm đúp `chay_local.bat`. Script tự bật Ollama nếu chưa chạy, tải model nếu chưa có,
