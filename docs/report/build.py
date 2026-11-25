@@ -7,11 +7,19 @@ HERE = Path(__file__).resolve().parent
 REPORTS = [
     ("baocao_chitiet.md", "BaoCao_DiaCare-MAS.docx"),
     ("baocao_kien_truc_mas_ptit.md", "BaoCao_KienTruc_MAS_PTIT.docx"),
+    ("baocao_rutgon.md", "BaoCao_DiaCare-MAS_RutGon.docx"),
+    ("phuluc_thi_nghiem.md", "PhuLuc_DiaCare-MAS.docx"),
 ]
+
+import sys
+
+ONLY = set(sys.argv[1:])  # python build.py RutGon -> chỉ dựng các báo cáo có tên chứa chuỗi đó
 
 for src_name, out_name in REPORTS:
     src = HERE / src_name
     if not src.exists():
+        continue
+    if ONLY and not any(k in out_name for k in ONLY):
         continue
     out = HERE / out_name
     subprocess.run(
