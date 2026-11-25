@@ -238,7 +238,7 @@ def system_v49():
     db = box(ax, 0.35, 0.3, 3.2, 1.15, "SQLite / PostgreSQL",
              "hồ sơ · nhật ký · bữa ăn · xét nghiệm\ntrí nhớ · log (chữ sức khoẻ mã hoá)", "data", 10)
     calo = box(ax, 3.8, 0.3, 2.75, 1.15, "Calo Khay :8010",
-               "YOLO26s-seg + DINOv2 · 44 món\nproject riêng, môi trường torch", "ext", 10)
+               "YOLO26s-seg + DINOv2 · 44 món\nservices/calo_khay · venv torch", "ext", 10)
     carb = box(ax, 6.75, 0.3, 1.7, 1.15, "Bảng tinh bột", "Nutrition5k\nUSDA FNDDS", "data", 9.5)
     llm = box(ax, 8.65, 0.3, 2.3, 1.15, "Ollama", "3B trên máy hoặc\n7B Kaggle T4 (đường hầm)", "ext", 10)
     box(ax, 11.15, 0.3, 1.55, 1.15, "predictor_ms", "BRFSS · NHANES\n(Predictor)", "data", 9.5)

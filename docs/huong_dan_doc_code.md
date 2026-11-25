@@ -42,6 +42,7 @@ Không cần đọc trước, nhưng nên biết có gì:
 - `data/nutrition/`: `vn_foods.json` (50 món Việt, USDA) và `calo_khay_carb.csv` (tinh bột 65 món cho Agent bữa ăn).
 - `models/`: mô hình dự đoán nguy cơ (`predictor_ms.joblib`), chính sách RL (`rl_policy.json`), bảng Q của Coach (`q_coach.json`).
 - `data/diacare.db`: cơ sở dữ liệu thật của bạn (kèm `diacare.db.key`). **Không mở để thử nghiệm**; test dùng DB tạm.
+- `services/calo_khay/`: mã Calo Khay (nhận diện món trên ảnh khay), chép từ đồ án Xử lý ảnh số. Không cần đọc để hiểu DiaCare: nó chạy thành dịch vụ riêng, DiaCare chỉ gọi `POST /api/scan` trong `meal_scan.py`.
 - `tools/`: script sinh ra các tệp trên, ví dụ `build_carb_table.py`, `train_multisource.py`, `kg_neo4j.py`, `kaggle_llm.py` (bật/tắt 7B trên Kaggle), `critic_rescore.py`.
 
 # 3. Rễ: đọc trước tiên
@@ -113,7 +114,7 @@ Phụ trợ trong pipeline: `guard.py` (dò prompt injection), `scope.py` (câu 
 | Luồng | Tệp | Việc |
 |---|---|---|
 | Trợ lý chủ động hỏi | `checkin.py` | mở lời mỗi ngày; `handle_reply` chọn một trong bốn đường; số đo thành thẻ xác nhận, chỉ lưu khi bấm Lưu |
-| Agent bữa ăn | `meal_scan.py` | gửi ảnh cho dịch vụ Calo Khay (HTTP, project riêng), tính khoảng tinh bột, vẽ vùng món lên ảnh; `meal_advice` gợi ý món nên hạn chế và món ít tinh bột từ đường huyết sau ăn |
+| Agent bữa ăn | `meal_scan.py` | gửi ảnh cho dịch vụ Calo Khay (HTTP; mã ở `services/calo_khay`, chạy tiến trình riêng), tính khoảng tinh bột, vẽ vùng món lên ảnh; `meal_advice` gợi ý món nên hạn chế và món ít tinh bột từ đường huyết sau ăn |
 | Giọng nói | `speech.py`, `tts.py` | PhoWhisper nhận dạng, đổi số đọc bằng chữ thành số, `has_speech` bỏ tiếng ồn; Piper đọc to |
 | Coach Q-learning | `coach.py`, `coach_sim.py` | lời nhắc mỗi ngày từ nhật ký |
 | Tóm tắt đi khám | `visit_report.py` | PDF một trang |

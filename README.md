@@ -12,7 +12,7 @@ Hệ thống kết hợp bốn khối theo sơ đồ ý tưởng ban đầu:
 
 ## Kiến trúc
 
-![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, project riêng) và Ollama (trên máy hoặc trên Kaggle).](docs/report/figs/c10_kien_truc_v49.png)
+![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, mã ở `services/calo_khay`, chạy tiến trình riêng) và Ollama (trên máy hoặc trên Kaggle).](docs/report/figs/c10_kien_truc_v49.png)
 
 Ba phần:
 
@@ -20,8 +20,9 @@ Ba phần:
   cuối. Chỉ Advisor gọi mô hình ngôn ngữ.
 - **Luồng ngoài pipeline, không gọi LLM** (bên trái): giọng nói (PhoWhisper nghe, Piper đọc, đều chạy trên máy), trợ lý
   chủ động hỏi, nhập xét nghiệm (OCR), Agent bữa ăn.
-- **Dịch vụ ngoài** (khung tím): **Calo Khay** nhận diện món trên ảnh khay cơm, là project riêng của nhóm, chạy ở cổng
-  8010 trong môi trường có torch. Mã của nó **không nằm trong repo này**; DiaCare chỉ gọi HTTP (xem
+- **Dịch vụ ngoài** (khung tím): **Calo Khay** nhận diện món trên ảnh khay cơm, là đồ án Xử lý ảnh số của nhóm. Mã
+  của nó nằm ngay trong repo, ở `services/calo_khay/` (chép phần chạy được ngày 25/11/2026), nhưng vẫn chạy thành một
+  tiến trình riêng ở cổng 8010 trong môi trường có torch; DiaCare chỉ gọi HTTP (xem
   [Dịch vụ nhận diện món Calo Khay](#dịch-vụ-nhận-diện-món-calo-khay-trang-bữa-ăn)). **Ollama** chạy trên máy (3B) hoặc
   trên Kaggle (7B).
 
@@ -418,10 +419,12 @@ Lưu ý khi dùng:
 
 ### Dịch vụ nhận diện món Calo Khay (trang Bữa ăn)
 
-Calo Khay cần torch, ultralytics, transformers nên chạy trong môi trường riêng, không cài vào DiaCare. Bấm đúp
-**`chay_calo_khay.bat`**: nó chạy backend FastAPI có sẵn của Calo Khay ở `http://127.0.0.1:8010`, dùng SQLite trong
-`data/calo_khay/` (không cần MySQL). Đường dẫn mặc định `D:\CVision\Final_Project_Digital_Image_Processing` và
-`D:\food-labeling\.venv\Scripts\python.exe`; đổi bằng biến `CALO_KHAY_DIR`, `CALO_KHAY_PY`. Nạp model khoảng 15
+Mã Calo Khay nằm trong repo ở `services/calo_khay/` (backend FastAPI, pipeline, các mô hình `.pt`, `.npz`; khoảng
+55 MB), không cần clone repo đồ án. Nó cần torch, ultralytics, transformers nên chạy trong môi trường Python riêng,
+không cài vào DiaCare; cách tạo môi trường đó ở `services/calo_khay/README_DIACARE.md`. Bấm đúp
+**`chay_calo_khay.bat`**: nó chạy backend ở `http://127.0.0.1:8010`, dùng SQLite trong `data/calo_khay/` (không cần
+MySQL). Python lấy từ `services\calo_khay\.venv` nếu có, không thì `D:\food-labeling\.venv` (máy phát triển); đổi bằng
+biến `CALO_KHAY_PY`, đổi thư mục mã bằng `CALO_KHAY_DIR`, đổi cổng bằng `CALO_KHAY_PORT`. Nạp model khoảng 15
 giây (chạy offline, DINOv2 đã có trong cache Hugging Face; máy mới lần đầu cần mạng, xoá hai dòng
 `HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE` trong file .bat); mỗi ảnh khoảng 0,4–1 giây trên GPU RTX 3050 Ti. Chưa bật dịch vụ thì trang Bữa ăn báo cách bật, các trang khác
 vẫn chạy bình thường.
@@ -804,6 +807,7 @@ tools/                  công cụ tạo thống kê KG (build_kg_stats.py), n�
                         bảng tinh bột Calo Khay (build_carb_table.py)
 eval/                   bộ ca benchmark, chấm điểm, đánh giá truy xuất
 kaggle/                 sinh notebook Kaggle (giao diện, benchmark, chỉ model 7B)
+services/calo_khay/     mã Calo Khay (nhận diện món), chạy riêng bằng chay_calo_khay.bat; xem README_DIACARE.md
 docs/results/           kết quả các lần chạy benchmark
 tests/                  test (pytest)
 ```

@@ -1,0 +1,115 @@
+{
+ "description": "Hệ số ước lượng gram, fit trên train+val (mask dự đoán của food_seg_v4_final.pt). A = diện tích mask món / diện tích đĩa; V = tổng độ cao dương (Depth-Anything-V2 Large) / diện tích đĩa.",
+ "area": {
+  "intercept": {
+   "_other": 4.470769358515005,
+   "bean_sprouts_green_beans": 4.302679780428422,
+   "betel_leaf_pork": 4.186482335986639,
+   "boiled_pork": 4.2906120730165185,
+   "cabbage": 4.364908999342777,
+   "coconut_braised_pork": 4.43447735258224,
+   "cutlet": 4.315422859285148,
+   "fried_chicken": 4.915818573074948,
+   "fried_shrimp": 3.690297559000743,
+   "fried_tofu": 4.670567354377881,
+   "leafy_greens": 4.568659889971713,
+   "potato": 4.9048771599865635,
+   "quail_egg": 4.271552455779605,
+   "rice": 6.030818773537126,
+   "roasted_cinnamon_pork": 4.082262130434941,
+   "rolled_omelette": 4.446692787012669,
+   "sausage": 4.441458208801249
+  },
+  "slope": 0.2942245961097889,
+  "smearing": 1.0745026097052692
+ },
+ "rice_depth": {
+  "intercept": {
+   "rice": 6.29803256155932
+  },
+  "slope": 0.1413835286193077,
+  "smearing": 1.0682681894628316
+ },
+ "rice_mean_g": 227.56410256410257,
+ "class_mean_g": {
+  "bean_sprouts_bamboo": 65.0,
+  "bean_sprouts_green_beans": 49.0,
+  "bell_pepper_chicken": 76.0,
+  "betel_leaf_pork": 25.375,
+  "boiled_egg": 58.0,
+  "boiled_pork": 34.5,
+  "cabbage": 51.75,
+  "coconut_braised_pork": 45.21052631578947,
+  "cutlet": 35.81481481481482,
+  "fried_anchovy": 37.5,
+  "fried_chicken": 61.0625,
+  "fried_egg": 25.5,
+  "fried_pork_skin": 26.0,
+  "fried_shrimp": 16.25,
+  "fried_tofu": 46.125,
+  "leafy_greens": 59.972972972972975,
+  "minced_pork_corn": 53.0,
+  "pork_broccoli": 91.5,
+  "pork_with_tofu": 39.0,
+  "potato": 81.0909090909091,
+  "pumpkin": 80.0,
+  "quail_egg": 28.3,
+  "rice": 227.56410256410257,
+  "roasted_cinnamon_pork": 26.25,
+  "rolled_omelette": 35.333333333333336,
+  "sausage": 35.705882352941174,
+  "shrimp_spring_roll": 33.0,
+  "silkworm_pupae": 13.0,
+  "stir_fried_gizzard": 77.0,
+  "sweet_sour_chicken": 47.0,
+  "water_spinach": 65.0
+ },
+ "global_mean_g": 79.52718676122932,
+ "min_trays": 3,
+ "confusions": {
+  "bell_pepper_chicken": [
+   "coconut_braised_pork"
+  ],
+  "boiled_egg": [
+   "chayote"
+  ],
+  "braised_egg": [
+   "quail_egg"
+  ],
+  "cabbage": [
+   "chayote"
+  ],
+  "chayote": [
+   "boiled_egg",
+   "cabbage"
+  ],
+  "coconut_braised_pork": [
+   "bell_pepper_chicken"
+  ],
+  "fried_chicken": [
+   "sweet_sour_chicken"
+  ],
+  "fried_egg": [
+   "quail_egg"
+  ],
+  "fried_tofu": [
+   "roasted_cinnamon_pork"
+  ],
+  "leafy_greens": [
+   "water_spinach"
+  ],
+  "quail_egg": [
+   "braised_egg",
+   "fried_egg"
+  ],
+  "roasted_cinnamon_pork": [
+   "fried_tofu"
+  ],
+  "sweet_sour_chicken": [
+   "fried_chicken"
+  ],
+  "water_spinach": [
+   "leafy_greens"
+  ]
+ }
+}

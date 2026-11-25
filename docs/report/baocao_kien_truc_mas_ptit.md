@@ -80,11 +80,11 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 
 ## 2.2. Sơ đồ Kiến trúc Tổng thể (cập nhật V4.9)
 
-![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, project riêng) và Ollama (trên máy hoặc trên Kaggle).](figs/c10_kien_truc_v49.png){width=100%}
+![Kiến trúc toàn hệ ở V4.9. Giữa là pipeline tư vấn: Orchestrator gọi 11 agent theo thứ tự cố định, bốn agent chỉ đọc chạy song song, chỉ Advisor gọi mô hình ngôn ngữ. Bên trái là các luồng không gọi LLM: giọng nói, trợ lý chủ động hỏi, nhập xét nghiệm và Agent bữa ăn. Khung tím là dịch vụ chạy ngoài DiaCare: Calo Khay (nhận diện món, mã ở `services/calo_khay`, chạy tiến trình riêng) và Ollama (trên máy hoặc trên Kaggle).](figs/c10_kien_truc_v49.png){width=100%}
 
 So với bản V3 của sơ đồ, ba thay đổi kiến trúc:
 
-1. **Thêm một dịch vụ ngoài: Calo Khay.** Đây là đồ án Xử lý ảnh số của nhóm (YOLO26s-seg + DINOv2, 44 món căng tin), chạy như một dịch vụ HTTP riêng ở cổng 8010 trong môi trường Python có torch của nó (`chay_calo_khay.bat`). Mã Calo Khay **không nằm trong repo DiaCare**: DiaCare chỉ gọi `POST /api/scan`, nên không phải cài torch, và các trang khác vẫn chạy khi Calo Khay tắt. Trên web, trình duyệt không gọi thẳng Calo Khay mà đi qua API (`POST /meals/scan`).
+1. **Thêm một dịch vụ ngoài: Calo Khay.** Đây là đồ án Xử lý ảnh số của nhóm (YOLO26s-seg + DINOv2, 44 món căng tin), chạy như một dịch vụ HTTP riêng ở cổng 8010 trong môi trường Python có torch của nó (`chay_calo_khay.bat`). Mã Calo Khay được chép vào repo ở `services/calo_khay/` để không phải clone repo khác, nhưng vẫn chạy thành tiến trình riêng: DiaCare chỉ gọi `POST /api/scan`, nên không phải cài torch, và các trang khác vẫn chạy khi Calo Khay tắt. Trên web, trình duyệt không gọi thẳng Calo Khay mà đi qua API (`POST /meals/scan`).
 2. **Thêm Agent bữa ăn** (`meal_scan.py`) ở ngoài pipeline tư vấn: gửi ảnh cho Calo Khay, cho người dùng xác nhận món và gram, tính khoảng tinh bột bằng bảng (không qua LLM), lưu bảng `meals`. Bữa đã lưu đi vào pipeline gián tiếp: JournalAgent ghép mỗi bữa với lần đo đường huyết sau bữa và đưa vào ngữ cảnh của Advisor.
 3. **Thêm các luồng không gọi LLM quanh pipeline**: trợ lý chủ động hỏi (`checkin.py`, câu soạn sẵn, thẻ xác nhận số đo), giọng nói hai chiều (PhoWhisper nhận dạng, Piper đọc to, đều chạy trên máy) và giao diện web Next.js đi qua API FastAPI; MCP server mở các công cụ tất định cho trợ lý AI khác.
 
