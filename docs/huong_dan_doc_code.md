@@ -113,7 +113,7 @@ Phụ trợ trong pipeline: `guard.py` (dò prompt injection), `scope.py` (câu 
 | Luồng | Tệp | Việc |
 |---|---|---|
 | Trợ lý chủ động hỏi | `checkin.py` | mở lời mỗi ngày; `handle_reply` chọn một trong bốn đường; số đo thành thẻ xác nhận, chỉ lưu khi bấm Lưu |
-| Agent bữa ăn | `meal_scan.py` | gửi ảnh cho dịch vụ Calo Khay (HTTP, project riêng), tính khoảng tinh bột, vẽ vùng món lên ảnh |
+| Agent bữa ăn | `meal_scan.py` | gửi ảnh cho dịch vụ Calo Khay (HTTP, project riêng), tính khoảng tinh bột, vẽ vùng món lên ảnh; `meal_advice` gợi ý món nên hạn chế và món ít tinh bột từ đường huyết sau ăn |
 | Giọng nói | `speech.py`, `tts.py` | PhoWhisper nhận dạng, đổi số đọc bằng chữ thành số, `has_speech` bỏ tiếng ồn; Piper đọc to |
 | Coach Q-learning | `coach.py`, `coach_sim.py` | lời nhắc mỗi ngày từ nhật ký |
 | Tóm tắt đi khám | `visit_report.py` | PDF một trang |
@@ -158,4 +158,5 @@ Mẹo khi đọc:
 | đổi mô hình LLM | biến `DIACARE_MODEL`, `DIACARE_OLLAMA_URL`; code ở `llm.py` |
 | thêm chỉ số xét nghiệm | `labs.py` (mẫu nhận dạng, ngưỡng) |
 | thêm món vào bảng tinh bột | `tools/build_carb_table.py` (`EXTRA`) rồi chạy lại script |
+| đổi gợi ý ăn uống (ngưỡng, món gợi ý, câu chữ) | `meal_scan.py`: `meal_advice`, `_timing_hints`, `LOW_CARB_VEG`, `LOW_CARB_PROTEIN`; thẻ ở `meal_ui.render_advice` |
 | thêm một trang web | `web/app/(app)/<trang>/page.tsx`, endpoint mới ở `src/api/main.py`, hàm gọi ở `web/lib/api.ts` |

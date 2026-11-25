@@ -53,7 +53,7 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
 ## Tính năng
 
 - **Tự theo dõi giữa hai lần tái khám** (cho người đã chẩn đoán ĐTĐ típ 2). Ba trang Hôm nay, Nhật ký, Tái khám:
-  - ghi đường huyết, huyết áp, cân nặng;
+  - ghi đường huyết, huyết áp, cân nặng (ghi bù được, nhưng giờ đo không được ở tương lai);
   - so với mục tiêu điều trị ADA 2024 (trước ăn 4,4–7,2 mmol/L, sau ăn < 10,0, huyết áp < 130/80), không so với ngưỡng
     chẩn đoán;
   - cảnh báo hạ đường huyết hoặc chỉ số rất cao, nhắc chưa đo hôm nay hay sắp tới lịch khám;
@@ -116,6 +116,10 @@ Nutrition) chạy song song bằng luồng (`DIACARE_PARALLEL=0` để chạy tu
     người dùng). Tính bằng code, không qua LLM; một lần cao thì nói rõ là chưa đủ kết luận; 24 giờ qua có hạ đường
     huyết thì **không** khuyên ăn bớt; chưa đo sau ăn thì nhắc đo trước. Các câu này cũng vào ngữ cảnh của trang Tư
     vấn (ngân sách token riêng), để câu hỏi "hôm nay tôi nên ăn gì" được trả lời theo đúng dữ liệu của người dùng.
+    Chỉ số tự đo trong nhật ký được tính, không tính phiếu xét nghiệm (không biết lấy máu lúc nào so với bữa ăn). Lần
+    đo ghi "sau ăn" mà giờ đo quá sát (dưới 45 phút) hoặc quá xa (hơn 3 giờ) bữa gần nhất thì thẻ nói rõ vì sao chưa
+    tính; bữa vừa ăn chưa có số đo thì thẻ ghi khung giờ nên đo (ví dụ "đo trong khoảng 16:50–19:05, tốt nhất khoảng
+    18:05").
 
     **Nối với đường huyết:** mỗi bữa được ghép với lần đo đầu tiên 45 phút – 3 giờ sau bữa (cột "Đường huyết sau ăn";
     trong khoảng đó mà chưa đo thì trang nhắc đo). Trang Tư vấn đọc cả phần này (bữa gần nhất, đường huyết sau bữa,
@@ -727,9 +731,11 @@ có). Chi tiết ở `docs/results/2026-11-22_citation_3b/`.
 Số thật sự không có căn cứ tập trung ở gram/kcal món ăn và ngưỡng chẩn đoán, nên prompt hệ thống được dặn thêm: chỉ
 nêu gram, kcal, đạm, tinh bột của món có trong bảng dinh dưỡng, và chỉ nêu ngưỡng chẩn đoán, tỉ lệ phần trăm khi có
 trong tài liệu. Chạy lại 150 lượt (3B): đạt 127 → 124/150 (McNemar theo ca 9 so với 6, $p = 0{,}61$, không khác biệt có
-ý nghĩa), lượt bị gắn cờ 20 → 17, số không có căn cứ 4 → 2 trên cả 150 lượt. Đổi lại, ở bốn nhóm hay có số (diet,
-nutrition, memory, risk_referral) có 6 ca chỉ đạt trước và 2 ca chỉ đạt sau, phần lớn vì bản nháp nhóm diet không còn
-gắn nhãn nguồn. Mẫu nhỏ, nên cả hai chiều chỉ là chiều hướng; lời dặn đang được giữ.
+ý nghĩa). Lúc đầu Critic cho thấy số không có căn cứ 4 → 2, nhưng Critic khi đó bỏ sót số dạng khoảng ("45-60 gram"),
+số dính chữ ("100g") và số kèm chữ Hán, đúng những dạng mô hình chuyển sang dùng. Sửa Critic rồi chấm lại cả hai lần
+chạy theo cùng một cách (`tools/critic_rescore.py`): lượt có số không tìm thấy trong ngữ cảnh 19 → 23/150, gram, kcal
+tự đặt cho món 5 → 8 lượt. Vậy lời dặn **không** giảm được số tự đặt; nó vẫn nằm trong prompt, chưa quyết định giữ
+hay bỏ.
 Chi tiết ở `docs/results/2026-11-24_numfix_3b/`.
 
 **Nhóm ca nhật ký** (12 ca `journal`, mỗi ca gieo sẵn số đo đường huyết, huyết áp, cân nặng, lịch tái khám). Máy cá
@@ -794,9 +800,17 @@ tests/                  test (pytest)
 
 ## Hạn chế đã biết
 
+- Gợi ý ăn uống chỉ nói "món góp nhiều tinh bột nhất" trong các bữa cao sau ăn, không chứng minh được món đó làm tăng
+  đường huyết: gram từ ảnh sai khoảng ±30% (cơm ±50%), và đường huyết sau ăn còn phụ thuộc thuốc, vận động, cả bữa.
+  Phần "có thể ăn thêm" chỉ dựa vào bảng tinh bột vì `kb/` chưa có hướng dẫn "đĩa ăn".
+- Streamlit chạy lại cả trang mỗi lần bấm: chuyển trang khoảng 0,5 giây (Nhật ký khoảng 1 giây, đo 25/11 trên máy
+  phát triển), lần đầu mở mỗi trang trong một tab mới 2–6 giây vì trình duyệt tải phần giao diện. Phía máy chủ đã làm
+  sẵn lúc khởi động những việc chỉ chậm ở lần đầu (dự đoán nguy cơ, nạp altair) và nhớ ảnh biểu đồ đường huyết.
+  Khởi động app khoảng 1 phút, phần lớn là nạp sentence-transformers.
 - Coach Q-learning mới chỉ được huấn luyện và đánh giá trên người bệnh mô phỏng do nhóm tự viết; trên mô phỏng đó Q-learning ($\gamma = 0{,}9$) không hơn bandit ($\gamma = 0$). Chưa thử trên người thật.
-- Mô hình vẫn đôi khi đưa số không có căn cứ (phân loại tay: 3B 2/150 lượt sau lời dặn mới, 4/150 trước đó; 7B 5/150
-  ở lần chạy trước lời dặn; chủ yếu gram, kcal của món và ngưỡng chẩn đoán); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng. Phần lớn số bị gắn cờ
+- Mô hình vẫn đôi khi đưa số không có căn cứ (phân loại tay trước lời dặn mới: 3B 4/150 lượt, 7B 5/150; chấm lại
+  bằng Critic đã sửa thì lời dặn không làm giảm: gram, kcal tự đặt cho món 5 → 8 lượt; chủ yếu gram, kcal của món và
+  ngưỡng chẩn đoán); Critic gắn cờ `unsupported_number` nhưng câu sai vẫn hiện cho người dùng. Phần lớn số bị gắn cờ
   là khuyến cáo chuẩn mà `kb/` không có (30 phút vận động, quy tắc 15 phút); thêm một trang khuyến cáo có nguồn vào
   `kb/` sẽ giảm cờ giả nhưng đổi ngữ cảnh của mọi ca benchmark, nên chưa làm.
 - Critic không bắt số dạng khoảng ("45-60 gram"), số dính liền chữ ("100g ngũ cốc") hay kèm chữ Hán ("32.8克").
