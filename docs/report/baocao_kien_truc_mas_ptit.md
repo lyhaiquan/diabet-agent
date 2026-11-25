@@ -31,7 +31,7 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
 
 | STT | Mục tiêu Dự án (Đặc tả PTIT) | Kết quả Đạt được trong DiaCare-MAS (V3) | Trạng thái |
 |---|---|---|:---:|
-| 1 | **Ước lượng nguy cơ tiểu đường từ hồ sơ lối sống**: Dự đoán khách quan xác suất mắc T2D từ 21 biến số sức khỏe hành vi mà không dựa dẫm vào suy diễn của LLM. | Hiện thực hóa qua `Predictor` ([`predictor.py`](file:///C:/DATA/diacare-mas/src/diacare/predictor.py)), mạng nơ-ron MLP $21 \to 64 \to 32 \to 1$ huấn luyện trên 253.680 hồ sơ CDC BRFSS 2015, đạt AUC 0.827, Recall 0.803. Bản chạy mặc định hiện nay là HistGradientBoosting hiệu chỉnh isotonic (mục 7.1); MLP giữ lại để so sánh. Phân định 3 dải nguy cơ: Thấp, Trung bình, Cao. | **Đã cài đặt** |
+| 1 | **Ước lượng nguy cơ tiểu đường từ hồ sơ lối sống**: Dự đoán khách quan xác suất mắc T2D từ 21 biến số sức khỏe hành vi mà không dựa dẫm vào suy diễn của LLM. | Hiện thực hóa qua `Predictor` ([`predictor.py`](file:///C:/DATA/diacare-mas/src/diacare/predictor.py)): bản chạy mặc định là HistGradientBoosting hiệu chỉnh isotonic, học trên BRFSS 2015, BRFSS 2023 và NHANES (AUC 0,829 / 0,818 / 0,830, mục 7.1). Bản đầu (V1) là mạng nơ-ron MLP $21 \to 64 \to 32 \to 1$ chỉ học BRFSS 2015 (AUC 0,827), giữ lại để so sánh. Phân định 3 dải nguy cơ: Thấp, Trung bình, Cao. | **Đã cài đặt** |
 | 2 | **Truy xuất và trả lời có căn cứ y văn xác thực**: Mọi lời khuyên phải được bảo chứng bởi tài liệu y khoa uy tín, có trích dẫn nguồn minh bạch. | Hiện thực hóa qua `Retriever` ([`retriever.py`](file:///C:/DATA/diacare-mas/src/diacare/retriever.py)) và `GraphAgent` ([`kg.py`](file:///C:/DATA/diacare-mas/src/diacare/kg.py)). Kết hợp RAG dense MiniLM-L12-v2 với Đồ thị tri thức Neo4j, trích dẫn chính xác nhãn nguồn `[medlineplus_*]`, `[who_*]`, `[ada_2024]`. | **Đã cài đặt** |
 | 3 | **Trí nhớ ngữ cảnh dài hạn qua nhiều phiên**: Duy trì và ghi nhớ trạng thái sức khỏe, tiền sử bệnh án, thuốc đang dùng của bệnh nhân qua các phiên trò chuyện độc lập. | Hiện thực hóa qua `MemoryAgent` ([`memory.py`](file:///C:/DATA/diacare-mas/src/diacare/memory.py)) kết nối SQLite bảng `memories`. Tự động quan sát và trích xuất sự kiện (`observe`), hồi tưởng (`recall`), kết hợp tóm tắt lịch sử vượt ngưỡng qua LLM (`compress_history`), lưu và dùng lại bản tóm tắt theo dấu nhận dạng, tự tắt thông tin thuốc khi người dùng nói đã ngừng. | **Đã cài đặt** |
 | 4 | **Phân tích kết quả xét nghiệm đa phương thức**: Tiếp nhận kết quả cận lâm sàng dạng văn bản, hình ảnh hoặc tài liệu PDF scan, đối chiếu ngưỡng chuẩn quốc tế. | Hiện thực hóa qua `LabAgent` ([`labs.py`](file:///C:/DATA/diacare-mas/src/diacare/labs.py)) tích hợp module OCR ([`ocr.py`](file:///C:/DATA/diacare-mas/src/diacare/ocr.py)). Tự động chuyển đổi đơn vị ($mg/dL \leftrightarrow mmol/L$), xếp mức theo Hiệp hội Đái tháo đường Hoa Kỳ (ADA 2024) cho 4 chỉ số chính (HbA1c, FPG, OGTT 2h, Random Glucose). | **Đã cài đặt** |
@@ -65,7 +65,7 @@ Bảng dưới đây đối chiếu chi tiết 8 mục tiêu cốt lõi được
    - **Mô hình Ngôn ngữ cục bộ**: Ollama phục vụ các mô hình mã nguồn mở thế hệ mới như `qwen2.5:7b` hoặc `qwen2.5:3b`. Từ V4.9, `qwen2.5:7b` có thể chạy trên GPU T4 của Kaggle sau một cổng có token và đường hầm Cloudflare, giao diện vẫn ở máy.
    - **Mô hình giọng nói**: PhoWhisper-small (VinAI, nhận dạng) và Piper `vi_VN-vais1000-medium` (đọc), chạy CPU.
    - **Dịch vụ ngoài Calo Khay**: YOLO26s-seg + DINOv2 nhận diện 44 món căng tin, chạy riêng ở cổng 8010 (V4.9).
-   - **Mạng Nơ-ron Học sâu**: PyTorch MLP dự đoán nguy cơ.
+   - **Mô hình dự đoán nguy cơ**: HistGradientBoosting (scikit-learn) hiệu chỉnh isotonic, `models/predictor_ms.joblib`; MLP PyTorch bản V1 giữ lại để so sánh (`DIACARE_PREDICTOR=v1`).
    - **Chính sách RL**: 6 mô hình ridge tuyến tính ($A_a \in \mathbb{R}^{13 \times 13}$, $b_a \in \mathbb{R}^{13}$) của `RLAgent`, khởi động từ `models/rl_policy.json`, học tiếp trong SQLite.
    - **Hệ thống Tri thức Chuẩn mực**: Hướng dẫn thực hành ADA 2024, Bảng cơ sở dữ liệu dinh dưỡng USDA FoodData Central.
 5. **Lớp Lưu trữ & Dữ liệu Bền vững (Persistence & Storage Layer)**:
@@ -159,7 +159,7 @@ Kiến trúc DiaCare-MAS V3 hiện thực hóa mô hình gồm **8 tác tử th�
 |---|:---:|---|---|---|---|
 | **PatientDataAgent** (Profile & Memory) | Worker | Thẩm định tính hợp lệ của hồ sơ; ghi nhận sự kiện dài hạn, hồi tưởng tiền sử bệnh và thuốc. | `profile`, `question`, `patient_id` | Lỗi thẩm định, danh sách sự kiện hồi tưởng (`state.memory`) | `rules.validate_profile`, SQLite (`memories`), LLM Summarizer |
 | **LabAgent / OCR** | Worker | Bóc tách số liệu xét nghiệm từ văn bản/ảnh/PDF scan, chuyển đổi đơn vị, so sánh ngưỡng ADA 2024. | Văn bản câu hỏi, file đính kèm (`image`/`pdf`) | Danh sách kết quả chuẩn hóa (`state.labs`: giá trị, đơn vị, mức độ) | `ocr.py` (RapidOCR / Tesseract / WinRT), ADA Standards of Care 2024 |
-| **Predictor** | Worker | Dự báo định lượng xác suất nguy cơ mắc T2D từ 21 chỉ số hành vi sức khỏe. | 21 biến số chuẩn hóa BRFSS (`state.profile`) | Xác suất nguy cơ $P \in [0, 1]$ (`state.risk`), dải nguy cơ | PyTorch MLP, `StandardScaler`, CDC BRFSS 2015 |
+| **Predictor** | Worker | Dự báo định lượng xác suất nguy cơ mắc T2D từ 21 chỉ số hành vi sức khỏe. | 21 biến số chuẩn hóa BRFSS (`state.profile`) | Xác suất nguy cơ $P \in [0, 1]$ (`state.risk`), dải nguy cơ | HistGradientBoosting hiệu chỉnh isotonic; BRFSS 2015, BRFSS 2023, NHANES |
 | **Retriever (RAG)** | Worker | Truy xuất các đoạn thông tin y khoa có độ tương đồng ngữ nghĩa cao từ kho y văn. | `question` | Danh sách văn bản kèm nguồn trích dẫn (`state.docs`) | Sentence-BERT MiniLM-L12-v2, Cosine Similarity, BM25 RRF |
 | **GraphAgent (KG)** | Worker | Định vị các thực thể nguy cơ trong câu hỏi, tra cứu tri thức quan hệ và đối chiếu bằng chứng y khoa. | `question` | Danh sách thực thể, tỷ số chênh OR, khẳng định đối chiếu (`state.kg`) | Neo4j 5 Community, Cypher queries, NetworkX, `DB_diabet.cypher` |
 | **NutritionAgent** | Worker | Nhận diện món ăn Việt, ước lượng khẩu phần, tra cứu năng lượng, carbohydrate, chất xơ. | `question` | Bảng dinh dưỡng phân tích (`state.nutrition`) | `vn_foods.json` (50 món Việt quy đổi từ USDA FDC) |
@@ -255,7 +255,7 @@ Trước mọi bước, câu hỏi được dò dấu hiệu prompt injection (`
 3. **Bước 3 (Memory Recall & Observation)**: Nếu có mã định danh bệnh nhân (`patient_id`), `MemoryAgent` quan sát câu hỏi để bóc tách các sự kiện dài hạn mới (như tiền sử được chẩn đoán, thuốc mới uống, tình trạng dị ứng) lưu vào SQLite; đồng thời hồi tưởng (`recall`) toàn bộ các sự kiện trước đây của bệnh nhân đưa vào `state.memory`.
 4. **Bước 4 (Adaptive History Compression)**: `MemoryAgent` kiểm tra dung lượng token của lịch sử hội thoại. Nếu vượt quá ngân sách (`HISTORY_TOKEN_BUDGET = 800` tokens), mô hình tóm tắt sẽ kích hoạt để nén các lượt trò chuyện cũ thành một đoạn tóm tắt súc tích, gắn cờ `history_summarized`.
 5. **Bước 5 (Lab Extraction & Evaluation)**: `LabAgent` bóc tách kết quả xét nghiệm từ câu hỏi hoặc gọi module `ocr.py` nếu có ảnh/file PDF phiếu xét nghiệm tải lên. Các chỉ số được chuẩn hóa về đơn vị tiêu chuẩn ($mg/dL$, $\%$) và xếp mức lâm sàng theo chuẩn ADA 2024: bình thường, tiền tiểu đường, tiểu đường hoặc hạ đường huyết ($< 70\ mg/dL$). Ngay sau đó, `JournalAgent` (V4.4) đọc nhật ký tự theo dõi 14 ngày của hồ sơ và ghi bản tóm tắt vào `state.journal`; người chưa ghi nhật ký thì bước này không thêm gì.
-6. **Bước 6 (Deep Learning Risk Prediction)**: `Predictor` nhận vector 21 thuộc tính từ hồ sơ, thực hiện biến đổi chuẩn hóa qua `StandardScaler` và đưa qua mạng PyTorch MLP để tính xác suất nguy cơ mắc T2D ($state.risk$).
+6. **Bước 6 (Risk Prediction)**: `Predictor` nhận vector 21 thuộc tính từ hồ sơ và đưa qua mô hình HistGradientBoosting đã hiệu chỉnh isotonic để tính xác suất nguy cơ mắc T2D ($state.risk$).
 7. **Bước 7 (Semantic RAG Retrieval)**: `Retriever` tính toán embedding ngữ nghĩa của câu hỏi qua Sentence-BERT đa ngôn ngữ, quét qua kho tài liệu y khoa `kb/` (14 tài liệu từ V4.6) và thu hồi các đoạn văn bản có độ tương đồng cosine $\ge 0.20$. Sau đó `guard.filter_docs` loại đoạn nào chứa câu ra lệnh cho mô hình, gắn cờ `kb_injection_filtered`, để một tài liệu bị chèn lệnh không tới được Advisor.
 8. **Bước 8 (Knowledge Graph Lookup & Cross-verification)**: `GraphAgent` nhận diện các yếu tố nguy cơ trong câu hỏi, truy vấn đồ thị Neo4j qua giao thức Bolt để lấy thông tin định lượng (tỷ số chênh hiệu chỉnh $OR_{\text{adjusted}}$) và đối chiếu với các khẳng định y văn đã được kiểm chứng chéo.
 9. **Bước 9 (Nutrition Quantitative Analysis)**: `NutritionAgent` kiểm tra xem câu hỏi có chứa các món ăn Việt hay không. Nếu đúng, agent phân tích ngữ cảnh, tra cứu cơ sở dữ liệu USDA FDC và lập bảng dinh dưỡng chi tiết (năng lượng, carbohydrate, chất xơ, đường).
@@ -277,7 +277,7 @@ sequenceDiagram
     participant Orch as Orchestrator (Coordinator)
     participant Mem as MemoryAgent (Trí nhớ)
     participant Lab as LabAgent & OCR
-    participant Pred as Predictor (MLP Deep Learning)
+    participant Pred as Predictor (HistGradientBoosting)
     participant Ret as Retriever & Graph (RAG/KG)
     participant Nutr as NutritionAgent (Dinh dưỡng)
     participant RL as RLAgent (Học tăng cường)
@@ -315,7 +315,7 @@ sequenceDiagram
             %% Bước 6-9: chạy song song (ThreadPoolExecutor)
             par Bước 6: Predictor
             Orch->>Pred: Dự đoán nguy cơ (21 biến BRFSS)
-            Pred->>Pred: Forward pass PyTorch MLP
+            Pred->>Pred: predict_proba + hiệu chỉnh isotonic
             Pred-->>Orch: Cập nhật state.risk (Xác suất P)
 
             and Bước 7 và 8: Retriever và Graph
@@ -410,8 +410,8 @@ def make_message(
 Cùng với đó:
 - **`PatientDataAgent.validate(profile)`**: Kiểm tra miền giá trị 21 biến BRFSS và chuẩn hóa kiểu dữ liệu (`float` cho `BMI`, `int` cho 20 biến còn lại).
 - **`evaluate_pre_rules(risk, profile, question, diagnosed, labs)`**: Chạy suy diễn luật trước `Explanation Agent` (Mục 5.3 Bước 7), tự động phát hiện:
-  - `uncertain_prediction_review` khi $|P - 0.50| \le 0.05$ ($0.45 \le P \le 0.55$).
-  - `conflicting_results_review` khi $P < 0.20$ nhưng có xét nghiệm mức `diabetes`/`low` hoặc câu hỏi mô tả triệu chứng lâm sàng/cấp cứu.
+  - `uncertain_prediction_review` khi $|P - 0.30| \le 0.05$ ($0.25 \le P \le 0.35$).
+  - `conflicting_results_review` khi $P < 0.10$ nhưng có xét nghiệm mức `diabetes`/`low` hoặc câu hỏi mô tả triệu chứng lâm sàng/cấp cứu.
 - **`build_decision_report(state, request_id)`**: Xuất báo cáo hỗ trợ quyết định có cấu trúc (`state.report`) tách biệt rõ 6 khối: `prediction`, `rules`, `evidence`, `rl_simulation`, `explanation`, `audit` và `limitations` (7 giới hạn an toàn theo Mục 10).
 
 ## 6.3. Ánh xạ vào Hiện thực Thực tế và Khả năng Tiến hóa Ngược
@@ -430,9 +430,11 @@ Nhờ thiết kế hợp đồng dữ liệu phân ly, khi DiaCare-MAS nâng c�
 
 # 7. Tích hợp Deep Learning & Knowledge Graph Neo4j
 
-Sự kết hợp giữa Deep Learning và Knowledge Graph là phần lai (hybrid) của DiaCare-MAS: mạng nơ-ron học sâu chịu trách nhiệm **ước lượng xác suất thống kê đa biến**, trong khi đồ thị tri thức cung cấp **căn cứ quan hệ minh bạch và kiểm chứng chéo y văn**.
+Sự kết hợp giữa mô hình học máy và Knowledge Graph là phần lai (hybrid) của DiaCare-MAS: mô hình dự đoán (MLP ở V1, HistGradientBoosting từ V3.3) chịu trách nhiệm **ước lượng xác suất thống kê đa biến**, trong khi đồ thị tri thức cung cấp **căn cứ quan hệ minh bạch và kiểm chứng chéo y văn**.
 
-## 7.1. Mô hình Học sâu Predictor (PyTorch MLP)
+## 7.1. Predictor: từ MLP (V1) tới HistGradientBoosting đa nguồn
+
+Mô hình đang chạy là **HistGradientBoosting có hiệu chỉnh isotonic**, học trên ba nguồn (mục "Nâng cấp" ở cuối mục này). Phần đầu mục mô tả bản V1, một mạng nơ-ron MLP chỉ học BRFSS 2015, vẫn giữ trong mã để so sánh (`DIACARE_PREDICTOR=v1`).
 
 ### Tập Dữ liệu Huấn luyện CDC BRFSS 2015
 Mô hình dự báo nguy cơ sử dụng tập dữ liệu dịch tễ học quy mô lớn **Behavioral Risk Factor Surveillance System (BRFSS 2015)** do Trung tâm Kiểm soát và Phòng ngừa Dịch bệnh Hoa Kỳ (CDC) khảo sát, lưu trữ tại UCI Machine Learning Repository (Dataset ID: 891).
@@ -472,7 +474,7 @@ Bảng so sánh hiệu năng trên tập kiểm thử độc lập:
 
 ### Nâng cấp: học từ nhiều nguồn và hiệu chỉnh xác suất (V3.3)
 
-Mô hình MLP ở trên là bản V1. Bản đang chạy học trên **BRFSS 2015, BRFSS 2023 (CDC) và NHANES 2013–2020 (CDC, có xét nghiệm)**, kiểm tra ngoài trên **Pima Indians (NIDDK)**, và có mô hình triệu chứng riêng từ **UCI 529 (bệnh viện Sylhet)**: năm bộ dữ liệu, bốn đơn vị nguồn. Ba bộ đầu được ánh xạ về cùng 21 chỉ số (chỉ số thiếu để trống); nhãn chung là tự khai đã được chẩn đoán.
+Mô hình MLP ở trên là bản V1. Bản đang chạy học trên **BRFSS 2015, BRFSS 2023 (CDC) và NHANES 2013–2020 (CDC, có xét nghiệm)**, kiểm tra ngoài trên **Pima Indians (NIDDK)**, và có mô hình triệu chứng riêng từ **UCI 529 (bệnh viện Sylhet)**: năm bộ dữ liệu, ba đơn vị nguồn. Ba bộ đầu được ánh xạ về cùng 21 chỉ số (chỉ số thiếu để trống); nhãn chung là tự khai đã được chẩn đoán.
 
 | Tập kiểm tra | AUC cũ | AUC mới | Brier cũ | Brier mới | ECE cũ | ECE mới |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -694,10 +696,10 @@ Hệ thống DiaCare-MAS có 7 nguyên tắc an toàn được thực thi tự �
    - *Cờ an toàn*: `high_risk_referral`, `lab_diabetes_range`, `lab_prediabetes_range`. Hệ thống bắt buộc bổ sung lời nhắc đi khám chuyên khoa và không lặp lại quá nhiều lần trong phiên để tránh gây hoảng loạn.
 5. **Cơ chế Rà soát Kết quả Mâu thuẫn (`conflicting_results_review`)**:
    - *Cơ chế*: Kích hoạt khi có sự mâu thuẫn giữa các tác tử, ví dụ: Hồ sơ lối sống của bệnh nhân cho thấy nguy cơ thấp ($P < 0.10$), nhưng kết quả xét nghiệm thực tế lại ở ngưỡng đái tháo đường ($HbA1c \ge 6.5\%$ hoặc $FPG \ge 126\ mg/dL$), hoặc bệnh nhân khai báo các triệu chứng kinh điển.
-   - *Xử lý an toàn*: Hệ thống ưu tiên bằng chứng cận lâm sàng thực tế và triệu chứng chủ quan hơn mô hình dự đoán thống kê, cảnh báo bệnh nhân về khả năng mắc bệnh và yêu cầu tái khám ngay, giải thích rõ ràng sự bất tương xứng giữa lối sống và chỉ số máu.
+   - *Xử lý*: Cờ được ghi vào báo cáo quyết định (`state.report`, kèm `needs_human_review`), không tự đổi câu trả lời. Phần người dùng thấy đến từ Rules: ghi chú xét nghiệm (`lab_diabetes_range`) hoặc chuyển khám vì triệu chứng (`symptom_referral`) luôn được thêm, bất kể mức nguy cơ theo hồ sơ; ở chế độ nhà phát triển, Streamlit ghi thêm một dòng giải thích khi mức nguy cơ theo hồ sơ chưa cao mà xét nghiệm hay triệu chứng xấu.
 6. **Cơ chế Xử lý Dự đoán Không chắc chắn (`uncertain_prediction_review`)**:
-   - *Cơ chế*: Kích hoạt khi xác suất dự báo của mạng nơ-ron rơi vào vùng không chắc chắn quanh ngưỡng nguy cơ cao ($0.25 \le P \le 0.35$, tức $0.30 \pm 0.05$).
-   - *Xử lý an toàn*: Hệ thống chủ động từ chối kết luận dứt khoát về mức nguy cơ, khuyến cáo bệnh nhân thực hiện nghiệm pháp dung nạp glucose đường uống (OGTT 2h) hoặc đo HbA1c tại bệnh viện để có kết luận chính xác.
+   - *Cơ chế*: Kích hoạt khi xác suất dự báo của Predictor rơi vào vùng không chắc chắn quanh ngưỡng nguy cơ cao ($0.25 \le P \le 0.35$, tức $0.30 \pm 0.05$).
+   - *Xử lý*: Cờ chỉ được ghi vào báo cáo quyết định (`state.report`) để người xem kỹ thuật biết dự đoán nằm sát ngưỡng; câu trả lời cho người dùng không đổi. Lời dặn hệ thống vốn đã cấm mô hình nêu nguy cơ dạng phần trăm, nên người dùng không nhận một con số sát ngưỡng như kết luận chắc chắn.
 7. **Nguyên tắc Tuyên bố Miễn trừ Trách nhiệm Lâm sàng Bắt buộc (Mandatory Clinical Disclaimer)**:
    - *Cơ chế*: Mọi câu trả lời gửi đến người dùng (kể cả câu chào hỏi hay câu trả lời chuyên sâu) đều được tự động đính kèm câu tuyên bố pháp lý bất biến ở cuối văn bản:
    > *"Đây chỉ là thông tin tham khảo, không thay thế tư vấn của bác sĩ."*
@@ -708,7 +710,7 @@ Hệ thống DiaCare-MAS có 7 nguyên tắc an toàn được thực thi tự �
 
 ## 11.1. Đánh giá Hiệu năng Thực nghiệm (Ablation Benchmark)
 
-Hệ thống đã được chạy benchmark tự động trên nền tảng đám mây Kaggle (sử dụng GPU NVIDIA Tesla T4 16 GB) với bộ dữ liệu benchmark 50 ca lâm sàng đại diện cho 11 nhóm tình huống, mỗi ca chạy lặp lại 3 lần độc lập ($k = 3$, tổng cộng 414 lượt suy luận chuyên sâu):
+Hệ thống đã được chạy benchmark tự động trên nền tảng đám mây Kaggle (sử dụng GPU NVIDIA Tesla T4 16 GB) với bộ dữ liệu benchmark 46 ca lâm sàng đại diện cho 10 nhóm tình huống, mỗi ca chạy lặp lại 3 lần độc lập ($k = 3$, tổng cộng 414 lượt suy luận chuyên sâu):
 
 | Cấu hình Thử nghiệm | Tỷ lệ Đạt Pass@3 | Tỷ lệ Đạt Tuyệt đối Pass^3 | Tỷ lệ Đạt từng Lượt (Wilson 95%) | Token Đầu vào TB | Thời gian Xử lý TB (giây) |
 |---|:---:|:---:|:---:|:---:|:---:|
