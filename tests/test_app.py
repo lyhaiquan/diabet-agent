@@ -414,3 +414,59 @@ def test_checkin_voice_too_short_warns(user_env, monkeypatch):
     at.audio_input(key="ci_voice").set_value(_wav(0.1)).run()
     assert any("quá ngắn" in w.value for w in at.warning)
     assert len(open_store().runs()) == 0
+
+
+def test_chat_input_parts_text_photo_audio():
+    """Ô chat nhận chữ, ảnh bữa ăn và ghi âm (Streamlit >= 1.5x trả ChatInputValue khi bật tệp/ghi âm)."""
+    import sys
+    sys.path.insert(0, str(APP.parent))
+    from ui_common import chat_parts as _chat_parts
+    assert _chat_parts(None) == (None, None, None)
+    assert _chat_parts("Ăn chuối được không?") == ("Ăn chuối được không?", None, None)
+    assert _chat_parts({"text": "  ", "files": ["anh"], "audio": None}) == (None, "anh", None)
+    assert _chat_parts({"text": "", "files": [], "audio": "wav"}) == (None, None, "wav")
+
+
+def test_serial_store_survives_concurrent_sessions(tmp_path):
+    """Hai tab Streamlit = hai luồng dùng chung một Store (cache_resource). Không khoá thì sqlite3 đọc nhầm con trỏ
+    của nhau (IndexError / InterfaceError, đã gặp khi chạy thật)."""
+    import sys
+    import threading
+    sys.path.insert(0, str(APP.parent))
+    from ui_common import SerialStore
+    from diacare.db import Store
+    raw = Store(tmp_path / "t.db")
+    pid = raw.save_patient("A", {})
+    for _ in range(30):
+        raw.add_lab(pid, "hba1c", 6.5, "%")
+    store, errs = SerialStore(raw), []
+
+    def run():
+        try:
+            for _ in range(200):
+                assert len(store.list_labs(pid)) == 30
+                store.list_patients()
+        except Exception as e:  # noqa: BLE001
+            errs.append(type(e).__name__)
+    ts = [threading.Thread(target=run) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert errs == []
+
+
+def test_voice_mode_mounts_big_mic_and_speaks_card_prompt(user_env, monkeypatch):
+    """Bật "Trò chuyện bằng giọng nói": trang Tư vấn gắn nút micro to (CCv2) mà không lỗi; khi có thẻ số đo đang chờ,
+    lượt sau chuẩn bị câu đọc to nhắc kiểm tra thẻ."""
+    monkeypatch.setenv("DIACARE_ASR", "demo")
+    monkeypatch.setenv("DIACARE_TTS_MODEL", "khong_co.onnx")  # không có giọng: vẫn chạy, chỉ báo chú thích
+    at = create_patient(new_app().run(), page="Tư vấn")
+    at.toggle(key="voice_mode").set_value(True).run()
+    assert not at.exception
+    at.session_state["checkin_card"] = {"n": 1, "reading": {"kind": "glucose", "value": 6.5, "unit": "mmol/L",
+                                                            "context": "fasting", "summary": "Đường huyết 6,5 mmol/L"},
+                                        "when": "2026-11-25T07:00:00+07:00"}
+    at.session_state["speak_after"] = 10 ** 6
+    at.run()
+    assert not at.exception
+    reply = at.session_state["voice_reply"]
+    assert reply["audio"] is None and "giọng đọc tiếng Việt" in reply["note"]

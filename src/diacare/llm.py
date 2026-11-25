@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 import urllib.error
@@ -51,6 +52,9 @@ class OllamaLLM(_PerThreadUsage):
         self.token = token
         if timeout is None:
             timeout = REMOTE_TIMEOUT if token else LOCAL_TIMEOUT
+        # Giữ mô hình trong GPU sau mỗi lượt. Mặc định của Ollama là 5 phút: người dùng ngừng nói chuyện lâu hơn thế
+        # thì câu sau phải chờ nạp lại mô hình (đo 2026-11-25: llama-server khởi động 24 giây, lượt đầu 1 phút 10 giây).
+        self.keep_alive = os.environ.get("DIACARE_OLLAMA_KEEP_ALIVE", "30m")
         self.temperature, self.timeout, self.num_predict = temperature, timeout, num_predict
         self.last_usage = {}
 
@@ -58,6 +62,7 @@ class OllamaLLM(_PerThreadUsage):
         """on_token(piece): nhận từng đoạn chữ khi model sinh ra (Ollama stream NDJSON)."""
         body = json.dumps({
             "model": self.model, "messages": messages, "stream": on_token is not None,
+            "keep_alive": self.keep_alive,
             "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,
                         "num_predict": self.num_predict},
         }).encode()

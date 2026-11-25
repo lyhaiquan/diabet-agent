@@ -88,6 +88,12 @@ if (-not $env:DIACARE_ASR_MODEL) {
         Select-Object -First 1
     if ($asr) { $env:DIACARE_ASR_MODEL = $asr.FullName }
 }
+# Giọng đọc tiếng Việt (Piper, chế độ trò chuyện bằng giọng nói): dùng bản đã tải ở D:\hf_cache nếu có.
+if (-not $env:DIACARE_TTS_MODEL) {
+    $tts = Get-ChildItem "D:\hf_cache\hub\models--rhasspy--piper-voices\snapshots\*\vi\vi_VN\vais1000\medium\vi_VN-vais1000-medium.onnx" -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($tts) { $env:DIACARE_TTS_MODEL = $tts.FullName }
+}
 
 if ($KG) {
     # Bật Neo4j trong Docker, nạp đồ thị, rồi cho Graph agent đọc từ Neo4j.

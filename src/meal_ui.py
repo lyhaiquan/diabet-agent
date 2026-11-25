@@ -38,6 +38,7 @@ def _hint(it, table):
 def to_frame(items, table):
     # kiểu cột ghi rõ: bảng rỗng (tự nhập món) thì pandas đoán "object" và data_editor từ chối cột checkbox
     return pd.DataFrame({
+        "#": pd.Series([it.get("no") for it in items], dtype="object"),  # số của vùng món trên ảnh
         "Món": pd.Series([it["name"] for it in items], dtype="object"),
         "Gram": pd.Series([int(it["grams"]) for it in items], dtype="int64"),
         "Đúng món": pd.Series([not it.get("needs_confirm") for it in items], dtype="bool"),
@@ -85,17 +86,30 @@ def _scan_upload(table):
     if f is None:
         return
     if st.button("Nhận diện món", type="primary", key="meal_scan_btn"):
-        with st.spinner("Đang nhận diện món..."):
-            try:
-                res = meal_scan.scan(f.getvalue(), f.name or "khay.jpg", f.type or "image/jpeg")
-            except meal_scan.CaloKhayError as e:
-                st.error(str(e))
-                return
-        n = st.session_state.get("meal_scan_n", 0) + 1
-        st.session_state["meal_scan_n"] = n
-        st.session_state[SCAN] = {"n": n, "items": meal_scan.items_from_scan(res, table),
-                                  "warnings": res.get("warnings", []), "image": f.getvalue()}
+        err = start_scan(f, table)
+        if err:
+            st.error(err)
+            return
         st.rerun()  # ẩn ô tải ảnh, chỉ còn thẻ xác nhận
+
+
+def start_scan(f, table):
+    """Gửi ảnh (UploadedFile) cho Calo Khay và mở thẻ xác nhận món. Dùng cho ô tải ảnh của trang Bữa ăn và cho ảnh
+    gửi kèm trong ô chat của trang Tư vấn. Trả về thông báo lỗi, hoặc None nếu đã mở thẻ."""
+    with st.spinner("Đang nhận diện món..."):
+        try:
+            res = meal_scan.scan(f.getvalue(), f.name or "khay.jpg", f.type or "image/jpeg")
+        except meal_scan.CaloKhayError as e:
+            return str(e)
+    n = st.session_state.get("meal_scan_n", 0) + 1
+    st.session_state["meal_scan_n"] = n
+    items = meal_scan.items_from_scan(res, table)
+    try:  # ảnh có khoanh vùng và đánh số món; lỗi vẽ thì vẫn hiện ảnh gốc
+        image = meal_scan.annotate(f.getvalue(), items, res.get("image"))
+    except Exception:  # noqa: BLE001
+        image = f.getvalue()
+    st.session_state[SCAN] = {"n": n, "items": items, "warnings": res.get("warnings", []), "image": image}
+    return None
 
 
 def _confirm(store, patient_id, table):
@@ -106,7 +120,9 @@ def _confirm(store, patient_id, table):
     with st.container(border=True):
         st.markdown("**Kiểm tra lại các món trước khi lưu**")
         if scan.get("image"):
-            st.image(scan["image"], width=320)
+            st.image(scan["image"], width=420,
+                     caption="Mỗi vùng màu là một món; số trên ảnh khớp với cột # trong bảng. Món nhận sai thì "
+                             "đổi tên ở cột Món.")
         elif not items:
             st.caption("Bấm dấu **+** ở cuối bảng để thêm món, chọn tên món rồi nhập số gram cả phần bạn ăn "
                        "(cả bát phở gồm nước, cả ổ bánh mì).")
@@ -125,6 +141,8 @@ def _confirm(store, patient_id, table):
                 "Gram": st.column_config.NumberColumn("Gram", min_value=0, max_value=2000, step=5, required=True),
                 "Đúng món": st.column_config.CheckboxColumn("Đúng món", help="Tích khi bạn đã kiểm tra món này"),
                 "Ghi chú": st.column_config.TextColumn("Ghi chú", disabled=True),
+                "#": st.column_config.TextColumn("#", disabled=True, width="small",
+                                                 help="Số của vùng món trên ảnh"),
             })
         edited, pending, unknown = rows_to_items(df, items, table)
         total = meal_scan.meal_carbs(edited, table)

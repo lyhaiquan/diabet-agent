@@ -81,9 +81,10 @@ def items_from_scan(res, table):
     """Danh sách món để người dùng xác nhận/sửa. Không thấy đĩa thì mọi món đều cần xác nhận (ảnh có thể không
     phải khay cơm)."""
     items = []
-    for it in res.get("items", []):
+    for no, it in enumerate(res.get("items", []), 1):
         cls = it["cls"] if it["cls"] in table else None
         items.append({
+            "no": no, "polygons": it.get("polygons") or [],
             "cls": cls, "name": table[cls]["name"] if cls else it.get("name", it["cls"]),
             "grams": int(round(it.get("grams") or 0)), "conf": it.get("conf"),
             "needs_confirm": bool(it.get("needs_confirm")) or not res.get("plate_found", True) or cls is None,
@@ -91,6 +92,58 @@ def items_from_scan(res, table):
             "gram_method": it.get("gram_method"), "gram_source": "model",
         })
     return items
+
+
+# Màu vùng món trên ảnh (đủ tương phản trên nền cơm trắng và khay tối), lặp lại khi nhiều món hơn.
+OVERLAY_COLORS = [(230, 25, 75), (60, 180, 75), (0, 130, 200), (245, 130, 48), (145, 30, 180), (70, 240, 240),
+                  (240, 50, 230), (210, 245, 60), (250, 190, 212), (0, 128, 128), (170, 110, 40), (128, 0, 0)]
+
+
+def annotate(image_bytes, items, image_size=None):
+    """Vẽ vùng của từng món (polygons Calo Khay trả về) lên ảnh, tô màu nhạt, viền đậm và ghi SỐ THỨ TỰ của món ở
+    giữa vùng, khớp với cột "#" của bảng xác nhận: người dùng thấy món nào bị nhận sai. Toạ độ của Calo Khay theo
+    kích thước ảnh nó đã xử lý (`image_size` = {"w", "h"}); ảnh gốc khác kích thước thì co giãn theo. Trả về PNG."""
+    import io
+
+    from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(image_bytes))).convert("RGB")
+    sx = img.width / image_size["w"] if image_size and image_size.get("w") else 1.0
+    sy = img.height / image_size["h"] if image_size and image_size.get("h") else 1.0
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    size = max(18, img.width // 22)
+    try:
+        font = ImageFont.truetype("arialbd.ttf", size)
+    except OSError:
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", size)
+        except OSError:
+            font = ImageFont.load_default()
+    labels = []
+    for it in items:
+        color = OVERLAY_COLORS[(it["no"] - 1) % len(OVERLAY_COLORS)]
+        biggest = None
+        for poly in it.get("polygons") or []:
+            pts = [(x * sx, y * sy) for x, y in poly]
+            if len(pts) < 3:
+                continue
+            draw.polygon(pts, fill=color + (70,), outline=color + (255,), width=max(2, img.width // 300))
+            if biggest is None or len(pts) > len(biggest):
+                biggest = pts
+        if biggest:
+            cx = sum(x for x, _ in biggest) / len(biggest)
+            cy = sum(y for _, y in biggest) / len(biggest)
+            labels.append((cx, cy, str(it["no"]), color))
+    out = Image.alpha_composite(img.convert("RGBA"), layer)
+    draw = ImageDraw.Draw(out)
+    for cx, cy, text, color in labels:  # số vẽ sau cùng để không bị vùng khác che
+        r = size * 0.8
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=color + (255,), outline=(255, 255, 255, 255), width=3)
+        draw.text((cx, cy), text, fill=(255, 255, 255, 255), font=font, anchor="mm")
+    buf = io.BytesIO()
+    out.convert("RGB").save(buf, "PNG")
+    return buf.getvalue()
 
 
 def meal_carbs(items, table):

@@ -88,6 +88,24 @@ class DemoTranscriber:
         return self.text
 
 
+# Ngưỡng có tiếng nói: RMS của tín hiệu chuẩn hoá [-1, 1]. Im lặng / tiếng quạt của micro laptop khoảng 0,001-0,003;
+# giọng nói thường 0,02-0,1. PhoWhisper "bịa" ra cả câu khi gặp im lặng, nên đoạn dưới ngưỡng không được nhận dạng.
+MIN_SPEECH_RMS = 0.006
+MIN_SPEECH_SECONDS = 0.4
+
+
+def has_speech(audio, rate=SAMPLE_RATE):
+    """True nếu đoạn ghi âm đủ dài và có ít nhất một khung 50 ms đủ lớn (không xét trung bình cả đoạn, vì câu ngắn
+    trong đoạn ghi dài có trung bình thấp)."""
+    audio = np.asarray(audio, dtype=np.float32)
+    if audio.size < rate * MIN_SPEECH_SECONDS:
+        return False
+    frame = int(rate * 0.05)
+    n = audio.size // frame
+    rms = np.sqrt(np.mean(audio[: n * frame].reshape(n, frame) ** 2, axis=1))
+    return bool((rms >= MIN_SPEECH_RMS).sum() >= 4)  # ít nhất 0,2 giây có tiếng
+
+
 def make_transcriber(kind=None):
     kind = (kind or os.environ.get("DIACARE_ASR") or "phowhisper").lower()
     return DemoTranscriber() if kind == "demo" else Transcriber()

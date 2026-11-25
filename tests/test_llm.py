@@ -199,3 +199,13 @@ def test_tunnel_gone_status(monkeypatch):
     with pytest.raises(LLMUnavailable, match="mã 530"):
         OllamaLLM(token="x" * 20)([{"role": "user", "content": "hi"}])
 
+
+
+def test_keep_alive_sent_so_model_stays_on_gpu(monkeypatch):
+    sent = patch(monkeypatch, FULL)
+    monkeypatch.delenv("DIACARE_OLLAMA_KEEP_ALIVE", raising=False)
+    OllamaLLM()([{"role": "user", "content": "hi"}])
+    assert json.loads(sent["body"])["keep_alive"] == "30m"
+    monkeypatch.setenv("DIACARE_OLLAMA_KEEP_ALIVE", "-1")
+    OllamaLLM()([{"role": "user", "content": "hi"}])
+    assert json.loads(sent["body"])["keep_alive"] == "-1"

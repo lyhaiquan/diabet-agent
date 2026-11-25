@@ -107,6 +107,7 @@ def build_context(agent, state, num_ctx=DEFAULT_NUM_CTX):
             "journal_text": journal_text,
             "kg_text": kg_text,
             "rl_text": rl_text,
+            "voice": getattr(state, "voice", False),
             "est_tokens": (SYSTEM_RESERVE_TOKENS + question_tokens + history_tokens + memory_tokens
                            + lab_tokens + journal_tokens + nutrition_tokens + kg_tokens + rl_tokens + docs_tokens),
         }

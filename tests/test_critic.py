@@ -68,3 +68,18 @@ def test_orchestrator_records_grounding_and_flags_without_changing_answer():
         State(question="Nên ăn gì?", profile=dict(LOW_RISK)))
     assert {"unsupported_number", "unknown_source_cited"} <= set(bad.flags)
     assert "25 g đường" in bad.final          # Critic không sửa câu trả lời
+
+
+def test_ranges_attached_units_and_han_gram_are_checked():
+    """V4.9: ba kiểu số bản cũ bỏ sót, đều có trong bản nháp benchmark thật."""
+    g = check_grounding("Mỗi bữa chính nên có khoảng 45-60 gram tinh bột cho người lớn.", CTX)
+    assert g["unsupported_numbers"] == ["45 gram", "60 gram"] and g["numbers"] == 2
+    g = check_grounding("Bữa sáng có thể gồm 100g ngũ cốc nguyên hạt và rau xanh.", CTX)
+    assert g["unsupported_numbers"] == ["100 g"]
+    g = check_grounding("Một lon nước ngọt có ga chứa 32.8克糖 theo nhà sản xuất.", CTX)
+    assert g["unsupported_numbers"] == ["32.8 克"]
+    # khoảng có trong ngữ cảnh: cả hai đầu đều có căn cứ
+    assert check_grounding("Bạn nên giữ đường huyết lúc đói khoảng 6,5–7,4 mmol/L mỗi sáng.", CTX)["grounded"]
+    # khoảng không đơn vị toàn số nguyên ("1-2 lần", năm) vẫn không tính; chữ dính số ("100gạo") không phải đơn vị
+    g = check_grounding("Đi bộ 1-2 lần mỗi ngày từ 2020-2025 và ăn 100gạo lứt nhé.", CTX)
+    assert g["numbers"] == 0

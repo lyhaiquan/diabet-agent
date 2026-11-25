@@ -18,9 +18,16 @@ from diacare.rules import _SENTENCE_SPLIT
 
 _TAG = re.compile(r"\[([^\[\]\n]{1,60})\]")
 # Chỉ đơn vị đo lường; số đếm ("3 bữa", "2 lần", "5 ngày") quá phổ biến trong lời khuyên chung nên không xét.
-_UNIT = r"%|mg/dl|mmol/l|mmhg|kcal|calo|kg|gam|gram|g|ml|lít|phút|giờ|tiếng|đơn vị"
-# số: 6,8 | 126 | 1.500 ; không bắt số nằm trong từ / mã (HbA1c, qwen2.5) hay ngày tháng (20/11)
-_NUM = re.compile(rf"(?<![\w.,/\-])(\d+(?:[.,]\d+)?)(?![\w/]|[.,]\d)\s*({_UNIT})?(?![\w])", re.IGNORECASE)
+# Đơn vị chữ Latin phải đứng riêng ("100g ngũ cốc" được, "100gạo" thì không); "克" (gam, khi mô hình 3B xen chữ Hán
+# như "32.8克糖") không cần ranh giới từ vì chữ Hán viết liền.
+_UNIT = r"(?:%|mg/dl|mmol/l|mmhg|kcal|calo|kg|gam|gram|g|ml|lít|phút|giờ|tiếng|đơn vị)(?![\w/])|克"
+_NUMBER = r"\d+(?:[.,]\d+)?"
+# số: 6,8 | 126 | 1.500 | khoảng "45-60 gram", "4,4–7,2 mmol/L", "5 đến 7 kg" (đơn vị đứng sau số thứ hai áp cho cả
+# hai số). Không bắt số nằm trong từ / mã (HbA1c, qwen2.5) hay ngày tháng (20/11).
+# V4.9: bản cũ bỏ sót khoảng (số đầu đứng trước "-" không có đơn vị, số sau bị chặn vì đứng sau "-"), số dính liền
+# đơn vị ("100g") và "克"; ba kiểu này có trong bản nháp benchmark (docs/results/2026-11-24_numfix_3b).
+_NUM = re.compile(rf"(?<![\w.,/\-])({_NUMBER})(?:\s*(?:-|–|—|đến|tới)\s*({_NUMBER}))?"
+                  rf"(?:\s*({_UNIT})|(?![\w/]|[.,]\d))", re.IGNORECASE)
 _ANY_NUM = re.compile(r"\d+(?:[.,]\d+)?")
 MIN_WORDS = 4            # câu ngắn hơn (tiêu đề, lời chào) không tính là một phát biểu
 GLUCOSE_FACTOR = 18.0    # mg/dL = mmol/L x 18
@@ -78,14 +85,15 @@ def check_grounding(draft, ctx):
             cited += 1
         unknown += [t for t in tags if t not in tags_ok and t not in unknown]
         for m in _NUM.finditer(_TAG.sub(" ", s)):
-            num, unit = m.group(1), m.group(2)
-            if not unit and not re.search(r"[.,]", num):   # số nguyên trần (đánh số mục, "3 bữa") không tính
-                continue
-            n_numbers += 1
-            if not _supported(_val(num), known_numbers):
-                shown = num + (f" {unit}" if unit else "")
-                if shown not in unsupported:
-                    unsupported.append(shown)
+            unit = m.group(3)
+            for num in filter(None, (m.group(1), m.group(2))):
+                if not unit and not re.search(r"[.,]", num):   # số nguyên trần (đánh số mục, "3 bữa") không tính
+                    continue
+                n_numbers += 1
+                if not _supported(_val(num), known_numbers):
+                    shown = num + (f" {unit}" if unit else "")
+                    if shown not in unsupported:
+                        unsupported.append(shown)
     flags = []
     if unknown:
         flags.append("unknown_source_cited")

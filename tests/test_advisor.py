@@ -58,3 +58,11 @@ def test_citation_reminder_is_last_and_uses_real_labels():
     assert last.index("Câu hỏi:") < last.index("Yêu cầu trình bày") < last.index(LENGTH_REMINDER)
     assert '"... [ada.txt]."' in last and "[ada.txt], [who.txt], [usda_fdc]" in last
     assert citation_reminder(dict(CTX, docs=[])) == ""  # không có tài liệu thì không đòi trích
+
+
+def test_voice_mode_asks_for_short_spoken_answer():
+    from diacare.advisor import LENGTH_REMINDER, VOICE_REMINDER, build_messages
+    ctx = {"docs": [{"source": "a.txt", "text": "x"}], "risk": None, "question": "Đi bộ bao lâu?", "history": []}
+    assert LENGTH_REMINDER in build_messages(ctx)[-1]["content"]
+    voice = build_messages(dict(ctx, voice=True))[-1]["content"]
+    assert VOICE_REMINDER in voice and LENGTH_REMINDER not in voice and "[a.txt]" in voice

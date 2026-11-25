@@ -25,3 +25,4 @@ class State:
     messages: list = field(default_factory=list)  # danh sách bản tin chuẩn Mục 6.1: [{request_id, agent, status, ...}]
     report: dict | None = None  # Báo cáo hỗ trợ quyết định có cấu trúc (Mục 5.3 Bước 12)
     trace: list = field(default_factory=list)  # [{agent, detail, ms}] theo thứ tự chạy
+    voice: bool = False  # trò chuyện bằng giọng nói: câu trả lời ngắn, để đọc to (advisor.VOICE_REMINDER)

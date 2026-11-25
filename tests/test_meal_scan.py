@@ -266,3 +266,25 @@ def test_journal_agent_meals_only(tmp_path):
     state = State(question="Bữa trưa của tôi thế nào?", profile={}, patient_id=pid)
     state.journal = digest
     assert "Bữa gần nhất: bữa trưa" in build_context("advisor", state)["journal_text"]
+
+
+def test_annotate_draws_numbered_regions():
+    """Ảnh xác nhận có khoanh vùng + số món, khớp cột # của bảng (người dùng thấy món nào nhận sai)."""
+    import io
+
+    from PIL import Image
+    img = Image.new("RGB", (200, 100), (255, 255, 255))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG")
+    items = [{"no": 1, "polygons": [[[10, 10], [60, 10], [60, 60], [10, 60]]]},
+             {"no": 2, "polygons": []}]
+    out = Image.open(io.BytesIO(meal_scan.annotate(buf.getvalue(), items, {"w": 100, "h": 50}))).convert("RGB")
+    assert out.size == (200, 100)
+    # vùng món 1 (toạ độ x2 vì ảnh gốc lớn gấp đôi ảnh Calo Khay xử lý) đã đổi màu, góc ngoài vùng giữ trắng
+    assert out.getpixel((30, 30)) != (255, 255, 255) and out.getpixel((195, 95)) == (255, 255, 255)
+
+
+def test_items_from_scan_keep_number_and_polygons():
+    items = meal_scan.items_from_scan(SCAN, TABLE)
+    assert [it["no"] for it in items] == list(range(1, len(items) + 1))
+    assert all("polygons" in it for it in items)

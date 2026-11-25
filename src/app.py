@@ -1,7 +1,10 @@
+import base64
 import json
 import os
+import threading
 
 import matplotlib
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -27,7 +30,12 @@ from diacare.samples import HIGH_RISK, LOW_RISK  # noqa: E402
 from diacare.state import State  # noqa: E402
 from diacare.typewriter import Typewriter  # noqa: E402
 from journal_ui import render_journal, render_today, render_visit  # noqa: E402
+from diacare import tts  # noqa: E402
+from diacare.speech import AudioError, decode_wav, has_speech  # noqa: E402
 import checkin_ui  # noqa: E402
+import voice_ui  # noqa: E402
+from ui_common import SerialStore, chat_parts as _chat_parts  # noqa: E402
+import meal_ui  # noqa: E402
 from meal_ui import render_meal  # noqa: E402
 
 LABELS = {
@@ -70,7 +78,7 @@ def is_diagnosed(store, patient_id):
 @st.cache_resource
 def load_parts(kb, db, llm_kind, embed_kind, log, features, kg_kind=""):
     """Build predictor/retriever/llm/store once per configuration (args are cache keys; config is read from env)."""
-    store = open_store()
+    store = SerialStore(open_store())
     return build_orchestrator(store=store), store
 
 
@@ -361,7 +369,7 @@ def _render_answer(content, dev):
     return bool(notes)
 
 
-def _ask(store, base, patient, question, status=None, box=None):
+def _ask(store, base, patient, question, status=None, box=None, voice=False):
     """status: khung tiến trình agent (st.status); box: chỗ hiện chữ đang stream (st.empty)."""
     sid = st.session_state["session_id"]
     history = store.get_history(sid)
@@ -373,7 +381,7 @@ def _ask(store, base, patient, question, status=None, box=None):
     typer = Typewriter(lambda t: box.markdown(_streaming(t))) if box is not None else None
     stream = SafeStream(typer) if box is not None else None
     state = orch.run(State(question=question, profile=patient["profile"], history=history,
-                           patient_id=patient["id"]), on_token=stream, on_step=on_step)
+                           patient_id=patient["id"], voice=voice), on_token=stream, on_step=on_step)
     if stream is not None:
         stream.flush()
         typer.finish()
@@ -390,6 +398,70 @@ def _ask(store, base, patient, question, status=None, box=None):
         "trace": list(state.trace), "lab_level": worst_level(state.labs),
         "patient": f"#{patient['id']} {patient['name']}",
     }
+
+
+@st.cache_resource
+def _speaker():
+    return tts.Speaker()
+
+
+def _warm_voice():
+    """Nạp sẵn mô hình nghe (khoảng 25 giây lần đầu) và giọng đọc ngay khi bật chế độ giọng nói, ở luồng nền, để câu
+    nói đầu tiên không phải chờ."""
+    if st.session_state.get("voice_warm"):
+        return
+    st.session_state["voice_warm"] = True
+    speaker, transcriber = _speaker(), checkin_ui._transcriber()
+
+    def warm():
+        try:
+            transcriber(np.zeros(16000, dtype=np.float32))
+            if speaker.available:
+                speaker.wav("xin chào")
+        except Exception:  # noqa: BLE001  (lỗi thật sẽ hiện ở lượt nói đầu tiên)
+            pass
+    threading.Thread(target=warm, daemon=True).start()
+
+
+def _voice_reply(store, sid):
+    """Câu trợ lý cần đọc to ở lượt này (nếu có) -> {"id", "audio" (WAV base64), "note"} cho nút micro.
+    Đọc: câu trả lời mới của trợ lý (đã qua Rules), hoặc lời nhắc kiểm tra thẻ số đo, hoặc "chưa nghe rõ"."""
+    say = st.session_state.pop("voice_say", None)
+    after = st.session_state.get("speak_after")
+    if say is None and after is not None:
+        history = store.get_history(sid, limit=500)
+        if len(history) > after and history[-1]["role"] == "assistant":
+            say = history[-1]["content"]
+        elif st.session_state.get(checkin_ui.CARD):
+            summary = st.session_state[checkin_ui.CARD]["reading"].get("summary", "số đo")
+            say = f"Mình nghe được {summary}. Bạn kiểm tra thẻ bên dưới rồi bấm Lưu vào nhật ký nhé."
+        st.session_state.pop("speak_after", None)
+    if say:
+        n = st.session_state.get("voice_reply_n", 0) + 1
+        st.session_state["voice_reply_n"] = n
+        audio, note = None, ""
+        try:
+            wav = _speaker().wav(say)
+            audio = base64.b64encode(wav).decode() if wav else None
+        except tts.TTSUnavailable as e:
+            note = str(e)
+        st.session_state["voice_reply"] = {"id": n, "audio": audio, "note": note}
+    return st.session_state.get("voice_reply")
+
+
+def _voice_question(utterance):
+    """Đoạn ghi âm từ nút micro -> câu hỏi (chữ), hoặc None (đã hẹn đọc "chưa nghe rõ")."""
+    try:
+        samples = decode_wav(base64.b64decode(utterance["wav"]))
+    except (AudioError, KeyError, ValueError):
+        samples = None
+    text = None
+    if samples is not None and has_speech(samples):
+        with st.spinner("Đang nghe..."):
+            text = checkin_ui._transcriber()(samples)
+    if not text:
+        st.session_state["voice_say"] = "Mình chưa nghe rõ, bạn nói lại giúp mình nhé."
+    return text or None
 
 
 def render_chat(store, base, patient_id):
@@ -415,9 +487,40 @@ def render_chat(store, base, patient_id):
     sid = st.session_state["session_id"]
     # Trợ lý chủ động hỏi (diacare.checkin): mỗi ngày mở lời một lần cho người đã chẩn đoán
     checkin_ui.maybe_open(store, patient, sid, is_diagnosed(store, patient_id))
-    question = st.chat_input("Nhập câu hỏi, vd \"Bữa sáng ăn bánh mì trứng có ổn không?\"")
+    voice_mode = st.toggle(
+        "🎙️ Trò chuyện bằng giọng nói", key="voice_mode",
+        help="Nói chuyện rảnh tay: bấm nút micro to, cứ nói, nói xong trợ lý tự trả lời, đọc to rồi nghe tiếp. "
+             "Số đo đường huyết nói ra vẫn hiện thẻ để bạn bấm Lưu.")
+    utterance = None
+    if voice_mode:
+        _warm_voice()
+        utterance = voice_ui.voice_chat(
+            reply=_voice_reply(store, sid), key="voice_chat",
+            hint="Lần đầu bật có thể chờ khoảng 30 giây để nạp mô hình nghe. Trình duyệt sẽ hỏi quyền dùng micro.")
+    raw = st.chat_input("Nhập câu hỏi, bấm micro để nói, hoặc đính kèm ảnh bữa ăn",
+                        accept_audio=True, audio_sample_rate=16000,
+                        accept_file=True, file_type=["jpg", "jpeg", "png", "webp"], max_upload_size=10)
+    question, photo, audio = _chat_parts(raw)
+    if photo is not None:  # ảnh bữa ăn: nhận diện món rồi sang trang Bữa ăn để xác nhận
+        err = meal_ui.start_scan(photo, meal_ui._table())
+        if err:
+            st.error(err)
+        else:
+            st.session_state["goto_page"] = "Bữa ăn"
+            st.rerun()
+        question = None
+    if audio is not None:  # micro của ô chat: hiện chữ nghe được để sửa rồi mới gửi (ô bên dưới)
+        checkin_ui.hear(audio)
+        question = None
+    if utterance:  # nút micro to: gửi ngay câu nghe được; câu trả lời được đọc to ở lượt vẽ sau
+        question = _voice_question(utterance)
+        st.session_state["speak_after"] = len(store.get_history(sid, limit=500))
+        if question is None:
+            st.rerun()  # đọc "chưa nghe rõ" rồi nghe tiếp
     if question and checkin_ui.handle_input(store, patient, sid, question):
         question = None  # là câu trả lời số đo / "chưa đo": đã xử lý, không gửi cho pipeline tư vấn
+        if utterance:
+            st.rerun()  # để nút micro đọc câu trả lời soạn sẵn / lời nhắc kiểm tra thẻ
     _render_messages(store, base)
     checkin_ui.render_card(store, patient, sid)
     spoken = None if question else checkin_ui.voice_reply(store, patient, sid)
@@ -431,7 +534,7 @@ def render_chat(store, base, patient_id):
         with st.chat_message("assistant"):
             status = st.status("Các agent đang xử lý...", expanded=True)
             box = st.empty()
-            _ask(store, base, patient, question, status, box)
+            _ask(store, base, patient, question, status, box, voice=bool(utterance))
         st.rerun()  # vẽ lại từ lịch sử để có câu trả lời cuối (đã qua Rules) và phần chi tiết
 
 
@@ -671,6 +774,8 @@ def main():
     # Dùng nút chọn trang thay cho st.tabs: st.chat_input chỉ được ghim xuống đáy màn hình
     # (kiểu ChatGPT) khi nằm ở cấp ngoài cùng, không ở trong tab/cột/expander.
     pages = USER_PAGES + (DEV_PAGES if dev_mode() else ())
+    if "goto_page" in st.session_state:  # ảnh gửi trong ô chat -> mở trang Bữa ăn (đặt trước khi vẽ nút chọn trang)
+        st.session_state["page"] = st.session_state.pop("goto_page")
     if st.session_state.get("page") not in pages:  # vừa tắt chế độ nhà phát triển khi đang ở trang kỹ thuật
         st.session_state["page"] = pages[0]
     page = st.radio("Trang", pages, horizontal=True, key="page", label_visibility="collapsed")

@@ -91,3 +91,17 @@ def test_demo_transcriber(monkeypatch):
     monkeypatch.setenv("DIACARE_ASR_DEMO_TEXT", "huyết áp 120 trên 80")
     t = make_transcriber()
     assert isinstance(t, DemoTranscriber) and t(np.zeros(16000)) == "huyết áp 120 trên 80"
+
+
+def test_has_speech_rejects_silence_and_short_clips():
+    """PhoWhisper bịa câu khi gặp im lặng (đo thật: 1 giây im lặng -> "tuy nhiên không phải ai cũng ..."): đoạn ghi
+    âm im lặng, quá ngắn thì không gửi đi nhận dạng."""
+    import numpy as np
+
+    from diacare.speech import has_speech
+    rate = 16000
+    assert not has_speech(np.zeros(rate, dtype=np.float32))
+    assert not has_speech((np.random.default_rng(0).normal(0, 0.002, rate)).astype(np.float32))  # tiếng quạt
+    t = np.arange(rate) / rate
+    assert has_speech((0.1 * np.sin(2 * np.pi * 220 * t)).astype(np.float32))
+    assert not has_speech((0.1 * np.sin(2 * np.pi * 220 * t[: rate // 5])).astype(np.float32))  # 0,2 giây

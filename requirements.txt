@@ -19,3 +19,4 @@ python-multipart
 httpx
 transformers
 psycopg[binary]>=3.2  # PostgreSQL cho dịch vụ API (DIACARE_DATABASE_URL); không đặt thì dùng SQLite
+piper-tts>=1.8  # giọng đọc tiếng Việt cho chế độ trò chuyện bằng giọng nói (src/diacare/tts.py)

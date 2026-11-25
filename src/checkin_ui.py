@@ -9,7 +9,7 @@ from datetime import datetime
 import streamlit as st
 
 from diacare import journal
-from diacare.speech import AudioError, decode_wav, make_transcriber
+from diacare.speech import AudioError, decode_wav, has_speech, make_transcriber
 from diacare.checkin import cancel_card, handle_reply, open_for_day, pending_topic, save_reading
 from diacare.coach import daily_nudge
 from journal_ui import _coach
@@ -155,6 +155,9 @@ def _transcribe_new(audio):
         return None
     finally:
         del data
+    if not has_speech(samples):
+        st.warning("Mình chưa nghe thấy tiếng nói trong đoạn ghi âm. Bạn bấm micro, nói gần máy hơn rồi bấm dừng nhé.")
+        return None
     with st.spinner("Đang nghe (lần đầu mất khoảng 30 giây để nạp mô hình)..."):
         text = _transcriber()(samples)
     if not text:
@@ -162,29 +165,34 @@ def _transcribe_new(audio):
     return text or None
 
 
+def hear(audio):
+    """Nhận dạng một đoạn ghi âm (ô ghi âm dưới lời mở đầu, hoặc nút micro trong ô chat) rồi đưa chữ nghe được vào
+    ô "Mình nghe được..." để người dùng sửa và bấm Gửi."""
+    text = _transcribe_new(audio)
+    if text:
+        n = st.session_state.get("ci_heard_n", 0) + 1
+        st.session_state["ci_heard_n"] = n
+        st.session_state[HEARD] = {"n": n, "text": text}
+
+
 def voice_reply(store, patient, session_id):
-    """Khi trợ lý đang đợi trả lời câu hỏi chủ động: ô ghi âm + nút đọc to câu hỏi. Chữ nghe được hiện trong ô để
-    người dùng sửa rồi bấm Gửi (Whisper có thể "bịa" câu khi gặp tiếng ồn, nên không gửi thẳng). Trả về câu đã
-    bấm Gửi, hoặc None."""
-    if pending_topic(store, patient["id"], session_id, journal.now_vn()) is None:
-        st.session_state.pop(HEARD, None)
+    """Khi trợ lý đang đợi trả lời câu hỏi chủ động: ô ghi âm + nút đọc to câu hỏi. Chữ nghe được (từ ô này hoặc từ
+    micro của ô chat) hiện trong ô để người dùng sửa rồi bấm Gửi (Whisper có thể "bịa" câu khi gặp tiếng ồn, nên
+    không gửi thẳng). Trả về câu đã bấm Gửi, hoặc None."""
+    if pending_topic(store, patient["id"], session_id, journal.now_vn()) is not None:
+        with st.container(border=True):
+            c1, c2 = st.columns([3, 1], vertical_alignment="center")
+            audio = c1.audio_input("Hoặc trả lời bằng giọng nói", key="ci_voice")
+            opener = _opener(store, session_id)
+            if opener:
+                with c2:
+                    _speak_button(opener)
+            if audio is not None:
+                hear(audio)
+    heard = st.session_state.get(HEARD)
+    if not heard:
         return None
     with st.container(border=True):
-        c1, c2 = st.columns([3, 1], vertical_alignment="center")
-        audio = c1.audio_input("Hoặc trả lời bằng giọng nói", key="ci_voice")
-        opener = _opener(store, session_id)
-        if opener:
-            with c2:
-                _speak_button(opener)
-        if audio is not None:
-            text = _transcribe_new(audio)
-            if text:
-                n = st.session_state.get("ci_heard_n", 0) + 1
-                st.session_state["ci_heard_n"] = n
-                st.session_state[HEARD] = {"n": n, "text": text}
-        heard = st.session_state.get(HEARD)
-        if not heard:
-            return None
         n = heard["n"]
         edited = st.text_input("Mình nghe được như sau, sửa nếu sai rồi bấm Gửi:", value=heard["text"],
                                key=f"ci_heard_text_{n}")

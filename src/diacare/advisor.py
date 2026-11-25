@@ -50,7 +50,7 @@ def build_messages(ctx):
         f"Tài liệu tham khảo:\n{docs}\n\n"
         f"Câu hỏi: {ctx['question']}"
         f"{citation_reminder(ctx)}"
-        f"\n\n{LENGTH_REMINDER}"
+        f"\n\n{VOICE_REMINDER if ctx.get('voice') else LENGTH_REMINDER}"
     )
     return [{"role": "system", "content": SYSTEM_PROMPT}, *ctx["history"],
             {"role": "user", "content": user}]
@@ -66,6 +66,15 @@ LENGTH_REMINDER = ("Trả lời khoảng 120 đến 200 chữ, theo thứ tự: 
                    "(2) giải thích ngắn vì sao, chỉ dùng con số có trong thông tin ở trên, không tự ước tính số "
                    "liệu; (3) hai đến ba việc cụ thể người hỏi có thể làm; (4) một câu về khi nào nên đi khám. "
                    "Không lặp lại ý, không phóng đại mức nguy hiểm, vẫn ghi nhãn nguồn như đã dặn.")
+
+
+# Trò chuyện bằng giọng nói (V4.9): câu trả lời được đọc to, nên ngắn và theo kiểu nói. Ngắn hơn cũng nhanh hơn: mô hình
+# 3B viết khoảng 70 token/giây trên GPU 4 GB, câu 200 chữ mất khoảng 4 giây, đọc to mất hơn 1 phút. Chỉ dùng khi
+# State.voice bật, nên benchmark và chat gõ chữ không đổi.
+VOICE_REMINDER = ("Người dùng đang nói chuyện bằng giọng nói và sẽ NGHE câu trả lời. Trả lời ngắn, khoảng 50 đến 90 "
+                  "chữ, bằng câu văn nói tự nhiên: trả lời thẳng, một lý do ngắn, một hai việc nên làm, và khi nào cần "
+                  "đi khám nếu liên quan. Không gạch đầu dòng, không tiêu đề, không lặp lại câu hỏi. Vẫn ghi nhãn "
+                  "nguồn như đã dặn (nhãn không được đọc lên).")
 
 
 def citation_labels(ctx):
