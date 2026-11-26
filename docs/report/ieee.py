@@ -59,6 +59,29 @@ def _cites_index(kw):
     return next(i for i, (_, k) in enumerate(CITES) if kw in k.split("|"))
 
 
+KEYS = {   # [@khoa] trong thân bài -> từ khoá của mục trong CITES
+    "react": "ReAct", "rag": r"\bRAG\b", "memgpt": "MemGPT", "lost": "Lost in the Middle", "taubench": "τ-bench",
+    "passk": "Pass@3", "workflow": r"\bworkflow\b", "ctxeng": "context engineering", "ada": "ADA 2024",
+    "brfss15": "BRFSS 2015", "qwen": "Qwen", "sbert": "MiniLM", "rrf": "RRF", "medline": "MedlinePlus",
+    "prime": "PrimeKG", "rgcn": "R-?GCN", "distmult": "DistMult", "kg": "đồ thị tri thức", "cypher": "Cypher",
+    "qlearn": "Q-learning", "bandit": "LinUCB", "snips": "SNIPS", "brfss23": "BRFSS 2023", "nhanes": "NHANES",
+    "pima": "Pima", "whisper": r"\bWhisper", "phowhisper": "PhoWhisper", "jwt": "JWT", "scrypt": "scrypt",
+    "steps": "STEPS", "uci529": "UCI 529", "isotonic": "isotonic", "sklearn": "scikit-learn",
+}
+
+
+def _explicit(md):
+    """[@khoa] -> ⟦i⟧. Trả về (md mới, có dùng dấu hiệu tường minh hay không)."""
+    used = []
+
+    def one(m):
+        used.append(m.group(1))
+        return "⟦%d⟧" % _cites_index(KEYS[m.group(1)])
+
+    md = re.sub(r"[ ]?\[@(\w+)\]", lambda m: " " + one(m), md)
+    return md, bool(used)
+
+
 def _author_year(md):
     """(Chandak và cộng sự, 2023) -> dấu ⟦i⟧, đổi thành [n] sau khi đánh số."""
     md = md.replace(
@@ -130,6 +153,7 @@ def _spot(line, m):
 
 
 def apply(md):
+    md, explicit = _explicit(md)
     md = _author_year(md)
     head, rhead, items, tail = _split_refs(md)
     if not items:
@@ -144,7 +168,7 @@ def apply(md):
             item_of[ci] = idx
 
     first, ins = {}, {}               # mục -> (dòng, vị trí) đầu tiên; dòng -> [(vị trí, mục)]
-    for ci, idx in item_of.items():
+    for ci, idx in ([] if explicit else item_of.items()):   # có [@khoa] thì tắt bước tìm từ khoá
         pat = re.compile(CITES[ci][1])
         found = None
         for i in prose:
