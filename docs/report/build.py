@@ -3,6 +3,8 @@
 import subprocess
 from pathlib import Path
 
+import ieee
+
 HERE = Path(__file__).resolve().parent
 REPORTS = [
     ("baocao_chitiet.md", "BaoCao_DiaCare-MAS.docx"),
@@ -22,10 +24,12 @@ for src_name, out_name in REPORTS:
     if ONLY and not any(k in out_name for k in ONLY):
         continue
     out = HERE / out_name
+    tmp = HERE / ("_ieee_" + src_name)
+    tmp.write_text(ieee.apply(src.read_text(encoding="utf-8")), encoding="utf-8")
     subprocess.run(
         [
             "pandoc",
-            str(src),
+            str(tmp),
             "-o",
             str(out),
             "--toc",
@@ -34,11 +38,12 @@ for src_name, out_name in REPORTS:
             "--resource-path",
             str(HERE),
             "--reference-doc",
-            str(HERE / "reference.docx"),
+            str(HERE / "reference_ieee.docx"),
         ],
         check=True,
         cwd=str(HERE),
     )
+    tmp.unlink()
     print(f"{out_name}: {out.stat().st_size / 1024:.0f} KB")
     r = subprocess.run(
         [

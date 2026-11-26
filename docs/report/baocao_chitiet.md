@@ -96,7 +96,7 @@ Agent nào chạy được bật bằng biến `DIACARE_FEATURES`. Mặc định
 
 ![(a) Vòng lặp agent tổng quát kiểu ReAct, mô hình tự chọn công cụ. (b) Pipeline có kiểm soát của DiaCare-MAS.](figs/c6_harness.png){width=100%}
 
-Kiểu agent phổ biến hiện nay cho mô hình tự quyết định gọi công cụ nào ở mỗi bước. DiaCare-MAS cố ý không làm vậy, vì ba lý do:
+Kiểu agent phổ biến hiện nay (ReAct) cho mô hình tự quyết định gọi công cụ nào ở mỗi bước. Anthropic gọi luồng do code định sẵn là workflow, đối lập với agent do mô hình tự điều khiển luồng, và nêu workflow là lựa chọn dự đoán được hơn khi các bước của nhiệm vụ đã rõ. DiaCare-MAS cố ý chọn workflow, vì ba lý do:
 
 1. Mô hình 3B–7B chạy cục bộ chọn công cụ không ổn định. Thứ tự cố định loại bỏ hẳn lớp lỗi "chọn sai công cụ".
 2. Những việc cần chính xác tuyệt đối (đổi đơn vị xét nghiệm, so ngưỡng, tính nguy cơ) được làm bằng code có test, không giao cho mô hình.
@@ -175,7 +175,7 @@ Lớp `_Tracer` ghi mỗi bước thành `{agent, detail, ms}`. Lỗi trong hàm
 
 Tệp `memory.py`.
 
-**Bộ nhớ dài hạn** lưu năm loại thông tin: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được (xoá mềm, `active = 0`).
+**Bộ nhớ dài hạn** lưu năm loại thông tin: chẩn đoán, thuốc đang dùng, dị ứng, chế độ ăn, bệnh kèm theo. Việc tách bộ nhớ dài hạn khỏi ngữ cảnh hội thoại cùng ý tưởng với MemGPT, coi ngữ cảnh của mô hình như một hệ có nhiều tầng bộ nhớ. Hàm `extract_facts` trích bằng biểu thức chính quy và chỉ nhận câu khai báo ngôi thứ nhất. "Mẹ tôi bị tiểu đường" không được ghi thành chẩn đoán của người dùng, vì từ chỉ người thân bị thay bằng một từ giả trước khi so khớp. Hàm chạy hai lượt, trên chữ có dấu và chữ đã bỏ dấu. Sự kiện được lưu vào bảng `memories`, hiển thị ở thanh bên và xoá được (xoá mềm, `active = 0`).
 
 **Thôi ghi nhớ khi thông tin hết đúng.** Hàm `extract_retractions` nhận câu ngôi thứ nhất kiểu "tôi đã ngừng metformin", "mình bỏ uống insulin", "tôi không dùng insulin nữa" và tắt mục thuốc tương ứng; vết thực thi ghi "thôi ghi nhớ metformin". Câu hỏi như "tôi ngừng metformin được không?" hay câu về người thân ("mẹ tôi ngừng metformin") không làm tắt gì. Khai lại "tôi đang dùng metformin" thì mục đó được bật lại.
 
@@ -503,7 +503,7 @@ Trên giao diện: tab Hôm nay hiện "Lời nhắc hôm nay" (mỗi người m
 
 ## 3.10. Context: ngân sách token
 
-Tệp `context.py`. Hàm `build_context(agent, state)` trả về lát ngữ cảnh riêng cho từng agent. Với Advisor, các hằng số ngân sách:
+Tệp `context.py`. Hàm `build_context(agent, state)` trả về lát ngữ cảnh riêng cho từng agent. Ngữ cảnh được giữ ngắn vì mô hình dùng kém thông tin nằm giữa một ngữ cảnh dài (Lost in the Middle), và vì chất lượng câu trả lời phụ thuộc vào việc chọn đúng thông tin đưa vào cửa sổ hơn là nhồi thêm (context engineering). Với Advisor, các hằng số ngân sách:
 
 | Hằng số | Giá trị | Ý nghĩa |
 |---|---|---|
@@ -1009,7 +1009,7 @@ Bộ ca `eval/cases.json` có 62 ca thuộc 12 nhóm: ăn uống, vận động,
 
 Bản nháp được chấm bốn tiêu chí chung: có trích nguồn đã truy hồi (hoặc `[usda_fdc]`, `[ada_2024]` khi có dữ liệu tương ứng), không có lời khuyên đổi thuốc, có nhắc bác sĩ, và đúng tiêu chí riêng của ca. Chấm trên bản nháp chứ không chấm câu trả lời cuối, vì câu cuối luôn có ghi chú của Rules và sẽ che mất lỗi của mô hình.
 
-Mỗi ca chạy $k = 3$ lần. Báo cáo gồm Pass@3 (ca đạt ít nhất một lần), Pass^3 (ca đạt cả ba lần), tỉ lệ đạt từng lượt với khoảng tin cậy Wilson 95%, số token, độ trễ trung bình, trung vị và phân vị 95.
+Mỗi ca chạy $k = 3$ lần. Báo cáo gồm Pass@3 (ca đạt ít nhất một lần, cách đo pass@k), Pass^3 (ca đạt cả ba lần, cách đo của τ-bench), tỉ lệ đạt từng lượt với khoảng tin cậy Wilson 95%, số token, độ trễ trung bình, trung vị và phân vị 95.
 
 Công cụ `eval/rescore.py` chấm lại các bản nháp đã lưu bằng bộ chấm hiện tại mà không gọi lại mô hình, dùng khi sửa lỗi bộ chấm.
 
